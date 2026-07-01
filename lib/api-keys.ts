@@ -618,6 +618,15 @@ export async function setSetting(
 ): Promise<{ ok: boolean; error?: string }> {
   const sb = getSupabaseAdminClient();
   if (!sb) return { ok: false, error: "Supabase is not configured" };
+  // The jsonb `value` column is NOT NULL. "Unlimited/unset" (e.g. daily_prompt_cap = null)
+  // is stored as a MISSING row — getSettings falls back to defaults — so we never write SQL NULL.
+  if (value === null || value === undefined) {
+    const { error } = await sb.from("app_settings").delete().eq("key", key);
+    if (error) return { ok: false, error: error.message };
+    settingsCache = null;
+    await logAudit("update_setting", key, { value: null });
+    return { ok: true };
+  }
   const { error } = await sb
     .from("app_settings")
     .upsert({ key, value, updated_at: new Date().toISOString() }, { onConflict: "key" });
