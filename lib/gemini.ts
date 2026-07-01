@@ -1800,6 +1800,17 @@ function geminiBodyToBedrock(body: Record<string, any>): Record<string, unknown>
   return req;
 }
 
+// A Bedrock API key is an IAM bearer token — region-agnostic. The endpoint region is
+// dictated by the model/inference-profile's geo prefix (us./eu./apac.), so derive it
+// automatically; only fall back to the configured region for bare or `global.` ids.
+function regionForModel(modelId: string, fallback: string): string {
+  const p = modelId.toLowerCase();
+  if (p.startsWith("us.")) return fallback.startsWith("us-") ? fallback : "us-east-1";
+  if (p.startsWith("eu.")) return fallback.startsWith("eu-") ? fallback : "eu-west-1";
+  if (p.startsWith("apac.") || p.startsWith("ap.")) return fallback.startsWith("ap-") ? fallback : "ap-southeast-1";
+  return fallback || "us-east-1"; // bare id or global. profile → use configured region
+}
+
 // One Bedrock InvokeModel call against ONE model/inference-profile. Bearer-token auth
 // (AWS Bedrock API key) — no SigV4 signing required.
 async function callBedrockModel(
@@ -1809,7 +1820,8 @@ async function callBedrockModel(
   modelId: string
 ): Promise<OrAttempt> {
   const req = geminiBodyToBedrock(body as Record<string, any>);
-  const url = `https://bedrock-runtime.${region}.amazonaws.com/model/${encodeURIComponent(modelId)}/invoke`;
+  const effectiveRegion = regionForModel(modelId, region);
+  const url = `https://bedrock-runtime.${effectiveRegion}.amazonaws.com/model/${encodeURIComponent(modelId)}/invoke`;
   let res: Response;
   try {
     res = await fetch(url, {

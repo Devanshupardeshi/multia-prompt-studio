@@ -780,6 +780,9 @@ function SettingsTab({
   const [brRegion, setBrRegion] = useState("us-east-1");
   const [brModels, setBrModels] = useState<string[]>([]); // ordered fallback chain
   const [brModelInput, setBrModelInput] = useState("");
+  const [brAvailable, setBrAvailable] = useState<{ id: string; name: string }[]>([]);
+  const [brFilter, setBrFilter] = useState("");
+  const [brFetching, setBrFetching] = useState(false);
 
   useEffect(() => {
     if (settings) {
@@ -826,15 +829,37 @@ function SettingsTab({
   const promoteModel = (i: number) =>
     setOrModels((c) => (i <= 0 ? c : c.map((m, j) => (j === i - 1 ? c[i] : j === i ? c[i - 1] : m))));
 
+  const addBrModelId = (id: string) => setBrModels((c) => (c.includes(id) ? c : [...c, id]));
   const addBrModel = () => {
     const id = brModelInput.trim();
     if (!id) return;
-    setBrModels((c) => (c.includes(id) ? c : [...c, id]));
+    addBrModelId(id);
     setBrModelInput("");
   };
   const removeBrModel = (id: string) => setBrModels((c) => c.filter((m) => m !== id));
   const promoteBrModel = (i: number) =>
     setBrModels((c) => (i <= 0 ? c : c.map((m, j) => (j === i - 1 ? c[i] : j === i ? c[i - 1] : m))));
+
+  const fetchBrModels = async () => {
+    setBrFetching(true);
+    try {
+      const { ok, data } = await api("/api/admin/bedrock/models", {
+        method: "POST",
+        body: JSON.stringify({
+          ...(brKey.trim() ? { key: brKey.trim() } : {}),
+          ...(brRegion.trim() ? { region: brRegion.trim() } : {}),
+        }),
+      });
+      if (ok) {
+        setBrAvailable(data.models ?? []);
+        toast.success(`${(data.models ?? []).length} models available`);
+      } else {
+        toast.error(data.error || "Could not list models");
+      }
+    } finally {
+      setBrFetching(false);
+    }
+  };
 
   const save = async () => {
     setBusy(true);
@@ -993,21 +1018,36 @@ function SettingsTab({
               />
             </label>
             <label className="block">
-              <span className="text-xs uppercase tracking-wider text-white/40">AWS region</span>
+              <span className="text-xs uppercase tracking-wider text-white/40">
+                AWS region <span className="normal-case text-white/30">· auto from model prefix</span>
+              </span>
               <input
                 value={brRegion}
                 onChange={(e) => setBrRegion(e.target.value)}
                 placeholder="us-east-1"
                 className="mt-1 w-full rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm font-mono outline-none focus:border-white/30"
               />
+              <span className="mt-1 block text-[11px] text-white/30">
+                Auto-picked from each model&apos;s geo prefix (us./eu./apac.). Only used for bare or global. ids —
+                override if you need a specific region.
+              </span>
             </label>
 
             <div>
-              <span className="text-xs uppercase tracking-wider text-white/40">Model fallback chain</span>
+              <div className="flex items-center justify-between">
+                <span className="text-xs uppercase tracking-wider text-white/40">Model fallback chain</span>
+                <button
+                  onClick={fetchBrModels}
+                  disabled={brFetching}
+                  className="rounded-md border border-white/15 px-2 py-1 text-[11px] text-white/70 hover:bg-white/5 disabled:opacity-40"
+                >
+                  {brFetching ? "Testing…" : "Test key & list models"}
+                </button>
+              </div>
               {brModels.length === 0 ? (
                 <p className="mt-2 text-[11px] text-white/35">
-                  Add at least one model / inference-profile id. The first is primary; the rest are fallbacks used
-                  automatically when a model&apos;s RPM/TPM is throttled.
+                  Test your key to list models, or type an id below. The first is primary; the rest are fallbacks
+                  used automatically when a model&apos;s RPM/TPM is throttled.
                 </p>
               ) : (
                 <ol className="mt-2 space-y-1">
@@ -1024,12 +1064,49 @@ function SettingsTab({
                   ))}
                 </ol>
               )}
+
+              {/* Detected models (after Test) — filterable, click to add. */}
+              {brAvailable.length > 0 && (
+                <div className="mt-3 rounded-md border border-white/10 bg-black/20 p-2">
+                  <input
+                    value={brFilter}
+                    onChange={(e) => setBrFilter(e.target.value)}
+                    placeholder="Filter models (e.g. opus, claude)…"
+                    className="mb-2 w-full rounded border border-white/10 bg-black/30 px-2 py-1 text-xs outline-none focus:border-white/30"
+                  />
+                  <div className="max-h-48 space-y-0.5 overflow-y-auto">
+                    {brAvailable
+                      .filter((m) => {
+                        const q = brFilter.trim().toLowerCase();
+                        return !q || m.id.toLowerCase().includes(q) || m.name.toLowerCase().includes(q);
+                      })
+                      .slice(0, 200)
+                      .map((m) => {
+                        const picked = brModels.includes(m.id);
+                        return (
+                          <button
+                            key={m.id}
+                            onClick={() => (picked ? removeBrModel(m.id) : addBrModelId(m.id))}
+                            className={`flex w-full items-center gap-2 rounded px-2 py-1 text-left text-[11px] transition-colors ${
+                              picked ? "bg-amber-500/10 text-amber-200" : "text-white/60 hover:bg-white/5"
+                            }`}
+                            title={m.name}
+                          >
+                            <span className="w-3 shrink-0">{picked ? "✓" : "+"}</span>
+                            <span className="truncate font-mono">{m.id}</span>
+                          </button>
+                        );
+                      })}
+                  </div>
+                </div>
+              )}
+
               <div className="mt-2 flex gap-2">
                 <input
                   value={brModelInput}
                   onChange={(e) => setBrModelInput(e.target.value)}
                   onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addBrModel(); } }}
-                  placeholder="us.anthropic.claude-opus-4-…-v1:0"
+                  placeholder="or type an id: us.anthropic.claude-opus-4-…-v1:0"
                   className="flex-1 rounded-md border border-white/10 bg-black/30 px-2 py-1.5 text-xs font-mono outline-none focus:border-white/30"
                 />
                 <button onClick={addBrModel} className="rounded-md border border-white/15 px-3 py-1.5 text-xs text-white/70 hover:bg-white/5">Add</button>
@@ -1040,8 +1117,9 @@ function SettingsTab({
               Calls AWS Bedrock directly with your Bedrock API key (bearer token) — your full AWS RPM/TPM, no
               OpenRouter middleman or credit reservation. Use the model or cross-region <em>inference-profile</em> id
               from the AWS console (Bedrock → Model catalog / Cross-region inference), e.g.
-              <span className="font-mono"> us.anthropic.claude-opus-4-…-v1:0</span>. Parallel modes (deep research)
-              are auto-serialized so low default quotas aren&apos;t blown.
+              <span className="font-mono"> us.anthropic.claude-opus-4-…-v1:0</span> — the region is picked
+              automatically from its <span className="font-mono">us./eu./apac.</span> prefix. Parallel modes (deep
+              research) are auto-serialized so low default quotas aren&apos;t blown.
             </p>
           </div>
         )}
