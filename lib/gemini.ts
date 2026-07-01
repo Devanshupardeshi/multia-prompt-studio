@@ -1811,6 +1811,13 @@ function regionForModel(modelId: string, fallback: string): string {
   return fallback || "us-east-1"; // bare id or global. profile → use configured region
 }
 
+// Inverse of regionForModel: the cross-region inference-profile geo prefix for a region.
+function geoPrefixForRegion(region: string): string {
+  if (region.startsWith("eu-")) return "eu";
+  if (region.startsWith("ap-")) return "apac";
+  return "us";
+}
+
 // One Bedrock InvokeModel call against ONE model/inference-profile. Bearer-token auth
 // (AWS Bedrock API key) — no SigV4 signing required.
 async function callBedrockModel(
@@ -1821,10 +1828,10 @@ async function callBedrockModel(
 ): Promise<OrAttempt> {
   const req = geminiBodyToBedrock(body as Record<string, any>);
   const effectiveRegion = regionForModel(modelId, region);
-  const url = `https://bedrock-runtime.${effectiveRegion}.amazonaws.com/model/${encodeURIComponent(modelId)}/invoke`;
-  let res: Response;
-  try {
-    res = await fetch(url, {
+
+  const invoke = async (id: string) => {
+    const url = `https://bedrock-runtime.${effectiveRegion}.amazonaws.com/model/${encodeURIComponent(id)}/invoke`;
+    const r = await fetch(url, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -1833,13 +1840,35 @@ async function callBedrockModel(
       },
       body: JSON.stringify(req),
     });
+    const raw = await r.text();
+    let data: any = null;
+    try { data = JSON.parse(raw); } catch { /* non-JSON body */ }
+    return { res: r, raw, data };
+  };
+
+  let res: Response, raw: string, data: any;
+  try {
+    ({ res, raw, data } = await invoke(modelId));
   } catch (e) {
     return { ok: false, kind: "throttle", message: e instanceof Error ? e.message : "Network error calling Bedrock" };
   }
 
-  const raw = await res.text();
-  let data: any = null;
-  try { data = JSON.parse(raw); } catch { /* non-JSON body */ }
+  // Auto-heal: a bare foundation-model id that can't run on-demand — Bedrock wants a cross-region
+  // inference profile. Retry once with the geo prefix (e.g. anthropic.…  →  us.anthropic.…).
+  if (
+    res.status === 400 &&
+    /inference profile|on-demand throughput/i.test(data?.message || raw) &&
+    !/^(us|eu|apac|global)\./i.test(modelId)
+  ) {
+    const profileId = `${geoPrefixForRegion(effectiveRegion)}.${modelId}`;
+    try {
+      const retry = await invoke(profileId);
+      if (retry.res.ok || retry.res.status !== 400) {
+        console.log(`[Bedrock] ${modelId} needs an inference profile — auto-retried as ${profileId}`);
+        ({ res, raw, data } = retry);
+      }
+    } catch { /* keep the original 400 below */ }
+  }
 
   // Throttling / transient — this model is out of capacity; caller falls to the next.
   if ([429, 500, 502, 503, 529].includes(res.status)) {
