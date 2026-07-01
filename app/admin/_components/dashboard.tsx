@@ -182,6 +182,11 @@ export function Dashboard() {
     if (tab === "setup") loadSetup();
   }, [tab, loadEvents, loadSettings, loadSetup]);
 
+  // Load settings once on mount so the header provider badge is always accurate.
+  useEffect(() => {
+    loadSettings();
+  }, [loadSettings]);
+
   const logout = useCallback(async () => {
     await api("/api/admin/logout", { method: "POST" });
     window.location.href = "/admin/login";
@@ -198,6 +203,18 @@ export function Dashboard() {
           <p className="mt-0.5 text-sm text-white/40">Live Gemini key pool &amp; studio controls</p>
         </div>
         <div className="flex items-center gap-2">
+          {settings && (
+            <span
+              title={settings.provider === "openrouter" ? settings.openrouter_model : settings.default_model}
+              className={`rounded-lg border px-3 py-1.5 text-sm ${
+                settings.provider === "openrouter"
+                  ? "border-sky-500/30 bg-sky-500/10 text-sky-300"
+                  : "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
+              }`}
+            >
+              ● {settings.provider === "openrouter" ? `OpenRouter · ${settings.openrouter_model}` : "Gemini"}
+            </span>
+          )}
           <a href="/" className="rounded-lg border border-white/10 px-3 py-1.5 text-sm text-white/60 hover:bg-white/5">
             ↗ Studio
           </a>
