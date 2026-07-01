@@ -16,7 +16,10 @@ import {
 type Tab = "keys" | "analytics" | "errors" | "settings" | "setup";
 
 // What the settings API returns to the browser — raw OpenRouter key is masked.
-type AdminSettings = Omit<AppSettings, "openrouter_api_key"> & { openrouter_api_key_set?: boolean };
+type AdminSettings = Omit<AppSettings, "openrouter_api_key" | "bedrock_api_key"> & {
+  openrouter_api_key_set?: boolean;
+  bedrock_api_key_set?: boolean;
+};
 
 interface DailyStat {
   key_id: string;
@@ -205,14 +208,22 @@ export function Dashboard() {
         <div className="flex items-center gap-2">
           {settings && (
             <span
-              title={settings.provider === "openrouter" ? settings.openrouter_model : settings.default_model}
+              title={
+                settings.provider === "openrouter" ? settings.openrouter_model
+                : settings.provider === "bedrock" ? settings.bedrock_model
+                : settings.default_model
+              }
               className={`rounded-lg border px-3 py-1.5 text-sm ${
                 settings.provider === "openrouter"
                   ? "border-sky-500/30 bg-sky-500/10 text-sky-300"
-                  : "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
+                  : settings.provider === "bedrock"
+                    ? "border-amber-500/30 bg-amber-500/10 text-amber-300"
+                    : "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
               }`}
             >
-              ● {settings.provider === "openrouter" ? `OpenRouter · ${settings.openrouter_model}` : "Gemini"}
+              ● {settings.provider === "openrouter" ? `OpenRouter · ${settings.openrouter_model}`
+                : settings.provider === "bedrock" ? `Bedrock · ${settings.bedrock_model || "no model"}`
+                : "Gemini"}
             </span>
           )}
           <a href="/" className="rounded-lg border border-white/10 px-3 py-1.5 text-sm text-white/60 hover:bg-white/5">
@@ -755,7 +766,7 @@ function SettingsTab({
   const [cap, setCap] = useState("");
   const [maintenance, setMaintenance] = useState(false);
   const [model, setModel] = useState("gemini-3.5-flash");
-  const [provider, setProvider] = useState<"gemini" | "openrouter">("gemini");
+  const [provider, setProvider] = useState<"gemini" | "openrouter" | "bedrock">("gemini");
   const [orKey, setOrKey] = useState("");
   const [orModels, setOrModels] = useState<string[]>([]); // ordered fallback chain
   const [orKeySet, setOrKeySet] = useState(false);
@@ -763,6 +774,12 @@ function SettingsTab({
   const [available, setAvailable] = useState<{ id: string; name: string }[]>([]);
   const [modelFilter, setModelFilter] = useState("");
   const [fetchingModels, setFetchingModels] = useState(false);
+  // Bedrock (direct AWS, bearer-token API key)
+  const [brKey, setBrKey] = useState("");
+  const [brKeySet, setBrKeySet] = useState(false);
+  const [brRegion, setBrRegion] = useState("us-east-1");
+  const [brModels, setBrModels] = useState<string[]>([]); // ordered fallback chain
+  const [brModelInput, setBrModelInput] = useState("");
 
   useEffect(() => {
     if (settings) {
@@ -776,6 +793,13 @@ function SettingsTab({
       setOrModels(chain);
       setOrKeySet(!!settings.openrouter_api_key_set);
       setOrKey("");
+      const brChain = settings.bedrock_models?.length
+        ? settings.bedrock_models
+        : settings.bedrock_model ? [settings.bedrock_model] : [];
+      setBrModels(brChain);
+      setBrRegion(settings.bedrock_region || "us-east-1");
+      setBrKeySet(!!settings.bedrock_api_key_set);
+      setBrKey("");
     }
   }, [settings]);
 
@@ -802,6 +826,16 @@ function SettingsTab({
   const promoteModel = (i: number) =>
     setOrModels((c) => (i <= 0 ? c : c.map((m, j) => (j === i - 1 ? c[i] : j === i ? c[i - 1] : m))));
 
+  const addBrModel = () => {
+    const id = brModelInput.trim();
+    if (!id) return;
+    setBrModels((c) => (c.includes(id) ? c : [...c, id]));
+    setBrModelInput("");
+  };
+  const removeBrModel = (id: string) => setBrModels((c) => c.filter((m) => m !== id));
+  const promoteBrModel = (i: number) =>
+    setBrModels((c) => (i <= 0 ? c : c.map((m, j) => (j === i - 1 ? c[i] : j === i ? c[i - 1] : m))));
+
   const save = async () => {
     setBusy(true);
     try {
@@ -817,6 +851,9 @@ function SettingsTab({
           ...(orModels[0] ? { openrouter_model: orModels[0] } : {}),
           // only sent when non-empty — blank keeps the existing key
           ...(orKey.trim() ? { openrouter_api_key: orKey.trim() } : {}),
+          bedrock_region: brRegion.trim() || "us-east-1",
+          bedrock_models: brModels,
+          ...(brKey.trim() ? { bedrock_api_key: brKey.trim() } : {}),
         }),
       });
       if (ok) {
@@ -836,16 +873,16 @@ function SettingsTab({
     <div className="grid gap-6 lg:grid-cols-2">
       <div className="space-y-4 rounded-xl border border-white/10 p-5">
         <div className="text-sm font-medium text-white/80">Provider</div>
-        <div className="grid grid-cols-2 gap-2">
-          {(["gemini", "openrouter"] as const).map((p) => (
+        <div className="grid grid-cols-3 gap-2">
+          {(["gemini", "openrouter", "bedrock"] as const).map((p) => (
             <button
               key={p}
               onClick={() => setProvider(p)}
-              className={`rounded-lg border px-3 py-2 text-sm capitalize transition-colors ${
+              className={`rounded-lg border px-3 py-2 text-sm transition-colors ${
                 provider === p ? "border-white bg-white text-black" : "border-white/15 text-white/60 hover:bg-white/5"
               }`}
             >
-              {p === "openrouter" ? "OpenRouter" : "Gemini"}
+              {p === "openrouter" ? "OpenRouter" : p === "bedrock" ? "Bedrock" : "Gemini"}
             </button>
           ))}
         </div>
@@ -937,6 +974,74 @@ function SettingsTab({
               Routes ALL generation through this single key (e.g. Claude Opus via Bedrock). It tries the primary
               model, falling to the next automatically on a 429 (RPM exhausted) or overload. Parallel modes
               (deep research) are auto-serialized so a low Bedrock quota isn&apos;t blown.
+            </p>
+          </div>
+        )}
+
+        {provider === "bedrock" && (
+          <div className="space-y-3 rounded-lg border border-white/10 bg-black/20 p-3">
+            <label className="block">
+              <span className="text-xs uppercase tracking-wider text-white/40">
+                Bedrock API key {brKeySet && <span className="text-emerald-400/70 normal-case">· saved</span>}
+              </span>
+              <input
+                value={brKey}
+                onChange={(e) => setBrKey(e.target.value)}
+                type="password"
+                placeholder={brKeySet ? "•••••••• (leave blank to keep current)" : "AWS Bedrock API key (bearer token)"}
+                className="mt-1 w-full rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm outline-none focus:border-white/30"
+              />
+            </label>
+            <label className="block">
+              <span className="text-xs uppercase tracking-wider text-white/40">AWS region</span>
+              <input
+                value={brRegion}
+                onChange={(e) => setBrRegion(e.target.value)}
+                placeholder="us-east-1"
+                className="mt-1 w-full rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm font-mono outline-none focus:border-white/30"
+              />
+            </label>
+
+            <div>
+              <span className="text-xs uppercase tracking-wider text-white/40">Model fallback chain</span>
+              {brModels.length === 0 ? (
+                <p className="mt-2 text-[11px] text-white/35">
+                  Add at least one model / inference-profile id. The first is primary; the rest are fallbacks used
+                  automatically when a model&apos;s RPM/TPM is throttled.
+                </p>
+              ) : (
+                <ol className="mt-2 space-y-1">
+                  {brModels.map((id, i) => (
+                    <li key={id} className="flex items-center gap-2 rounded-md border border-white/10 bg-black/30 px-2 py-1.5 text-xs">
+                      <span className="w-4 shrink-0 text-white/30">{i + 1}</span>
+                      <span className="flex-1 truncate font-mono">{id}</span>
+                      {i === 0 && <span className="shrink-0 rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] text-amber-300">primary</span>}
+                      {i > 0 && (
+                        <button onClick={() => promoteBrModel(i)} title="Move up" className="shrink-0 text-white/40 hover:text-white">↑</button>
+                      )}
+                      <button onClick={() => removeBrModel(id)} title="Remove" className="shrink-0 text-white/40 hover:text-red-400">×</button>
+                    </li>
+                  ))}
+                </ol>
+              )}
+              <div className="mt-2 flex gap-2">
+                <input
+                  value={brModelInput}
+                  onChange={(e) => setBrModelInput(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addBrModel(); } }}
+                  placeholder="us.anthropic.claude-opus-4-…-v1:0"
+                  className="flex-1 rounded-md border border-white/10 bg-black/30 px-2 py-1.5 text-xs font-mono outline-none focus:border-white/30"
+                />
+                <button onClick={addBrModel} className="rounded-md border border-white/15 px-3 py-1.5 text-xs text-white/70 hover:bg-white/5">Add</button>
+              </div>
+            </div>
+
+            <p className="text-[11px] text-white/35">
+              Calls AWS Bedrock directly with your Bedrock API key (bearer token) — your full AWS RPM/TPM, no
+              OpenRouter middleman or credit reservation. Use the model or cross-region <em>inference-profile</em> id
+              from the AWS console (Bedrock → Model catalog / Cross-region inference), e.g.
+              <span className="font-mono"> us.anthropic.claude-opus-4-…-v1:0</span>. Parallel modes (deep research)
+              are auto-serialized so low default quotas aren&apos;t blown.
             </p>
           </div>
         )}

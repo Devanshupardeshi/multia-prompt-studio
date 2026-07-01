@@ -98,10 +98,14 @@ insert into public.app_settings (key, value) values
   ('daily_prompt_cap', 'null'::jsonb),          -- null = unlimited
   ('maintenance_mode', 'false'::jsonb),
   ('default_model',    '"gemini-3.5-flash"'::jsonb),
-  ('provider',         '"gemini"'::jsonb),        -- 'gemini' | 'openrouter'
+  ('provider',         '"gemini"'::jsonb),        -- 'gemini' | 'openrouter' | 'bedrock'
   ('openrouter_api_key', '""'::jsonb),            -- set from the admin panel (Settings)
   ('openrouter_model', '"anthropic/claude-opus-4.6"'::jsonb),  -- primary (synced with chain[0])
-  ('openrouter_models', '[]'::jsonb)              -- ordered fallback chain, set from Settings
+  ('openrouter_models', '[]'::jsonb),             -- ordered fallback chain, set from Settings
+  ('bedrock_api_key',  '""'::jsonb),              -- AWS Bedrock API key (bearer), set from Settings
+  ('bedrock_region',   '"us-east-1"'::jsonb),
+  ('bedrock_model',    '""'::jsonb),              -- primary (synced with bedrock chain[0])
+  ('bedrock_models',   '[]'::jsonb)               -- ordered fallback chain of model/inference-profile ids
 on conflict (key) do nothing;
 
 -- ----------------------------------------------------------------------------

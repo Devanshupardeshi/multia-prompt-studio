@@ -587,6 +587,10 @@ export async function getSettings(): Promise<AppSettings> {
     openrouter_api_key: "",
     openrouter_model: "anthropic/claude-opus-4.6",
     openrouter_models: [],
+    bedrock_api_key: "",
+    bedrock_region: "us-east-1",
+    bedrock_model: "",
+    bedrock_models: [],
   };
   const sb = getSupabaseAdminClient();
   if (!sb) return defaults;
@@ -598,10 +602,15 @@ export async function getSettings(): Promise<AppSettings> {
     daily_prompt_cap: (map.daily_prompt_cap as number | null) ?? null,
     maintenance_mode: (map.maintenance_mode as boolean) ?? false,
     default_model: (map.default_model as string) || DEFAULT_MODEL,
-    provider: (map.provider as "gemini" | "openrouter") === "openrouter" ? "openrouter" : "gemini",
+    provider:
+      map.provider === "openrouter" ? "openrouter" : map.provider === "bedrock" ? "bedrock" : "gemini",
     openrouter_api_key: (map.openrouter_api_key as string) || "",
     openrouter_model: (map.openrouter_model as string) || "anthropic/claude-opus-4.6",
     openrouter_models: Array.isArray(map.openrouter_models) ? (map.openrouter_models as string[]) : [],
+    bedrock_api_key: (map.bedrock_api_key as string) || "",
+    bedrock_region: (map.bedrock_region as string) || "us-east-1",
+    bedrock_model: (map.bedrock_model as string) || "",
+    bedrock_models: Array.isArray(map.bedrock_models) ? (map.bedrock_models as string[]) : [],
   };
 }
 

@@ -1760,8 +1760,141 @@ async function callOpenRouter(body: Record<string, unknown>, _mode?: string): Pr
   throw new Error(`OpenRouter request failed — all models throttled after ${maxRounds} rounds (last: ${lastErr}). Try again shortly.`);
 }
 
+// Translate a Gemini request body into the Anthropic Messages format used by Bedrock's
+// InvokeModel (Claude on Bedrock). Bedrock REQUIRES max_tokens; we set it explicitly so
+// there's no OpenRouter-style credit reservation problem.
+function geminiBodyToBedrock(body: Record<string, any>): Record<string, unknown> {
+  const sys = (body.systemInstruction?.parts ?? []).map((p: any) => p.text ?? "").join("\n").trim();
+  const messages: Array<Record<string, unknown>> = [];
+  for (const c of body.contents ?? []) {
+    const role = c.role === "model" ? "assistant" : "user";
+    const content: Array<Record<string, unknown>> = [];
+    for (const part of c.parts ?? []) {
+      if (typeof part.text === "string") content.push({ type: "text", text: part.text });
+      else if (part.inlineData) {
+        content.push({
+          type: "image",
+          source: { type: "base64", media_type: part.inlineData.mimeType, data: part.inlineData.data },
+        });
+      }
+    }
+    messages.push({ role, content });
+  }
+
+  const gc = body.generationConfig ?? {};
+  if (gc.responseMimeType === "application/json") {
+    const schemaLine = gc.responseSchema
+      ? `\n\nReturn ONLY a single valid JSON object (no markdown fences, no prose) conforming to this JSON schema:\n${JSON.stringify(geminiSchemaToJsonSchema(gc.responseSchema))}`
+      : `\n\nReturn ONLY a single valid JSON object (no markdown fences, no prose).`;
+    messages.push({ role: "user", content: [{ type: "text", text: schemaLine }] });
+  }
+
+  const req: Record<string, unknown> = {
+    anthropic_version: "bedrock-2023-05-31",
+    max_tokens: typeof gc.maxOutputTokens === "number" ? gc.maxOutputTokens : 16000,
+    messages,
+  };
+  if (sys) req.system = sys;
+  if (typeof gc.temperature === "number") req.temperature = gc.temperature;
+  if (typeof gc.topP === "number") req.top_p = gc.topP;
+  return req;
+}
+
+// One Bedrock InvokeModel call against ONE model/inference-profile. Bearer-token auth
+// (AWS Bedrock API key) — no SigV4 signing required.
+async function callBedrockModel(
+  apiKey: string,
+  region: string,
+  body: Record<string, unknown>,
+  modelId: string
+): Promise<OrAttempt> {
+  const req = geminiBodyToBedrock(body as Record<string, any>);
+  const url = `https://bedrock-runtime.${region}.amazonaws.com/model/${encodeURIComponent(modelId)}/invoke`;
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify(req),
+    });
+  } catch (e) {
+    return { ok: false, kind: "throttle", message: e instanceof Error ? e.message : "Network error calling Bedrock" };
+  }
+
+  const raw = await res.text();
+  let data: any = null;
+  try { data = JSON.parse(raw); } catch { /* non-JSON body */ }
+
+  // Throttling / transient — this model is out of capacity; caller falls to the next.
+  if ([429, 500, 502, 503, 529].includes(res.status)) {
+    const retryAfter = res.headers.get("Retry-After");
+    return {
+      ok: false,
+      kind: "throttle",
+      message: `${res.status}: ${data?.message || raw.slice(0, 160)}`,
+      retryAfterMs: retryAfter ? (parseInt(retryAfter, 10) || 0) * 1000 : undefined,
+    };
+  }
+
+  // 400 (bad model id / body), 403 (model not enabled), 404 (not found), 401 (bad key) — fatal.
+  if (!res.ok) {
+    return { ok: false, kind: "fatal", message: `${res.status}: ${data?.message || raw.slice(0, 300)}` };
+  }
+
+  if (data?.stop_reason === "max_tokens") {
+    return { ok: false, kind: "fatal", message: "response truncated (stop_reason: max_tokens)" };
+  }
+  const content = data?.content;
+  const out = Array.isArray(content)
+    ? content.map((c: any) => (c?.type === "text" ? (c.text ?? "") : "")).join("")
+    : "";
+  if (!out.trim()) return { ok: false, kind: "fatal", message: "empty response" };
+  return { ok: true, text: out.trim() };
+}
+
+async function callBedrock(body: Record<string, unknown>, _mode?: string): Promise<string> {
+  const settings = await getSettingsCached();
+  const apiKey = settings.bedrock_api_key;
+  const region = settings.bedrock_region || "us-east-1";
+  if (!apiKey) {
+    throw new Error("Bedrock mode is on but no Bedrock API key is set. Add it in the admin panel (/admin → Settings).");
+  }
+  const models = settings.bedrock_models?.length
+    ? settings.bedrock_models
+    : settings.bedrock_model ? [settings.bedrock_model] : [];
+  if (models.length === 0) {
+    throw new Error("Bedrock mode is on but no model IDs are configured. Add at least one in the admin panel (/admin → Settings).");
+  }
+
+  const maxRounds = 3;
+  let lastErr = "";
+  for (let round = 0; round < maxRounds; round++) {
+    let roundRetryMs = 0;
+    for (const modelId of models) {
+      const r = await callBedrockModel(apiKey, region, body, modelId);
+      if (r.ok) return r.text;
+      lastErr = `${modelId} → ${r.message}`;
+      if (r.kind === "fatal") {
+        throw new Error(`Bedrock error (${lastErr})`);
+      }
+      console.log(`[Bedrock] ${modelId} throttled (${r.message}); falling to next model`);
+      roundRetryMs = Math.max(roundRetryMs, r.retryAfterMs ?? 0);
+    }
+    if (round < maxRounds - 1) {
+      const delay = Math.max(roundRetryMs, Math.min(8000 * 2 ** round, 60000));
+      console.log(`[Bedrock] all ${models.length} model(s) throttled; retrying chain in ${(delay / 1000).toFixed(0)}s (round ${round + 1}/${maxRounds})`);
+      await sleep(delay);
+    }
+  }
+  throw new Error(`Bedrock request failed — all models throttled after ${maxRounds} rounds (last: ${lastErr}). Try again shortly.`);
+}
+
 // Concurrency-limited settle — used to serialize the parallel deep-research calls onto a
-// single OpenRouter key so a low Bedrock quota isn't blown by 10 concurrent requests.
+// single external key so a low Bedrock/OpenRouter quota isn't blown by 10 concurrent requests.
 async function settleWithConcurrency<T, R>(
   items: T[],
   limit: number,
@@ -1794,6 +1927,9 @@ async function callGemini(
   const providerSettings = await getSettingsCached();
   if (providerSettings.provider === "openrouter") {
     return callOpenRouter(body, mode);
+  }
+  if (providerSettings.provider === "bedrock") {
+    return callBedrock(body, mode);
   }
 
   const usingDb = await poolUsesDb();
@@ -2171,6 +2307,9 @@ async function callGeminiWithKey(body: Record<string, unknown>, apiKey: string, 
   if (orSettings.provider === "openrouter") {
     return callOpenRouter(body, "deep_research");
   }
+  if (orSettings.provider === "bedrock") {
+    return callBedrock(body, "deep_research");
+  }
   const maxRetries = 3;
 
   for (let attempt = 0; attempt < maxRetries; attempt++) {
@@ -2225,10 +2364,11 @@ async function generateDeepResearchParallel(payload: GeneratePayload): Promise<s
   const sectionKeys = Object.keys(properties);
 
   // Build key descriptors from the DB pool (preferred) or the env fallback.
-  // In OpenRouter mode the key is ignored (one OpenRouter key), so a single dummy is enough.
+  // In external-provider mode (OpenRouter/Bedrock) the key is ignored (one key), so a single dummy is enough.
+  const externalProvider = settings.provider === "openrouter" || settings.provider === "bedrock";
   const usingDb = await poolUsesDb();
   const descriptors: Array<{ id: string | null; key: string }> =
-    settings.provider === "openrouter"
+    externalProvider
       ? [{ id: null, key: "" }]
       : usingDb
         ? (await listActiveKeySecrets()).map((k) => ({ id: k.id, key: k.key }))
@@ -2250,11 +2390,10 @@ async function generateDeepResearchParallel(payload: GeneratePayload): Promise<s
     `Deep Research: ${sectionKeys.length} sections across ${descriptors.length} key(s) [${usingDb ? "DB pool" : "env"}]`
   );
 
-  // One OpenRouter key (Bedrock) cannot take 10 concurrent calls — serialize in that mode.
-  const orProvider = settings.provider === "openrouter";
+  // One external key (OpenRouter/Bedrock) cannot take 10 concurrent calls — serialize in that mode.
   const results = await settleWithConcurrency(
     assignments,
-    orProvider ? 1 : assignments.length,
+    externalProvider ? 1 : assignments.length,
     async ({ sectionKey, desc }) => {
       const startedAt = Date.now();
       const sectionSchema = {

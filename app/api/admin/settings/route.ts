@@ -3,10 +3,14 @@ import { isRequestAuthed } from "@/lib/admin-auth";
 import { getSettings, setSetting, listAudit } from "@/lib/api-keys";
 import type { AppSettings } from "@/lib/api-keys-types";
 
-// Never leak the raw OpenRouter key to the browser — expose only whether it's set.
+// Never leak raw provider keys to the browser — expose only whether each is set.
 function maskSettings(settings: AppSettings) {
-  const { openrouter_api_key, ...rest } = settings;
-  return { ...rest, openrouter_api_key_set: !!openrouter_api_key };
+  const { openrouter_api_key, bedrock_api_key, ...rest } = settings;
+  return {
+    ...rest,
+    openrouter_api_key_set: !!openrouter_api_key,
+    bedrock_api_key_set: !!bedrock_api_key,
+  };
 }
 
 export async function GET(req: NextRequest) {
@@ -34,7 +38,7 @@ export async function PATCH(req: NextRequest) {
   if (typeof body.default_model === "string" && body.default_model.trim()) {
     updates.push(setSetting("default_model", body.default_model.trim()));
   }
-  if (body.provider === "gemini" || body.provider === "openrouter") {
+  if (body.provider === "gemini" || body.provider === "openrouter" || body.provider === "bedrock") {
     updates.push(setSetting("provider", body.provider));
   }
   // Only overwrite the key when a non-empty value is supplied (blank = keep existing).
@@ -51,6 +55,21 @@ export async function PATCH(req: NextRequest) {
       .map((m: string) => m.trim());
     updates.push(setSetting("openrouter_models", chain));
     if (chain.length) updates.push(setSetting("openrouter_model", chain[0]));
+  }
+
+  // Bedrock: key (only when non-empty), region, and ordered model chain (syncs bedrock_model).
+  if (typeof body.bedrock_api_key === "string" && body.bedrock_api_key.trim()) {
+    updates.push(setSetting("bedrock_api_key", body.bedrock_api_key.trim()));
+  }
+  if (typeof body.bedrock_region === "string" && body.bedrock_region.trim()) {
+    updates.push(setSetting("bedrock_region", body.bedrock_region.trim()));
+  }
+  if (Array.isArray(body.bedrock_models)) {
+    const chain = body.bedrock_models
+      .filter((m: unknown): m is string => typeof m === "string" && m.trim().length > 0)
+      .map((m: string) => m.trim());
+    updates.push(setSetting("bedrock_models", chain));
+    if (chain.length) updates.push(setSetting("bedrock_model", chain[0]));
   }
 
   const results = await Promise.all(updates);

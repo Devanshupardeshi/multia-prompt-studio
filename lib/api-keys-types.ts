@@ -81,10 +81,14 @@ export interface AppSettings {
   daily_prompt_cap: number | null; // null = unlimited
   maintenance_mode: boolean;
   default_model: string;
-  provider: "gemini" | "openrouter";
+  provider: "gemini" | "openrouter" | "bedrock";
   openrouter_api_key: string; // never sent to the browser
   openrouter_model: string; // primary model (kept in sync with openrouter_models[0])
   openrouter_models: string[]; // ordered fallback chain; try [0], on 429/5xx fall to next
+  bedrock_api_key: string; // AWS Bedrock API key (bearer token); never sent to the browser
+  bedrock_region: string; // e.g. "us-east-1"
+  bedrock_model: string; // primary model/inference-profile id (synced with bedrock_models[0])
+  bedrock_models: string[]; // ordered fallback chain of Bedrock model/inference-profile ids
 }
 
 export interface AuditEntry {
