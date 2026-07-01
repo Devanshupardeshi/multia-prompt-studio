@@ -44,6 +44,14 @@ export async function PATCH(req: NextRequest) {
   if (typeof body.openrouter_model === "string" && body.openrouter_model.trim()) {
     updates.push(setSetting("openrouter_model", body.openrouter_model.trim()));
   }
+  // Ordered fallback chain. Also keep openrouter_model in sync with the first entry.
+  if (Array.isArray(body.openrouter_models)) {
+    const chain = body.openrouter_models
+      .filter((m: unknown): m is string => typeof m === "string" && m.trim().length > 0)
+      .map((m: string) => m.trim());
+    updates.push(setSetting("openrouter_models", chain));
+    if (chain.length) updates.push(setSetting("openrouter_model", chain[0]));
+  }
 
   const results = await Promise.all(updates);
   const failed = results.find((r) => !r.ok);

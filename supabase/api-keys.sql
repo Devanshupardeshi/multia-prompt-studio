@@ -100,7 +100,8 @@ insert into public.app_settings (key, value) values
   ('default_model',    '"gemini-3.5-flash"'::jsonb),
   ('provider',         '"gemini"'::jsonb),        -- 'gemini' | 'openrouter'
   ('openrouter_api_key', '""'::jsonb),            -- set from the admin panel (Settings)
-  ('openrouter_model', '"anthropic/claude-opus-4.6"'::jsonb)
+  ('openrouter_model', '"anthropic/claude-opus-4.6"'::jsonb),  -- primary (synced with chain[0])
+  ('openrouter_models', '[]'::jsonb)              -- ordered fallback chain, set from Settings
 on conflict (key) do nothing;
 
 -- ----------------------------------------------------------------------------

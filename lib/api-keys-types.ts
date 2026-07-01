@@ -83,7 +83,8 @@ export interface AppSettings {
   default_model: string;
   provider: "gemini" | "openrouter";
   openrouter_api_key: string; // never sent to the browser
-  openrouter_model: string;
+  openrouter_model: string; // primary model (kept in sync with openrouter_models[0])
+  openrouter_models: string[]; // ordered fallback chain; try [0], on 429/5xx fall to next
 }
 
 export interface AuditEntry {

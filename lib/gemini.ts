@@ -1660,68 +1660,104 @@ function geminiBodyToOpenRouter(body: Record<string, any>, model: string): Recor
   return req;
 }
 
+// One OpenRouter request against ONE model. Returns the text on success, or a
+// classified failure so the caller can decide whether to fall to the next model.
+type OrAttempt =
+  | { ok: true; text: string }
+  | { ok: false; kind: "throttle" | "fatal"; message: string; retryAfterMs?: number };
+
+async function callOpenRouterModel(
+  apiKey: string,
+  body: Record<string, unknown>,
+  model: string
+): Promise<OrAttempt> {
+  const req = geminiBodyToOpenRouter(body as Record<string, any>, model);
+  let res: Response;
+  try {
+    res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+        "HTTP-Referer": "https://multia.local",
+        "X-Title": "Multia Prompt Studio",
+      },
+      body: JSON.stringify(req),
+    });
+  } catch (e) {
+    // Network blips are transient — treat like a throttle so we retry/rotate.
+    return { ok: false, kind: "throttle", message: e instanceof Error ? e.message : "Network error calling OpenRouter" };
+  }
+
+  const raw = await res.text();
+  let data: any = null;
+  try { data = JSON.parse(raw); } catch { /* non-JSON body */ }
+
+  // RPM exhausted / overload — this model is out; caller should fall to the next one.
+  if (res.status === 429 || res.status === 502 || res.status === 503 || res.status === 529) {
+    const retryAfter = res.headers.get("Retry-After");
+    return {
+      ok: false,
+      kind: "throttle",
+      message: `${res.status}: ${data?.error?.message || raw.slice(0, 160)}`,
+      retryAfterMs: retryAfter ? (parseInt(retryAfter, 10) || 0) * 1000 : undefined,
+    };
+  }
+
+  // 401/402 (bad key / no credits) or any other error — fatal, no point trying other models.
+  if (!res.ok || data?.error) {
+    return { ok: false, kind: "fatal", message: `${res.status}: ${data?.error?.message || raw.slice(0, 300)}` };
+  }
+
+  const choice = data?.choices?.[0];
+  if (choice?.finish_reason === "length") {
+    return { ok: false, kind: "fatal", message: "response truncated (finish_reason: length)" };
+  }
+  const content = choice?.message?.content;
+  const out = typeof content === "string"
+    ? content
+    : Array.isArray(content) ? content.map((c: any) => c?.text ?? "").join("") : "";
+  if (!out.trim()) return { ok: false, kind: "fatal", message: "empty response" };
+  return { ok: true, text: out.trim() };
+}
+
 async function callOpenRouter(body: Record<string, unknown>, _mode?: string): Promise<string> {
   const settings = await getSettingsCached();
   const apiKey = settings.openrouter_api_key;
-  const model = settings.openrouter_model || "anthropic/claude-opus-4.6";
   if (!apiKey) {
     throw new Error("OpenRouter mode is on but no OpenRouter API key is set. Add it in the admin panel (/admin → Settings).");
   }
+  // Ordered fallback chain; fall back to the single legacy model if the picker is empty.
+  const models = settings.openrouter_models?.length
+    ? settings.openrouter_models
+    : [settings.openrouter_model || "anthropic/claude-opus-4.6"];
 
-  const req = geminiBodyToOpenRouter(body as Record<string, any>, model);
-  const maxAttempts = 5;
-  let lastErr: Error | null = null;
+  const maxRounds = 3;
+  let lastErr = "";
 
-  for (let attempt = 0; attempt < maxAttempts; attempt++) {
-    let res: Response;
-    try {
-      res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${apiKey}`,
-          "HTTP-Referer": "https://multia.local",
-          "X-Title": "Multia Prompt Studio",
-        },
-        body: JSON.stringify(req),
-      });
-    } catch (e) {
-      lastErr = e instanceof Error ? e : new Error("Network error calling OpenRouter");
-      await sleep(Math.min(8000 * 2 ** attempt, 40000));
-      continue;
+  for (let round = 0; round < maxRounds; round++) {
+    let roundRetryMs = 0;
+    for (const model of models) {
+      const r = await callOpenRouterModel(apiKey, body, model);
+      if (r.ok) return r.text;
+      lastErr = `${model} → ${r.message}`;
+      if (r.kind === "fatal") {
+        // Bad key / no credits / bad request: rotating models won't help.
+        throw new Error(`OpenRouter error (${lastErr})`);
+      }
+      // throttle: this model's RPM is exhausted — immediately try the next model.
+      console.log(`[OpenRouter] ${model} throttled (${r.message}); falling to next model`);
+      roundRetryMs = Math.max(roundRetryMs, r.retryAfterMs ?? 0);
     }
-
-    const raw = await res.text();
-    let data: any = null;
-    try { data = JSON.parse(raw); } catch { /* non-JSON body */ }
-
-    // Throttling / overload (Bedrock default quotas are low) — back off and retry the same key.
-    if (res.status === 429 || res.status === 502 || res.status === 503 || res.status === 529) {
-      const retryAfter = res.headers.get("Retry-After");
-      const delay = retryAfter ? (parseInt(retryAfter, 10) || 10) * 1000 : Math.min(8000 * 2 ** attempt, 60000);
-      lastErr = new Error(`OpenRouter ${res.status}: ${data?.error?.message || raw.slice(0, 200)}`);
-      console.log(`[OpenRouter ${res.status}] throttled, retrying in ${(delay / 1000).toFixed(0)}s (attempt ${attempt + 1}/${maxAttempts})`);
+    // Reaching here means every model in the chain was throttled — back off, then retry.
+    if (round < maxRounds - 1) {
+      const delay = Math.max(roundRetryMs, Math.min(8000 * 2 ** round, 60000));
+      console.log(`[OpenRouter] all ${models.length} model(s) throttled; retrying chain in ${(delay / 1000).toFixed(0)}s (round ${round + 1}/${maxRounds})`);
       await sleep(delay);
-      continue;
     }
-
-    if (!res.ok || data?.error) {
-      throw new Error(`OpenRouter error (${res.status}): ${data?.error?.message || raw.slice(0, 300)}`);
-    }
-
-    const choice = data?.choices?.[0];
-    if (choice?.finish_reason === "length") {
-      throw new Error("OpenRouter response was truncated (finish_reason: length).");
-    }
-    const content = choice?.message?.content;
-    const out = typeof content === "string"
-      ? content
-      : Array.isArray(content) ? content.map((c: any) => c?.text ?? "").join("") : "";
-    if (!out.trim()) throw new Error("No content in OpenRouter response");
-    return out.trim();
   }
 
-  throw lastErr ?? new Error("OpenRouter request failed after retries (likely Bedrock throttling). Try again shortly.");
+  throw new Error(`OpenRouter request failed — all models throttled after ${maxRounds} rounds (last: ${lastErr}). Try again shortly.`);
 }
 
 // Concurrency-limited settle — used to serialize the parallel deep-research calls onto a

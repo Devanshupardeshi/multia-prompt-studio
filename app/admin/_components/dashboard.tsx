@@ -757,9 +757,12 @@ function SettingsTab({
   const [model, setModel] = useState("gemini-3.5-flash");
   const [provider, setProvider] = useState<"gemini" | "openrouter">("gemini");
   const [orKey, setOrKey] = useState("");
-  const [orModel, setOrModel] = useState("anthropic/claude-opus-4.6");
+  const [orModels, setOrModels] = useState<string[]>([]); // ordered fallback chain
   const [orKeySet, setOrKeySet] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [available, setAvailable] = useState<{ id: string; name: string }[]>([]);
+  const [modelFilter, setModelFilter] = useState("");
+  const [fetchingModels, setFetchingModels] = useState(false);
 
   useEffect(() => {
     if (settings) {
@@ -767,11 +770,37 @@ function SettingsTab({
       setMaintenance(settings.maintenance_mode);
       setModel(settings.default_model);
       setProvider(settings.provider ?? "gemini");
-      setOrModel(settings.openrouter_model || "anthropic/claude-opus-4.6");
+      const chain = settings.openrouter_models?.length
+        ? settings.openrouter_models
+        : settings.openrouter_model ? [settings.openrouter_model] : [];
+      setOrModels(chain);
       setOrKeySet(!!settings.openrouter_api_key_set);
       setOrKey("");
     }
   }, [settings]);
+
+  const fetchModels = async () => {
+    setFetchingModels(true);
+    try {
+      const { ok, data } = await api("/api/admin/openrouter/models", {
+        method: "POST",
+        body: JSON.stringify(orKey.trim() ? { key: orKey.trim() } : {}),
+      });
+      if (ok) {
+        setAvailable(data.models ?? []);
+        toast.success(`${(data.models ?? []).length} models available`);
+      } else {
+        toast.error(data.error || "Could not list models");
+      }
+    } finally {
+      setFetchingModels(false);
+    }
+  };
+
+  const addModel = (id: string) => setOrModels((c) => (c.includes(id) ? c : [...c, id]));
+  const removeModel = (id: string) => setOrModels((c) => c.filter((m) => m !== id));
+  const promoteModel = (i: number) =>
+    setOrModels((c) => (i <= 0 ? c : c.map((m, j) => (j === i - 1 ? c[i] : j === i ? c[i - 1] : m))));
 
   const save = async () => {
     setBusy(true);
@@ -783,7 +812,9 @@ function SettingsTab({
           maintenance_mode: maintenance,
           default_model: model,
           provider,
-          openrouter_model: orModel,
+          openrouter_models: orModels,
+          // keep single-model in sync as a fallback for empty chains
+          ...(orModels[0] ? { openrouter_model: orModels[0] } : {}),
           // only sent when non-empty — blank keeps the existing key
           ...(orKey.trim() ? { openrouter_api_key: orKey.trim() } : {}),
         }),
@@ -833,17 +864,78 @@ function SettingsTab({
                 className="mt-1 w-full rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm outline-none focus:border-white/30"
               />
             </label>
-            <label className="block">
-              <span className="text-xs uppercase tracking-wider text-white/40">OpenRouter model</span>
-              <input
-                value={orModel}
-                onChange={(e) => setOrModel(e.target.value)}
-                placeholder="anthropic/claude-opus-4.6"
-                className="mt-1 w-full rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm font-mono outline-none focus:border-white/30"
-              />
-            </label>
+            <div>
+              <div className="flex items-center justify-between">
+                <span className="text-xs uppercase tracking-wider text-white/40">Model fallback chain</span>
+                <button
+                  onClick={fetchModels}
+                  disabled={fetchingModels}
+                  className="rounded-md border border-white/15 px-2 py-1 text-[11px] text-white/70 hover:bg-white/5 disabled:opacity-40"
+                >
+                  {fetchingModels ? "Testing…" : "Test key & list models"}
+                </button>
+              </div>
+
+              {/* Selected chain — order = priority; falls to the next on RPM/5xx. */}
+              {orModels.length === 0 ? (
+                <p className="mt-2 text-[11px] text-white/35">
+                  No models selected. Test your key, then pick models below — the first is primary, the rest are
+                  fallbacks used automatically when a model&apos;s RPM is exhausted.
+                </p>
+              ) : (
+                <ol className="mt-2 space-y-1">
+                  {orModels.map((id, i) => (
+                    <li key={id} className="flex items-center gap-2 rounded-md border border-white/10 bg-black/30 px-2 py-1.5 text-xs">
+                      <span className="w-4 shrink-0 text-white/30">{i + 1}</span>
+                      <span className="flex-1 truncate font-mono">{id}</span>
+                      {i === 0 && <span className="shrink-0 rounded bg-emerald-500/15 px-1.5 py-0.5 text-[10px] text-emerald-300">primary</span>}
+                      {i > 0 && (
+                        <button onClick={() => promoteModel(i)} title="Move up" className="shrink-0 text-white/40 hover:text-white">↑</button>
+                      )}
+                      <button onClick={() => removeModel(id)} title="Remove" className="shrink-0 text-white/40 hover:text-red-400">×</button>
+                    </li>
+                  ))}
+                </ol>
+              )}
+
+              {/* Available models (after Test) — filterable, click to add. */}
+              {available.length > 0 && (
+                <div className="mt-3 rounded-md border border-white/10 bg-black/20 p-2">
+                  <input
+                    value={modelFilter}
+                    onChange={(e) => setModelFilter(e.target.value)}
+                    placeholder="Filter models (e.g. anthropic, opus)…"
+                    className="mb-2 w-full rounded border border-white/10 bg-black/30 px-2 py-1 text-xs outline-none focus:border-white/30"
+                  />
+                  <div className="max-h-48 space-y-0.5 overflow-y-auto">
+                    {available
+                      .filter((m) => {
+                        const q = modelFilter.trim().toLowerCase();
+                        return !q || m.id.toLowerCase().includes(q) || m.name.toLowerCase().includes(q);
+                      })
+                      .slice(0, 200)
+                      .map((m) => {
+                        const picked = orModels.includes(m.id);
+                        return (
+                          <button
+                            key={m.id}
+                            onClick={() => (picked ? removeModel(m.id) : addModel(m.id))}
+                            className={`flex w-full items-center gap-2 rounded px-2 py-1 text-left text-[11px] transition-colors ${
+                              picked ? "bg-emerald-500/10 text-emerald-200" : "text-white/60 hover:bg-white/5"
+                            }`}
+                          >
+                            <span className="w-3 shrink-0">{picked ? "✓" : "+"}</span>
+                            <span className="truncate font-mono">{m.id}</span>
+                          </button>
+                        );
+                      })}
+                  </div>
+                </div>
+              )}
+            </div>
             <p className="text-[11px] text-white/35">
-              Routes ALL generation through this single key (e.g. Claude Opus via Bedrock). Parallel modes
+              Routes ALL generation through this single key (e.g. Claude Opus via Bedrock). It tries the primary
+              model, falling to the next automatically on a 429 (RPM exhausted) or overload. Parallel modes
               (deep research) are auto-serialized so a low Bedrock quota isn&apos;t blown.
             </p>
           </div>

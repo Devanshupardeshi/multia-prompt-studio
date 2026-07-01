@@ -586,6 +586,7 @@ export async function getSettings(): Promise<AppSettings> {
     provider: "gemini",
     openrouter_api_key: "",
     openrouter_model: "anthropic/claude-opus-4.6",
+    openrouter_models: [],
   };
   const sb = getSupabaseAdminClient();
   if (!sb) return defaults;
@@ -600,6 +601,7 @@ export async function getSettings(): Promise<AppSettings> {
     provider: (map.provider as "gemini" | "openrouter") === "openrouter" ? "openrouter" : "gemini",
     openrouter_api_key: (map.openrouter_api_key as string) || "",
     openrouter_model: (map.openrouter_model as string) || "anthropic/claude-opus-4.6",
+    openrouter_models: Array.isArray(map.openrouter_models) ? (map.openrouter_models as string[]) : [],
   };
 }
 
