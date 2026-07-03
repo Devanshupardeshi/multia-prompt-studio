@@ -47,8 +47,24 @@ function QueueWaiting({ until, message }: { until: number; message?: string | nu
   );
 }
 
+function downloadFile(content: string, filename: string, type: string) {
+  const url = URL.createObjectURL(new Blob([content], { type }));
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
 function syntaxHighlight(json: string): string {
-  return json.replace(
+  // Escape before injecting via dangerouslySetInnerHTML — model output is untrusted.
+  const escaped = json
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+  return escaped.replace(
     /("(\\u[\da-fA-F]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+-]?\d+)?)/g,
     (match) => {
       let cls = "json-number";
@@ -81,37 +97,46 @@ export function OutputDisplay({
   const [copied, setCopied] = useState(false);
   const [activeLayer, setActiveLayer] = useState(0);
 
-  const handleCopy = useCallback(async () => {
-    if (!json) return;
+  // The tab index is shared by the 3D-layer, video-shot, and research-section
+  // tab strips, which have different lengths — reset it when the mode changes.
+  useEffect(() => {
+    setActiveLayer(0);
+  }, [mode]);
+
+  // Single clipboard helper for every "Copy" button in this component.
+  const copyText = useCallback(async (text: string) => {
     try {
-      await navigator.clipboard.writeText(json);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      await navigator.clipboard.writeText(text);
     } catch {
       // Fallback
       const textarea = document.createElement("textarea");
-      textarea.value = json;
+      textarea.value = text;
       document.body.appendChild(textarea);
       textarea.select();
       document.execCommand("copy");
       document.body.removeChild(textarea);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
     }
-  }, [json]);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }, []);
 
-  const handleDownload = useCallback(() => {
-    if (!json) return;
-    const blob = new Blob([json], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `prompt-${Date.now()}.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  }, [json]);
+  const handleCopy = useCallback(() => {
+    if (json) copyText(json);
+  }, [json, copyText]);
+
+  // Parse once for the standard-mode view; fall back to raw text so a
+  // non-JSON response renders instead of crashing the page.
+  let prettyJson = json ?? "";
+  let jsonBytes = prettyJson.length;
+  if (json) {
+    try {
+      const parsed = JSON.parse(json);
+      prettyJson = JSON.stringify(parsed, null, 2);
+      jsonBytes = JSON.stringify(parsed).length;
+    } catch {
+      // keep raw text
+    }
+  }
 
   if (!json && !isLoading && !error) {
     return (
@@ -262,7 +287,7 @@ export function OutputDisplay({
                 </button>
 
                 <button
-                  onClick={handleDownload}
+                  onClick={() => downloadFile(json, `prompt-${Date.now()}.json`, "application/json")}
                   className="text-[11px] text-white/30 hover:text-white/70 transition-colors font-body uppercase tracking-wider flex items-center gap-1.5 px-2 py-1 rounded hover:bg-white/5"
                   id="download-button"
                 >
@@ -287,9 +312,7 @@ export function OutputDisplay({
               <pre>
                 <code
                   dangerouslySetInnerHTML={{
-                    __html: syntaxHighlight(
-                      JSON.stringify(JSON.parse(json), null, 2)
-                    ),
+                    __html: syntaxHighlight(prettyJson),
                   }}
                 />
               </pre>
@@ -298,7 +321,7 @@ export function OutputDisplay({
             {/* Actions below */}
             <div className="px-4 py-3 border-t border-white/5 flex items-center justify-between">
               <span className="text-[11px] text-white/15 font-body">
-                {JSON.stringify(JSON.parse(json)).length} bytes
+                {jsonBytes} bytes
               </span>
               <button
                 onClick={onRegenerate}
@@ -335,23 +358,6 @@ export function OutputDisplay({
             { key: "full_prompt", label: "Full Prompt", icon: "📋" },
           ];
 
-          const handleCopyLayer = async (text: string) => {
-            try {
-              await navigator.clipboard.writeText(text);
-              setCopied(true);
-              setTimeout(() => setCopied(false), 2000);
-            } catch {
-              const ta = document.createElement("textarea");
-              ta.value = text;
-              document.body.appendChild(ta);
-              ta.select();
-              document.execCommand("copy");
-              document.body.removeChild(ta);
-              setCopied(true);
-              setTimeout(() => setCopied(false), 2000);
-            }
-          };
-
           return (
             <div className="space-y-4">
               {/* Layer tabs */}
@@ -378,13 +384,13 @@ export function OutputDisplay({
                   </span>
                   <div className="flex items-center gap-2">
                     <button
-                      onClick={() => handleCopyLayer(parsed[layers[activeLayer].key] || "")}
+                      onClick={() => copyText(parsed[layers[activeLayer].key] || "")}
                       className="text-[11px] text-white/30 hover:text-white/70 transition-colors font-body uppercase tracking-wider flex items-center gap-1.5 px-2 py-1 rounded hover:bg-white/5"
                     >
                       {copied ? "Copied!" : "Copy Layer"}
                     </button>
                     <button
-                      onClick={() => handleCopyLayer(parsed.full_prompt || "")}
+                      onClick={() => copyText(parsed.full_prompt || "")}
                       className="text-[11px] text-white/30 hover:text-white/70 transition-colors font-body uppercase tracking-wider flex items-center gap-1.5 px-2 py-1 rounded hover:bg-white/5 border border-white/10"
                     >
                       📋 Copy Full Prompt
@@ -424,35 +430,6 @@ export function OutputDisplay({
           try { parsed = JSON.parse(json); } catch { parsed = {}; }
           const fullPrompt: string = parsed.full_prompt || "";
 
-          const handleCopyText = async (text: string) => {
-            try {
-              await navigator.clipboard.writeText(text);
-              setCopied(true);
-              setTimeout(() => setCopied(false), 2000);
-            } catch {
-              const ta = document.createElement("textarea");
-              ta.value = text;
-              document.body.appendChild(ta);
-              ta.select();
-              document.execCommand("copy");
-              document.body.removeChild(ta);
-              setCopied(true);
-              setTimeout(() => setCopied(false), 2000);
-            }
-          };
-
-          const handleDownloadPrompt = () => {
-            const blob = new Blob([fullPrompt], { type: "text/markdown" });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement("a");
-            a.href = url;
-            a.download = `awwwards-prompt-${Date.now()}.md`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-          };
-
           return (
             <div className="space-y-4">
               {/* Concept line */}
@@ -469,13 +446,13 @@ export function OutputDisplay({
                   <span className="text-xs text-white/40 font-mono">build_prompt.md</span>
                   <div className="flex items-center gap-2">
                     <button
-                      onClick={() => handleCopyText(fullPrompt)}
+                      onClick={() => copyText(fullPrompt)}
                       className="text-[11px] text-white/80 hover:text-white transition-colors font-body uppercase tracking-wider flex items-center gap-1.5 px-2 py-1 rounded bg-white/10 hover:bg-white/20 border border-white/10"
                     >
                       {copied ? "Copied!" : "🚀 Copy Prompt"}
                     </button>
                     <button
-                      onClick={handleDownloadPrompt}
+                      onClick={() => downloadFile(fullPrompt, `awwwards-prompt-${Date.now()}.md`, "text/markdown")}
                       className="text-[11px] text-white/30 hover:text-white/70 transition-colors font-body uppercase tracking-wider flex items-center gap-1.5 px-2 py-1 rounded hover:bg-white/5 border border-white/10"
                     >
                       ⬇ Download .md
@@ -491,7 +468,7 @@ export function OutputDisplay({
 
                 <div className="px-4 py-3 border-t border-white/5 flex items-center justify-between">
                   <span className="text-[11px] text-white/15 font-body">
-                    Paste this into ChatGPT or Claude Code to build the site
+                    Paste into Claude Code to build the site · generate any Image Asset Brief images in Image mode
                   </span>
                   <button
                     onClick={onRegenerate}
@@ -517,35 +494,6 @@ export function OutputDisplay({
           const shots: any[] = isStory ? parsed.shots : [parsed];
           const idx = Math.min(activeLayer, Math.max(shots.length - 1, 0));
           const shot = shots[idx] || {};
-
-          const copyText = async (text: string) => {
-            try {
-              await navigator.clipboard.writeText(text);
-              setCopied(true);
-              setTimeout(() => setCopied(false), 2000);
-            } catch {
-              const ta = document.createElement("textarea");
-              ta.value = text;
-              document.body.appendChild(ta);
-              ta.select();
-              document.execCommand("copy");
-              document.body.removeChild(ta);
-              setCopied(true);
-              setTimeout(() => setCopied(false), 2000);
-            }
-          };
-
-          const handleDownloadVideo = () => {
-            const blob = new Blob([json], { type: "application/json" });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement("a");
-            a.href = url;
-            a.download = `video-prompt-${Date.now()}.json`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-          };
 
           return (
             <div className="space-y-4">
@@ -597,7 +545,7 @@ export function OutputDisplay({
                       </button>
                     )}
                     <button
-                      onClick={handleDownloadVideo}
+                      onClick={() => downloadFile(json, `video-prompt-${Date.now()}.json`, "application/json")}
                       className="text-[11px] text-white/30 hover:text-white/70 transition-colors font-body uppercase tracking-wider flex items-center gap-1.5 px-2 py-1 rounded hover:bg-white/5 border border-white/10"
                     >
                       ⬇ JSON
@@ -687,23 +635,6 @@ export function OutputDisplay({
             return String(data);
           };
 
-          const handleCopySection = async (text: string) => {
-            try {
-              await navigator.clipboard.writeText(text);
-              setCopied(true);
-              setTimeout(() => setCopied(false), 2000);
-            } catch {
-              const ta = document.createElement("textarea");
-              ta.value = text;
-              document.body.appendChild(ta);
-              ta.select();
-              document.execCommand("copy");
-              document.body.removeChild(ta);
-              setCopied(true);
-              setTimeout(() => setCopied(false), 2000);
-            }
-          };
-
           const handleDownloadReport = () => {
             const reportText = typeof parsed.full_report === "string"
               ? parsed.full_report
@@ -711,15 +642,7 @@ export function OutputDisplay({
                   .filter(s => s.key.startsWith("section_"))
                   .map(s => `## ${s.label}\n\n${getSectionText(s.key)}`)
                   .join("\n\n---\n\n");
-            const blob = new Blob([reportText], { type: "text/markdown" });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement("a");
-            a.href = url;
-            a.download = `research-report-${Date.now()}.md`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
+            downloadFile(reportText, `research-report-${Date.now()}.md`, "text/markdown");
           };
 
           // Generate beautiful standalone HTML report
@@ -1084,15 +1007,7 @@ export function OutputDisplay({
 </body>
 </html>`;
 
-            const blob = new Blob([html], { type: "text/html" });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement("a");
-            a.href = url;
-            a.download = `research-report-${Date.now()}.html`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
+            downloadFile(html, `research-report-${Date.now()}.html`, "text/html");
           };
 
           const currentSectionKey = sections[activeLayer]?.key;
@@ -1125,13 +1040,13 @@ export function OutputDisplay({
                   </span>
                   <div className="flex items-center gap-2">
                     <button
-                      onClick={() => handleCopySection(currentText)}
+                      onClick={() => copyText(currentText)}
                       className="text-[11px] text-white/30 hover:text-white/70 transition-colors font-body uppercase tracking-wider flex items-center gap-1.5 px-2 py-1 rounded hover:bg-white/5"
                     >
                       {copied ? "Copied!" : "Copy Section"}
                     </button>
                     <button
-                      onClick={() => handleCopySection(typeof parsed.full_report === "string" ? parsed.full_report : JSON.stringify(parsed, null, 2))}
+                      onClick={() => copyText(typeof parsed.full_report === "string" ? parsed.full_report : JSON.stringify(parsed, null, 2))}
                       className="text-[11px] text-white/30 hover:text-white/70 transition-colors font-body uppercase tracking-wider flex items-center gap-1.5 px-2 py-1 rounded hover:bg-white/5 border border-white/10"
                     >
                       📄 Copy Full Report
@@ -1162,7 +1077,7 @@ export function OutputDisplay({
                               {formatSubKey(subKey)}
                             </h4>
                             <button
-                              onClick={() => handleCopySection(String(subValue))}
+                              onClick={() => copyText(String(subValue))}
                               className="text-[10px] text-white/20 hover:text-white/60 transition-colors font-body uppercase tracking-wider px-1.5 py-0.5 rounded hover:bg-white/5"
                             >
                               Copy

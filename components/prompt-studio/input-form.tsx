@@ -50,23 +50,7 @@ const ASSET_STRATEGIES = [
   { id: "media", label: "Use my images / video as the hero" },
 ];
 
-const WEBGL_FEATURES = [
-  { id: "glsl-shaders", label: "GLSL Shaders" },
-  { id: "particles", label: "Particle Fields" },
-  { id: "physics-rapier", label: "Physics (Rapier)" },
-  { id: "postprocessing", label: "Post-processing (Bloom/CA/DoF)" },
-  { id: "scroll-scrubbed-3d", label: "Scroll-scrubbed 3D" },
-  { id: "parallax-scroll", label: "Parallax (Scroll)" },
-  { id: "parallax-pointer", label: "Parallax (Pointer)" },
-  { id: "spline-import", label: "Spline Import" },
-  { id: "image-distortion-reveals", label: "Image Distortion Reveals" },
-];
-
-export type { GenerationMode, GeneratePayload, CustomStyle } from "@/lib/shared-types";
-export { isVideoMode } from "@/lib/shared-types";
 import { GenerationMode, GeneratePayload, isVideoMode, CustomStyle } from "@/lib/shared-types";
-
-const VIDEO_MODES: GenerationMode[] = ["video_standard", "video_logo_animation", "video_product_showcase"];
 
 // Mode selector grouped by output type.
 const MODE_GROUPS: { label: string; modes: GenerationMode[] }[] = [
@@ -237,7 +221,6 @@ export function InputForm({ onGenerate, isLoading, onModeChange }: InputFormProp
   // Awwwards 3D (WebGL) specific
   const [siteCategory, setSiteCategory] = useState("immersive");
   const [signatureMoment, setSignatureMoment] = useState("");
-  const [webglFeatures, setWebglFeatures] = useState<string[]>(["glsl-shaders", "scroll-scrubbed-3d", "parallax-scroll", "postprocessing"]);
   const [referenceSites, setReferenceSites] = useState("");
   const [assetStrategy, setAssetStrategy] = useState("library");
   const [model3dUrl, setModel3dUrl] = useState("");
@@ -445,14 +428,6 @@ export function InputForm({ onGenerate, isLoading, onModeChange }: InputFormProp
     );
   };
 
-  const toggleWebglFeature = (featureId: string) => {
-    setWebglFeatures(prev =>
-      prev.includes(featureId)
-        ? prev.filter(f => f !== featureId)
-        : [...prev, featureId]
-    );
-  };
-
   const isValid = () => {
     if (mode === "standard") return description.trim().length > 0;
     if (mode === "face_swap") return sourceFaceImage !== null && targetPoseImage !== null;
@@ -468,6 +443,8 @@ export function InputForm({ onGenerate, isLoading, onModeChange }: InputFormProp
 
   const handleSubmit = () => {
     if (!isValid()) return;
+
+    const mediaUrls = additionalMediaUrls.filter((u) => u.trim());
 
     // Resolve styles against the pool that matches the mode (image vs video),
     // so the two pickers never cross-contaminate each other's directives.
@@ -513,7 +490,7 @@ export function InputForm({ onGenerate, isLoading, onModeChange }: InputFormProp
       headingFont: headingFont.trim() || undefined,
       bodyFont: bodyFont.trim() || undefined,
       heroMediaUrl: heroMediaUrl.trim() || undefined,
-      additionalMediaUrls: additionalMediaUrls.filter(u => u.trim()) || undefined,
+      additionalMediaUrls: mediaUrls.length > 0 ? mediaUrls : undefined,
       websiteSections: websiteSections.length > 0 ? websiteSections : undefined,
       glassStyle: glassStyle || undefined,
       animationIntensity: animationIntensity,
@@ -523,7 +500,6 @@ export function InputForm({ onGenerate, isLoading, onModeChange }: InputFormProp
       // Awwwards 3D (WebGL) fields
       siteCategory: siteCategory || undefined,
       signatureMoment: signatureMoment.trim() || undefined,
-      webglFeatures: webglFeatures.length > 0 ? webglFeatures : undefined,
       referenceSites: referenceSites.trim() || undefined,
       assetStrategy: assetStrategy || undefined,
       model3dUrl: model3dUrl.trim() || undefined,
@@ -1002,12 +978,16 @@ export function InputForm({ onGenerate, isLoading, onModeChange }: InputFormProp
                 </div>
               </div>
 
-              {/* Intro note */}
+              {/* Intro note — the manual workflow */}
               <div className="p-4 rounded-lg bg-white/[0.02] border border-white/10">
                 <p className="text-[11px] text-white/40 font-body leading-relaxed">
-                  Generates one massive, copy-paste-ready build prompt for an <span className="text-white/70">Awwwards-caliber</span> site —
-                  React/Next + React Three Fiber (Three.js/WebGL), GLSL shaders, Lenis smooth scroll, GSAP ScrollTrigger, Lottie & multi-layer parallax.
-                  Paste the result into ChatGPT or Claude Code to build the full project.
+                  Generates <span className="text-white/70">ONE complete build prompt</span> for an Awwwards-caliber site
+                  (React/Next + React Three Fiber, GLSL shaders, Lenis + GSAP ScrollTrigger).
+                </p>
+                <p className="text-[11px] text-white/40 font-body leading-relaxed mt-2">
+                  <span className="text-white/70">1.</span> Generate &nbsp;→&nbsp;
+                  <span className="text-white/70">2.</span> Paste the prompt into Claude Code (or Cursor / ChatGPT) — it builds the full project &nbsp;→&nbsp;
+                  <span className="text-white/70">3.</span> If the prompt ends with an Image Asset Brief, generate those images in <span className="text-white/70">Image mode</span> and drop them into /public/images.
                 </p>
               </div>
 
@@ -1018,7 +998,7 @@ export function InputForm({ onGenerate, isLoading, onModeChange }: InputFormProp
                   <input type="text" value={brandName} onChange={(e) => setBrandName(e.target.value)} placeholder="e.g., Zenith Studios" className="input-multia w-full px-4 py-3 text-sm" />
                 </div>
                 <div>
-                  <label className="block text-xs text-white/30 font-body uppercase tracking-[0.2em] mb-2">Tagline / Hero Headline</label>
+                  <label className="block text-xs text-white/30 font-body uppercase tracking-[0.2em] mb-2">Tagline (Optional — the engine decides placement, or drops it)</label>
                   <input type="text" value={tagline} onChange={(e) => setTagline(e.target.value)} placeholder="e.g., Design Beyond Limits" className="input-multia w-full px-4 py-3 text-sm" />
                 </div>
               </div>
@@ -1115,49 +1095,23 @@ export function InputForm({ onGenerate, isLoading, onModeChange }: InputFormProp
                 </div>
               </div>
 
-              {/* WebGL / Motion Features */}
-              <div>
-                <label className="block text-xs text-white/30 font-body uppercase tracking-[0.2em] mb-2">WebGL & Motion Techniques</label>
-                <div className="flex flex-wrap gap-2">
-                  {WEBGL_FEATURES.map(f => (
-                    <button key={f.id} onClick={() => toggleWebglFeature(f.id)} className={`px-3 py-1.5 rounded-full text-xs transition-colors border ${
-                      webglFeatures.includes(f.id) ? "bg-white text-black border-white" : "bg-transparent text-white/50 border-white/20 hover:border-white/40 hover:text-white"
-                    }`}>
-                      {f.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Sections to Include */}
-              <div>
-                <label className="block text-xs text-white/30 font-body uppercase tracking-[0.2em] mb-2">Sections to Include</label>
-                <div className="flex flex-wrap gap-2">
-                  {["navbar", "hero", "features", "stats", "testimonials", "pricing", "showcase", "collection", "cta", "footer"].map(s => (
-                    <button key={s} onClick={() => toggleSection(s)} className={`px-3 py-1.5 rounded-full text-xs transition-colors border ${
-                      websiteSections.includes(s) ? "bg-white text-black border-white" : "bg-transparent text-white/50 border-white/20 hover:border-white/40 hover:text-white"
-                    }`}>
-                      {s}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Hero Media URL */}
-              <div>
-                <label className="block text-xs text-white/30 font-body uppercase tracking-[0.2em] mb-2">Hero Media URL (MP4 video or image link)</label>
-                <input type="text" value={heroMediaUrl} onChange={(e) => setHeroMediaUrl(e.target.value)} placeholder="https://example.com/hero-video.mp4" className="input-multia w-full px-4 py-3 text-sm" />
-              </div>
-
-              {/* Additional Media URLs */}
-              <div>
-                <label className="block text-xs text-white/30 font-body uppercase tracking-[0.2em] mb-2">Additional Media URLs (Optional, up to 3)</label>
-                <div className="space-y-2">
-                  {additionalMediaUrls.map((url, i) => (
-                    <input key={i} type="text" value={url} onChange={(e) => { const next = [...additionalMediaUrls]; next[i] = e.target.value; setAdditionalMediaUrls(next); }} placeholder={`Media URL ${i + 1} (image or video)`} className="input-multia w-full px-4 py-2 text-sm" />
-                  ))}
-                </div>
-              </div>
+              {/* Media URLs — only meaningful when the hero is media-driven */}
+              {assetStrategy === "media" && (
+                <>
+                  <div>
+                    <label className="block text-xs text-white/30 font-body uppercase tracking-[0.2em] mb-2">Hero Media URL (MP4 video or image link)</label>
+                    <input type="text" value={heroMediaUrl} onChange={(e) => setHeroMediaUrl(e.target.value)} placeholder="https://example.com/hero-video.mp4" className="input-multia w-full px-4 py-3 text-sm" />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-white/30 font-body uppercase tracking-[0.2em] mb-2">Additional Media URLs (Optional, up to 3)</label>
+                    <div className="space-y-2">
+                      {additionalMediaUrls.map((url, i) => (
+                        <input key={i} type="text" value={url} onChange={(e) => { const next = [...additionalMediaUrls]; next[i] = e.target.value; setAdditionalMediaUrls(next); }} placeholder={`Media URL ${i + 1} (image or video)`} className="input-multia w-full px-4 py-2 text-sm" />
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
 
               {/* Reference Sites */}
               <div>

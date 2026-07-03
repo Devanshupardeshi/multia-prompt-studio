@@ -1130,7 +1130,7 @@ Structure the website as a STORY with these beats:
   if (payload.mode === "awwwards_website") {
     return `You are the Multia Awwwards Engine. Your job is to WRITE ONE COMPLETE, COPY-PASTE BUILD PROMPT that a code-generation agent (ChatGPT / Claude Code) will paste in to build an Awwwards "Site of the Day"–caliber website for the brand described by the user.
 
-You output STRICT JSON: { "concept": "...", "full_prompt": "..." }. "concept" is a 1–2 sentence creative idea. "full_prompt" is the entire masterwork prompt (~1,500–2,500 words), written for the build agent in second person ("You are…", "Your task…", "Build…").
+You output STRICT JSON: { "concept": "...", "full_prompt": "..." }. "concept" is a 1–2 sentence creative idea. "full_prompt" is the entire masterwork prompt (~2,000–3,000 words, NEVER under 1,500 — a short or summarized full_prompt is an automatic failure), written for the build agent in second person ("You are…", "Your task…", "Build…").
 
 The "full_prompt" is NOT a list of layers and NOT a feature spec. It is ONE flowing, opinionated, tasteful art-director's brief with a story spine. It MUST follow this EXACT structure and embody this EXACT level of taste:
 
@@ -1167,7 +1167,18 @@ The "full_prompt" is NOT a list of layers and NOT a feature spec. It is ONE flow
 
 10. NO GENERIC FOOTER. The page ends as the final act: the hero element dissolving, ONE centered closing line fading in, and a single understated mono line of real essentials (wordmark, year, one contact). BAN: 4-column link ledger, Product/Company/Resources/Legal, social-icon rows, newsletter box, and any fake live telemetry.
 
-11. DEFINITION OF DONE (self-run before presenting). Code complete and runs, no placeholders; ONE committed direction (not a blend, and not default dark+liquid-metal unless the scene demanded it); content readable and crawlable with JS off, scroll only enhances; no banned URLs and hero is procedural and beautiful even if every GLB fails; multi-act story with literary microcopy, zero em-dashes, no forced or default-slot tagline, no generic footer, no custom cursor, no fake telemetry; free Awwwards-spirit fonts (no Fraunces/Instrument Serif default) loaded without FOUT; all body text passes 4.5:1 and no heading overflows at any breakpoint; Lenis+GSAP uses gsap.context cleanup, start:"top top" pins, and no scroll listeners; reduced-motion and sub-768px degrade gracefully and the canvas never renders empty; it would credibly contend for Awwwards SOTD. If not, raise the craft and try again.
+11. DEFINITION OF DONE (self-run before presenting). Code complete and runs, no placeholders; ONE committed direction (not a blend, and not default dark+liquid-metal unless the scene demanded it); content readable and crawlable with JS off, scroll only enhances; no banned URLs and hero is procedural and beautiful even if every GLB fails; multi-act story with literary microcopy, zero em-dashes, no forced or default-slot tagline, no generic footer, no custom cursor, no fake telemetry; free Awwwards-spirit fonts (no Fraunces/Instrument Serif default) loaded without FOUT; all body text passes 4.5:1 and no heading overflows at any breakpoint; Lenis+GSAP uses gsap.context cleanup, start:"top top" pins, and no scroll listeners; reduced-motion and sub-768px degrade gracefully and the canvas never renders empty; the DELIVERY & HAND-OFF block (rule 12) is present and complete; it would credibly contend for Awwwards SOTD. If not, raise the craft and try again.
+
+12. DELIVERY & HAND-OFF. The full_prompt MUST END with this block, addressed to the build agent and the user:
+   (a) FILE MANIFEST: an explicit list of every file to create (e.g. app/layout.tsx, app/page.tsx, components/canvas/Scene.tsx, components/canvas/HeroMaterial.tsx, shader files, hooks/useScrollStory.ts, app/globals.css, config files), one line each with its purpose. The build agent must write EVERY listed file in full — the manifest is the anti-truncation check.
+   (b) SETUP: the exact commands to scaffold and run (create-next-app flags, ONE npm install line containing every dependency used, npm run dev), so the user goes from paste to running site with zero guesswork.
+   (c) IMAGE ASSET BRIEF (optional — only when real photography or renders would genuinely elevate specific acts; the site MUST ship complete and beautiful with ZERO image files, all visuals procedural/typographic/shader-driven by default; most sites need NO images at all, and then this section is a single line: "No image assets required."): when used, one JSON block per image, exactly this shape:
+       { "file": "/public/images/<name>.<ext>", "format": "png|jpg|webp", "transparent_background": true|false, "size": "<width>x<height>", "used_in": "<which act and element it upgrades>", "prompt": "<complete model-ready generation prompt: subject, composition, lighting, palette bound to the brand hex, aspect ratio; when transparent_background is true the prompt must say 'isolated subject on a fully transparent background, no shadow spill'>" }
+       Rules: anything composited over the WebGL scene or DOM (cutout objects, product shots, marks, floating elements) MUST be format png with transparent_background true; full-bleed backdrops/textures are jpg or webp with transparent_background false. The user runs each "prompt" in an image tool (e.g. Multia's Image mode) and drops the file at the exact path. The code checks for each file and upgrades the scene when present; it never breaks or shows an empty slot when absent. Tell the build agent this brief is AUTHORITATIVE: if the build genuinely needs an image not listed, it must add it to the brief in the SAME JSON shape (never stock photos, never hotlinked images, never a broken slot).
+   (d) One closing instruction to the build agent: run the Definition of Done before presenting, and fix any failure before showing code.
+
+═══ CALIBRATION EXCERPT (this is the level of concreteness and voice required — imitate the taste, NEVER reuse the content, brand, or act names) ═══
+"Act II. The Hollow Hours. As the master timeline crosses 0.25 the camera dollies from z 6.0 to z 3.2 and uTransition eases 0 to 1: the basalt monolith, an icosahedronGeometry(1, 64) displaced by curl noise at 0.18 amplitude, exhales into 8,000 instanced shards tinted var(--accent) #d4af7a at 0.85 metalness, each catching the rim light for a single frame as it passes. In the DOM, THE HOLLOW HOURS sets in the display face at clamp(2.4rem, 7vw, 5.2rem), characters rising 40px with a 0.02s stagger, while one mono caption holds the lower third: Every hour keeps a shape. Few keep their edges. Nothing else moves. One idea, fully committed."
 
 ═══ HOW TO TAILOR ═══
 - Derive the scene, concept, direction, the 4-act narrative, the hero material, and the microcopy FROM the user's brand, category, description, mood, and Additional Details. If the user's Additional Details describe a specific hero, honor it precisely as the Act I hero.
@@ -1485,7 +1496,7 @@ function buildUserParts(payload: GeneratePayload): any[] {
     userMessage += `\n--- FONTS ---\n`;
     userMessage += `Heading Font: ${payload.headingFont || "(AI: pick a premium variable display font)"}\n`;
     userMessage += `Body Font: ${payload.bodyFont || "(AI: pick a clean variable sans-serif)"}\n`;
-    userMessage += `\n--- WEBGL & MOTION TECHNIQUES (must feature these) ---\n`;
+    userMessage += `\n--- WEBGL & MOTION TECHNIQUES (advisory — weave in only where they serve the story and direction) ---\n`;
     userMessage += `${(payload.webglFeatures || ["glsl-shaders", "scroll-scrubbed-3d", "parallax-scroll", "postprocessing"]).join(", ")}\n`;
 
     const assetStrategy = payload.assetStrategy || "library";
@@ -1501,8 +1512,8 @@ function buildUserParts(payload: GeneratePayload): any[] {
       userMessage += `Strategy: SOURCE FREE GLB MODELS (curated libraries) — RECOMMENDED. Choose real, CC0/permissive GLB models that fit the brand + signature moment from: Poly Haven, Khronos glTF-Sample-Assets (jsDelivr CDN), pmndrs market (market.pmnd.rs), Sketchfab (Downloadable + CC), Quaternius/Kenney. Name SPECIFIC candidate models — never invent random URLs. Self-host them in /public/models, load with useGLTF + Draco inside <Suspense>, then CUSTOMIZE (recolor materials to the brand palette, metalness/clearcoat/emissive) and COMBINE several into ONE cohesive, staged hero composition. Light with drei <Environment> (CC0 HDRI) and grade with postprocessing. ALWAYS include a procedural fallback (brand-colored displaced geometry + particles) that renders immediately so a missing/failed model never breaks the canvas.\n`;
     }
 
-    userMessage += `\n--- SECTIONS TO INCLUDE ---\n`;
-    userMessage += `${(payload.websiteSections || ["navbar", "hero", "features", "cta", "footer"]).join(", ")}\n`;
+    // NOTE: no "sections to include" here — the engine's act-based template forbids
+    // nav-word sections (features/cta/footer); injecting them contradicts the system prompt.
     if (payload.heroMediaUrl) userMessage += `\nHero Media URL: ${payload.heroMediaUrl}\n`;
     if (payload.additionalMediaUrls && payload.additionalMediaUrls.length > 0) {
       userMessage += `Additional Media URLs:\n`;
@@ -1645,7 +1656,14 @@ function geminiBodyToOpenRouter(body: Record<string, any>, model: string): Recor
   }
 
   const gc = body.generationConfig ?? {};
-  const req: Record<string, unknown> = { model, messages };
+  // Cap max_tokens: OpenRouter reserves credit up-front for the FULL max_tokens. Left unset it
+  // uses the model max (~65k) and 402s on a low balance. 16k is plenty for prompt JSON and cuts
+  // the reservation ~4x, so the same credits stretch much further (BYOK still bills AWS for actuals).
+  const req: Record<string, unknown> = {
+    model,
+    messages,
+    max_tokens: typeof gc.maxOutputTokens === "number" ? gc.maxOutputTokens : 16000,
+  };
   if (typeof gc.temperature === "number") req.temperature = gc.temperature;
   if (typeof gc.topP === "number") req.top_p = gc.topP;
 
@@ -2188,6 +2206,14 @@ function validateGeneratedJson(rawText: string, payload: GeneratePayload): Valid
     if (typeof parsed.full_prompt !== "string" || parsed.full_prompt.trim().length < 200) {
       return { ok: false, error: "Awwwards output must include a substantial 'full_prompt' string" };
     }
+    // Flash's top failure mode is summarizing. ~8,000 chars ≈ 1,400 words — well below
+    // the 2,000–3,000 word target, so only genuinely lazy outputs trip the repair retry.
+    if (parsed.full_prompt.trim().length < 8000) {
+      return {
+        ok: false,
+        error: `full_prompt is far too short (${parsed.full_prompt.trim().length} chars). It must be the COMPLETE 2,000–3,000 word build document following the template, including the ending DELIVERY & HAND-OFF block (file manifest, setup commands, image asset brief). Write it in full — do not summarize.`,
+      };
+    }
     return { ok: true, value: JSON.stringify(parsed, null, 2) };
   }
 
@@ -2291,8 +2317,10 @@ export async function generatePrompt(payload: GeneratePayload): Promise<string> 
 
   // Per-mode temperature: high where invention matters (creative sites), low where
   // fidelity matters (copying a face/logo), mid for video (precision > fluff).
+  // Awwwards runs 0.7, not 0.9: Flash-class models bleed instruction adherence at 0.9
+  // and this mode carries the most hard constraints (fonts, URLs, voice, contrast).
   const temperature =
-    payload.mode === "awwwards_website" ? 0.9 :
+    payload.mode === "awwwards_website" ? 0.7 :
     payload.mode === "3d_website" ? 0.8 :
     isVideoMode(payload.mode) ? 0.55 :
     payload.mode === "standard" ? 0.55 :
@@ -2516,208 +2544,6 @@ async function generateDeepResearchParallel(payload: GeneratePayload): Promise<s
   }
 
   console.log(`Deep Research: ${Object.keys(merged).length}/${sectionKeys.length} sections generated successfully.`);
-
-  return JSON.stringify(merged, null, 2);
-}
-
-// ---------------------------------------------------------------------------
-// DEPRECATED & UNUSED — the old parallel 7-layer Awwwards generator + assembler.
-// Replaced by the single-call { concept, full_prompt } meta-prompt (see the
-// awwwards branches in getSystemPrompt / buildResponseSchema and generatePrompt).
-// Not referenced anywhere; safe to delete.
-// ---------------------------------------------------------------------------
-
-// Fixed order + titles used to assemble the final build prompt.
-const AWWWARDS_LAYER_ORDER: Array<{ key: string; title: string }> = [
-  { key: "layer_concept", title: "01 — CONCEPT & ART DIRECTION" },
-  { key: "layer_typography", title: "02 — TYPOGRAPHY" },
-  { key: "layer_palette", title: "03 — COLOR & MATERIALS" },
-  { key: "layer_layout", title: "04 — LAYOUT & STRUCTURE" },
-  { key: "layer_webgl", title: "05 — 3D / WEBGL SCENE" },
-  { key: "layer_motion", title: "06 — MOTION, PARALLAX & INTERACTION" },
-  { key: "layer_tech", title: "07 — TECH STACK & BUILD" },
-];
-
-function assembleAwwwardsPrompt(layers: Record<string, string>, payload: GeneratePayload): string {
-  const brand = payload.brandName || "the brand";
-  const tagline = payload.tagline ? ` — "${payload.tagline}"` : "";
-  const category = payload.siteCategory || "immersive";
-  const features = (payload.webglFeatures || []).join(", ");
-  const sections = (payload.websiteSections || ["navbar", "hero", "features", "cta", "footer"]).join(", ");
-  const primary = payload.primaryColor || "#6366f1";
-  const accent = payload.accentColor || "#d4af7a";
-  const bg = payload.bgColor || "#0b0b0b";
-  const strategy = payload.assetStrategy || "library";
-  const strategyLine =
-    strategy === "model" && payload.model3dUrl
-      ? `Real 3D model supplied — load ${payload.model3dUrl} via useGLTF + Draco, recolor to the brand palette and stage it; procedural fallback if it fails`
-      : strategy === "media"
-        ? `Media-driven hero — map the provided image/video onto planes with GLSL distortion/reveal shaders; supplement with procedural particles`
-        : strategy === "procedural"
-          ? `Procedural & shader-driven — abstract hero built entirely from code (geometry + GLSL + particles); no model files`
-          : `Source free CC0 GLB models from curated libraries (Poly Haven, Khronos samples, pmndrs market, Sketchfab, Quaternius/Kenney), self-host in /public/models, recolor to the brand palette, and combine several into one staged hero — with a procedural fallback`;
-
-  const body = AWWWARDS_LAYER_ORDER
-    .filter((l) => layers[l.key] && layers[l.key].trim())
-    .map((l) => `\n\n## LAYER ${l.title}\n\n${layers[l.key].trim()}`)
-    .join("\n");
-
-  return `# BUILD PROMPT — Awwwards-caliber WebGL website for ${brand}${tagline}
-
-You are a senior creative front-end engineer and WebGL specialist. Build a complete, production-grade, **Awwwards "Site of the Day"–caliber** website as a **React + Next.js (App Router, TypeScript)** project using **React Three Fiber (Three.js/WebGL)**. Implement everything specified below exactly — this is the full creative + technical blueprint, not a summary.
-
-## NON-NEGOTIABLE TECH STACK
-- React + Next.js (App Router) + TypeScript
-- React Three Fiber + @react-three/drei + @react-three/postprocessing (EffectComposer: Bloom, ChromaticAberration, DepthOfField, N8AO)
-- Custom GLSL shaders (vertex + fragment) for signature materials & image reveals
-- GSAP + ScrollTrigger for scroll choreography (scrub / pin / snap) — the scroll engine
-- Lenis for smooth inertia scrolling, synced to GSAP ScrollTrigger
-- Lottie / dotLottie for motion-graphic accents
-- Multi-layer PARALLAX: DOM scroll-depth parallax (background/mid/foreground at differing speeds) + pointer/mouse parallax + WebGL camera-dolly parallax
-- Optional: @react-three/rapier (physics), WebGPU renderer with WebGL2 fallback
-- **DO NOT use Framer Motion.**
-
-## 3D ASSETS — SOURCE, CUSTOMIZE & COMBINE (READ FIRST)
-Do NOT sculpt bespoke models from scratch and do NOT fake products with crude primitives — that is what breaks the render. Instead, IMPORT real, free, permissively-licensed (prefer CC0) GLB/GLTF models from curated reliable libraries, then customize and combine them in code:
-- Sources (use by name; don't invent random URLs): Poly Haven (CC0 models + HDRIs), Khronos glTF-Sample-Assets (via jsDelivr CDN), pmndrs market (market.pmnd.rs), Sketchfab (Downloadable + CC), Quaternius / Kenney (CC0).
-- Reliability: prefer downloading models into /public/models and referencing locally; load with useGLTF + Draco, wrap in <Suspense>, useGLTF.preload. ALWAYS render a procedural fallback (brand-colored displaced geometry + particles) immediately so a missing/failed model never leaves the canvas empty or broken. Verify CC0/permissive license and add attribution if required.
-- Working links only: NEVER use expiring/deep URLs. Self-host models in /public/models or use stable pinned CDNs (jsDelivr → KhronosGroup/glTF-Sample-Assets, or market.pmnd.rs). Load fonts via next/font/google or @fontsource by family name — never hotlink a foundry URL or require a local font file. Verify every asset/link loads before shipping; fall back if not.
-- Customize + combine: override materials to the brand palette (metalness/clearcoat/emissive or custom shader), scale/stage and combine multiple models into one cohesive hero, light with drei <Environment> (CC0 HDRI), grade with postprocessing (Bloom, ChromaticAberration, DoF, N8AO).
-- Palette discipline: every model, mesh, particle, light, and the canvas background uses the brand palette below — no rainbow points, no random starfield, no untextured gray primitives.
-
-## PROJECT BRIEF
-- Brand: ${brand}${tagline}
-- Category: ${category}
-- Signature moment (build the experience around this): ${payload.signatureMoment || "see Layer 01"}
-- 3D assets: ${strategyLine}
-- Palette (use everywhere — geometry, particles, lights, background): primary ${primary}, accent ${accent}, background ${bg}
-- Sections: ${sections}
-- Featured techniques: ${features || "see layers below"}
-- Animation intensity: ${payload.animationIntensity ?? 80}/100
-
-## AWWWARDS QUALITY BAR
-Judged on Design (40%), Usability (30%), Creativity (20%), Content (10%). Deliver ONE unforgettable signature moment, buttery 60fps, sub-3s load, zero layout shift, intentional mobile design, and full keyboard access. Respect prefers-reduced-motion (disable heavy WebGL/parallax with graceful fallbacks) and ship lighter scenes / a static poster on mobile. No generic fade-ins, no rigid 12-column sameness.
-
-## THE 7-LAYER SPECIFICATION${body}
-
-## BUILD INSTRUCTIONS
-1. Scaffold the Next.js App Router + TypeScript project with the dependencies in Layer 07; set up Lenis + GSAP ScrollTrigger and a single React Three Fiber <Canvas>.
-2. Implement the design tokens (Layers 02–03), then the layout shell and sections (Layer 04), then the WebGL scene and shaders (Layer 05).
-3. Wire the motion, multi-layer parallax, and interactions (Layer 06). Keep all scroll logic on Lenis + ScrollTrigger; drive the 3D scene via useFrame.
-4. Enforce the performance & accessibility budget (Layer 07): lazy-init the Canvas, Draco/Meshopt compression, prefers-reduced-motion, and mobile fallbacks.
-5. Use the real brand name, tagline, colors, and fonts above — never placeholder text. Produce complete, runnable files.`;
-}
-
-async function generateAwwwardsWebsiteParallel(payload: GeneratePayload): Promise<string> {
-  const fullSchema = buildResponseSchema(payload);
-  const properties = (fullSchema as any).properties as Record<string, any>;
-  const systemPrompt = getSystemPrompt(payload);
-  const parts = buildUserParts(payload);
-  const model = "gemini-3.5-flash";
-
-  const layerKeys = Object.keys(properties);
-  const keys = getApiKeys();
-
-  if (keys.length === 0) {
-    throw new Error("No Gemini API keys configured.");
-  }
-
-  // Deeper reasoning for the most complex layers
-  const deepLayers = new Set(["layer_webgl", "layer_motion"]);
-
-  // Generate a single layer with a specific key. Throws on failure (caller retries).
-  const generateOneLayer = async (layerKey: string, apiKey: string): Promise<string> => {
-    const layerSchema = {
-      type: "OBJECT",
-      properties: { [layerKey]: properties[layerKey] },
-      required: [layerKey],
-    };
-    const layerLabel = properties[layerKey].description || layerKey;
-    const body = {
-      contents: [{
-        role: "user",
-        parts: [
-          ...parts,
-          { text: `\nFOCUS: Generate ONLY the "${layerKey}" layer — ${layerLabel}\nBe exhaustive, concrete, and code-level for THIS layer only. Output just the "${layerKey}" field.` },
-        ],
-      }],
-      systemInstruction: { parts: [{ text: systemPrompt }] },
-      generationConfig: {
-        temperature: 0.6,
-        topP: 0.9,
-        topK: 40,
-        responseMimeType: "application/json",
-        responseSchema: layerSchema,
-        thinkingConfig: { thinkingBudget: deepLayers.has(layerKey) ? 4096 : 2048 },
-      },
-    };
-    const text = await callGeminiWithKey(body, apiKey, model);
-    const parsed = JSON.parse(text);
-    return typeof parsed[layerKey] === "string" ? parsed[layerKey] : JSON.stringify(parsed[layerKey]);
-  };
-
-  const merged: Record<string, string> = {};
-  let lastErrors: string[] = [];
-
-  // Up to 3 rounds (initial + 2 retries). Each round runs all still-missing layers in
-  // parallel, rotating the key per layer per round so a rate-limited/exhausted key is
-  // avoided on retry. This guarantees every layer is filled even under flaky limits.
-  const maxRounds = 3;
-  for (let round = 0; round < maxRounds; round++) {
-    const pending = layerKeys.filter((k) => !merged[k]);
-    if (pending.length === 0) break;
-
-    if (round === 0) {
-      console.log(`Awwwards 3D: generating ${pending.length} layers across ${keys.length} keys...`);
-    } else {
-      console.log(`Awwwards 3D: retry round ${round} for ${pending.length} layer(s): ${pending.join(", ")}`);
-      await sleep(1500 * round); // brief backoff before retrying
-    }
-
-    const results = await Promise.allSettled(
-      pending.map((layerKey, i) => {
-        // Offset key choice by the round so a retry lands on a different key
-        const apiKey = keys[(i + round) % keys.length];
-        return generateOneLayer(layerKey, apiKey).then((value) => {
-          console.log(`✓ ${layerKey} complete (key ...${apiKey.slice(-4)})`);
-          return { key: layerKey, value };
-        });
-      })
-    );
-
-    lastErrors = [];
-    for (const result of results) {
-      if (result.status === "fulfilled") {
-        merged[result.value.key] = result.value.value;
-      } else {
-        lastErrors.push(result.reason?.message || "Unknown error");
-      }
-    }
-    if (lastErrors.length > 0) {
-      console.warn(`Awwwards 3D round ${round}: ${lastErrors.length} layer(s) failed — ${lastErrors.slice(0, 3).join(" | ")}`);
-    }
-  }
-
-  const stillMissing = layerKeys.filter((k) => !merged[k]);
-  if (stillMissing.length === layerKeys.length) {
-    // Surface the REAL underlying error (e.g. a 400/429/parse message), not a guess.
-    throw new Error(`All Awwwards 3D layer calls failed. Underlying error: ${lastErrors[0] || "unknown"}`);
-  }
-
-  // Guarantee EVERY layer is present in the final prompt — never silently drop a section.
-  // A failed layer becomes an agent-actionable note so the build prompt stays complete.
-  for (const k of stillMissing) {
-    const label = (properties[k].description || k).split(":")[0].trim();
-    merged[k] = `> NOTE: This layer (${label}) hit a temporary generation limit and was left for the build agent to complete. BUILD AGENT: write this layer yourself, fully consistent with the brand, palette, signature moment, and the other layers in this brief. (Or click Regenerate in Multia to auto-fill it.)`;
-  }
-  if (stillMissing.length > 0) {
-    console.warn(`Awwwards 3D: ${stillMissing.length} layer(s) used a placeholder after ${maxRounds} rounds: ${stillMissing.join(", ")}`);
-  }
-
-  // Assemble the final copy-paste build prompt from all layers (always complete now)
-  merged.full_prompt = assembleAwwwardsPrompt(merged, payload);
-
-  console.log(`Awwwards 3D: ${layerKeys.length - stillMissing.length}/${layerKeys.length} layers generated successfully.`);
 
   return JSON.stringify(merged, null, 2);
 }

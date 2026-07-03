@@ -68,9 +68,10 @@ export default function Home() {
           body: JSON.stringify(payload),
         });
 
-        const result = await response.json();
+        // Guard against non-JSON responses (e.g. an HTML error page from a proxy).
+        const result = await response.json().catch(() => ({}));
 
-        if (response.ok) {
+        if (response.ok && typeof result.json === "string") {
           patchMode(mode, { json: result.json, error: null, queuedUntil: null, queueMessage: null });
           clearLoading();
           return;
