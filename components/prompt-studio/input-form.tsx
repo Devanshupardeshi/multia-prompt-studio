@@ -289,6 +289,7 @@ export function InputForm({ onGenerate, isLoading, onModeChange }: InputFormProp
   const [subheadlineText, setSubheadlineText] = useState("");
   const [guestDetails, setGuestDetails] = useState("");
   const [logoPlaceholders, setLogoPlaceholders] = useState(DEFAULT_POSTER_LOGOS);
+  const [logoMode, setLogoMode] = useState<"placeholder" | "attach">("placeholder");
   const [posterBackground, setPosterBackground] = useState("deep_navy");
   const [posterAspect, setPosterAspect] = useState("1:1");
   const [includeDisclaimer, setIncludeDisclaimer] = useState(false);
@@ -589,6 +590,7 @@ export function InputForm({ onGenerate, isLoading, onModeChange }: InputFormProp
       subheadlineText: subheadlineText.trim() || undefined,
       guestDetails: guestDetails.trim() || undefined,
       logoPlaceholders: logoPlaceholders.trim() || undefined,
+      logoMode,
       posterBackground: posterBackground || undefined,
       includeDisclaimer,
     });
@@ -866,11 +868,25 @@ export function InputForm({ onGenerate, isLoading, onModeChange }: InputFormProp
                 </div>
               </div>
 
-              {/* Logo placeholders */}
+              {/* Logo handling */}
               <div>
-                <label className="block text-xs text-white/30 font-body uppercase tracking-[0.2em] mb-2">Logos to Reserve Space For (never drawn by the AI)</label>
+                <label className="block text-xs text-white/30 font-body uppercase tracking-[0.2em] mb-2">Logo Handling</label>
+                <div className="flex gap-2 mb-3">
+                  {([["placeholder", "Without Logos (reserve space)"], ["attach", "With Logos (attach files)"]] as const).map(([id, label]) => (
+                    <button key={id} onClick={() => setLogoMode(id)} className={`px-4 py-2 rounded text-sm transition-colors ${logoMode === id ? "bg-white text-black" : "bg-white/10 text-white/70 hover:bg-white/20"}`}>
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                <label className="block text-xs text-white/30 font-body uppercase tracking-[0.2em] mb-2">
+                  {logoMode === "attach" ? "Logos You Will Attach (with position)" : "Logos to Reserve Space For (never drawn by the AI)"}
+                </label>
                 <textarea value={logoPlaceholders} onChange={(e) => setLogoPlaceholders(e.target.value)} rows={2} className="input-multia w-full px-4 py-3 text-sm resize-none custom-scrollbar" />
-                <p className="text-[11px] text-white/25 font-body mt-1.5">The prompt instructs the image model to leave these zones as clean empty space — you paste the real logos in later.</p>
+                <p className="text-[11px] text-white/25 font-body mt-1.5">
+                  {logoMode === "attach"
+                    ? "The generated JSON includes an upload_sequence — attach your real logo/photo files to ChatGPT or Gemini in exactly that order (guest photos first, then logos), and the prompt tells the model to composite each one pixel-faithfully."
+                    : "The prompt instructs the image model to leave these zones as clean empty space — you paste the real logos in later."}
+                </p>
               </div>
 
               {/* Background + Aspect + Disclaimer */}
@@ -924,7 +940,7 @@ export function InputForm({ onGenerate, isLoading, onModeChange }: InputFormProp
                     </div>
                   )}
                 </div>
-                <p className="text-[11px] text-white/25 font-body mt-1.5">Nano Banana Pro can reproduce attached logo assets exactly; GPT Image ignores attachments, so its prompt always reserves blank space instead.</p>
+                <p className="text-[11px] text-white/25 font-body mt-1.5">These help the prompt engine see your assets (layout reference, guest photos, show logo). In &quot;With Logos&quot; mode you&apos;ll still attach the real files to ChatGPT/Gemini yourself, following the upload_sequence in the output.</p>
               </div>
             </div>
           )}

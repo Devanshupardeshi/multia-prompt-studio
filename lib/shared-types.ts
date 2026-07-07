@@ -106,6 +106,7 @@ export interface GeneratePayload {
   subheadlineText?: string;
   guestDetails?: string;        // guest names + designations, one per line
   logoPlaceholders?: string;    // comma-separated logos to reserve blank space for
+  logoMode?: string;            // "attach" (user uploads real logo files with the prompt) | "placeholder" (reserve blank zones)
   posterBackground?: string;    // deep_navy | teal | orange_gradient | pastel
   includeDisclaimer?: boolean;  // AMFI mutual-fund disclaimer strip
 }

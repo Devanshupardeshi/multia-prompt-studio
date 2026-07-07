@@ -466,7 +466,7 @@ function buildResponseSchema(payload: GeneratePayload): Record<string, unknown> 
         },
         negative_prompt: {
           type: "STRING",
-          description: "10-20 comma-separated items. Must include: misspelled text, gibberish text, extra random letters, invented logos, fake brand marks, watermark, photo frame, wall mockup, 3D room.",
+          description: "10-20 comma-separated items. Must include: misspelled text, gibberish text, extra random letters, invented logos, fake brand marks, watermark, photo frame, wall mockup, 3D room, cartoon, chibi, mascot style, childish clip-art, doodle, thick outlines.",
         },
         task: { type: "STRING", description: "One-line goal, e.g. 'Episode promo poster for MF Corner'." },
         output: posterOutput,
@@ -514,15 +514,28 @@ function buildResponseSchema(payload: GeneratePayload): Record<string, unknown> 
         },
         logo_placeholders: {
           type: "ARRAY",
-          description: "One entry per real logo. Image models must NOT draw these — each zone stays as clean empty flat background so the real logo is composited in post-production.",
+          description: "One entry per real logo. WITHOUT-LOGOS mode: each zone stays clean empty flat background for post-production compositing. WITH-LOGOS mode: each zone composites the user's attached logo file exactly.",
           items: {
             type: "OBJECT",
             properties: {
-              name: { type: "STRING", description: "Which logo goes here later, e.g. CNBC TV18." },
+              name: { type: "STRING", description: "Which logo goes here, e.g. CNBC TV18." },
               position: { type: "STRING", description: "Exact position and approximate size on the canvas." },
-              instruction: { type: "STRING", description: "Instruction to the image model: keep this area as clean empty flat background — no text, no icon, no invented logo. (If a matching logo asset image is attached for Nano Banana, instead: reproduce the logo from that image exactly, unaltered.)" },
+              instruction: { type: "STRING", description: "WITHOUT-LOGOS mode: keep this area as clean empty flat background — no text, no icon, no invented logo. WITH-LOGOS mode: 'composite the exact logo from attached image N here, pixel-faithful, no redrawing/recoloring/distortion'." },
             },
             required: ["name", "position", "instruction"],
+          },
+        },
+        upload_sequence: {
+          type: "ARRAY",
+          description: "WITH-LOGOS mode: the exact ordered list of files the user must attach alongside this prompt (guest/people photos first, then logos in layout order). Empty array in WITHOUT-LOGOS mode.",
+          items: {
+            type: "OBJECT",
+            properties: {
+              order: { type: "INTEGER", description: "Attachment number, starting at 1." },
+              asset: { type: "STRING", description: "Which file to attach, e.g. 'CNBC TV18 logo (transparent PNG)'." },
+              placement: { type: "STRING", description: "Where it lands on the poster." },
+            },
+            required: ["order", "asset", "placement"],
           },
         },
         illustration: {
@@ -541,7 +554,7 @@ function buildResponseSchema(payload: GeneratePayload): Record<string, unknown> 
           description: "Brand-guideline rules this poster applies (palette fidelity, typography hierarchy, logo clear space, uncluttered composition, disclaimer strip if required).",
         },
       },
-      required: ["prompt", "negative_prompt", "task", "output", "canvas", "typography", "layout_zones", "logo_placeholders", "illustration", "brand_compliance"],
+      required: ["prompt", "negative_prompt", "task", "output", "canvas", "typography", "layout_zones", "logo_placeholders", "upload_sequence", "illustration", "brand_compliance"],
     };
   }
 
@@ -1374,16 +1387,21 @@ Produce ONE shot object. Make it one focused, coherent ${payload.duration || "10
   // Poster Design mode — brand-compliant marketing poster prompts with reserved logo zones
   if (payload.mode === "poster_design") {
     const posterTarget = resolveTargetModel(payload);
+    const attachLogos = payload.logoMode === "attach";
     let pp = `You are the Multia Poster Engine — a senior brand designer and prompt engineer who converts a creative brief into a precise JSON prompt for AI image generation (target model: ${posterTarget === "gpt-image" ? "OpenAI GPT Image" : "Google Nano Banana Pro"}). The output is a FLAT 2D GRAPHIC-DESIGN MARKETING POSTER — never a photograph of a poster, never a mockup on a wall or in a frame.
 
-## LAW 1 — REAL LOGOS ARE NEVER DRAWN (MOST IMPORTANT)
-Image models cannot reproduce real brand logos — they hallucinate broken marks that ruin the poster. For EVERY logo the user lists (e.g. CNBC TV18, Bandhan Mutual Fund, show logos):
+## LAW 1 — REAL LOGOS (MOST IMPORTANT)
+Image models cannot invent real brand logos from memory — a hallucinated mark ruins the poster. Logo handling mode chosen by the user: ${attachLogos ? "WITH LOGOS (user attaches the real files)" : "WITHOUT LOGOS (reserve blank space)"}.
+${attachLogos ? `WITH-LOGOS MODE — the user will ATTACH the real logo/photo files to ChatGPT or Gemini TOGETHER with this prompt, and the image model composites them:
+- Fill "upload_sequence" with the EXACT ordered list of files to attach, numbered from 1: guest/people photos FIRST, then logos in layout order (top-left → top-right → show logo unit → bottom strip). One entry per file, naming the asset and its placement.
+- In the "prompt", reference every asset by that number: "composite the exact logo from attached image N at [position], approx [size], reproduced pixel-faithfully — do NOT redraw, recolor, restyle, distort, crop or add effects to it; keep clear space around it equal to its own height".
+- Each "logo_placeholders" entry carries the same composite-attached-image-N instruction (no empty zones in this mode).
+- The model must ONLY composite the attached files — never re-render a logo from memory, never substitute a lookalike mark.` : `WITHOUT-LOGOS MODE — logos are pasted in later by a designer:
 - Define a RESERVED PLACEHOLDER ZONE in "logo_placeholders" and in "layout_zones" with exact position and approximate size.
-- In the "prompt", explicitly describe each zone as: "clean EMPTY flat background space reserved in the [position] (approx [size]) — no text, no icon, no graphic elements there". The real logo is composited in later by a designer.
-- NEVER instruct the model to draw the logo, never render the brand name as decorative text inside a reserved zone, never invent a substitute mark.${posterTarget === "gpt-image" ? `
-- GPT Image CANNOT use attached reference images, so EVERY listed logo gets an empty reserved zone. No exceptions.` : `
-- Nano Banana Pro exception: if the user ATTACHED a logo/show-asset image, that specific asset may be reproduced — instruct "place the exact logo from IMAGE N here, reproduced pixel-faithfully, unaltered". Logos NOT attached as images still get empty reserved zones.`}
-- Balance the composition so the reserved zones look intentional (part of the grid), not like holes.
+- In the "prompt", explicitly describe each zone as: "clean EMPTY flat background space reserved in the [position] (approx [size]) — no text, no icon, no graphic elements there".
+- NEVER instruct the model to draw a logo, never render the brand name as decorative text inside a reserved zone, never invent a substitute mark.
+- "upload_sequence" is an empty array in this mode${posterTarget === "nano-banana-pro" ? " (unless guest photos/assets are attached in the studio — list those)" : ""}.
+- Balance the composition so the reserved zones look intentional (part of the grid), not like holes.`}
 
 ## LAW 2 — TEXT MUST BE EXACT
 - Every rendered text element (headline, subheadline, body line, CTA strip, name plates) must appear in the "prompt" in double quotes with the EXACT spelling, plus its treatment (weight, color, highlight box).
@@ -1412,9 +1430,16 @@ Unless the user overrides it, reproduce this exact episode-poster template:
 - PHOTO STYLE: cutout people on clean backgrounds, active/playful, never staged studio poses, no exaggerated caricature expressions, no busy room backgrounds.
 - DISCLAIMER (when requested): a thin white strip at the very bottom with "Mutual Fund investments are subject to market risks, read all scheme related documents carefully." in small dark text.
 
+## LAW 5 — PREMIUM FINISH (NEVER CARTOONISH)
+- Illustrations must read as premium editorial-grade fintech campaign art: refined semi-flat vector with subtle gradients, soft ambient shadows, gentle dimensional depth on coins/objects, professional color grading, crisp print-quality edges — the finish of a top-tier agency, not a stock clip-art pack.
+- Human figures: realistic adult proportions, elegant confident poses, minimal facial detail done tastefully. BAN: big-head chibi/mascot/cartoon characters, thick childish outlines, emoji-style faces, crayon/doodle textures, toy-like plastic 3D renders.
+- Photo cutouts: professional studio-photography quality, natural skin texture, sharp clean cutout edges, lighting and grade matched to the poster palette.
+- State these positively in "prompt" (e.g. "premium editorial vector illustration, sophisticated gradients, professional finish") AND put the cartoon bans in "negative_prompt": cartoon, chibi, mascot style, childish clip-art, doodle, thick outlines, toy-like 3D render.
+
 ## TARGET MODEL NOTES
 ${posterTarget === "gpt-image"
   ? `- GPT Image IGNORES negative prompts — still fill "negative_prompt", but phrase every avoidance positively inside "prompt" too.
+- GPT Image (in ChatGPT) CAN composite images the user attaches with the prompt — reference them strictly by attachment number per the upload sequence.
 - "output.resolution" must be exactly one of: ${GPT_IMAGE_RESOLUTIONS.join(", ")}; "output.aspect_ratio" one of: ${GPT_IMAGE_ASPECT_RATIOS.join(", ")}. For square social posters use 1024x1024 / 1:1.`
   : `- Nano Banana Pro responds best to one dense narrative "prompt" and supports attached reference images — reference them explicitly ("the show logo in image 1").
 - Negative prompts are weak; also phrase avoidances positively inside "prompt".`}
@@ -1584,7 +1609,12 @@ function buildUserParts(payload: GeneratePayload): any[] {
     if (payload.subheadlineText) userMessage += `Subheadline (render EXACTLY): <subheadline>${payload.subheadlineText}</subheadline>\n`;
     if (payload.ctaText) userMessage += `Bottom strip / CTA (render EXACTLY): <cta>${payload.ctaText}</cta>\n`;
     if (payload.guestDetails) userMessage += `\nGuests (name plates, one per line):\n<guests>\n${payload.guestDetails}\n</guests>\n`;
-    userMessage += `\nLogos to RESERVE EMPTY SPACE for (never draw them): ${payload.logoPlaceholders || "CNBC TV18 (top-left), 25 Years + Bandhan Mutual Fund lockup (top-right), MF CORNER show logo unit (upper area), CNBC TV18 small (end of bottom strip)"}\n`;
+    const posterLogoList = payload.logoPlaceholders || "CNBC TV18 (top-left), 25 Years + Bandhan Mutual Fund lockup (top-right), MF CORNER show logo unit (upper area), CNBC TV18 small (end of bottom strip)";
+    if (payload.logoMode === "attach") {
+      userMessage += `\nLogo handling: WITH LOGOS — the user will attach these real files alongside the prompt. Define the upload_sequence and reference each by attachment number: ${posterLogoList}\n`;
+    } else {
+      userMessage += `\nLogo handling: WITHOUT LOGOS — reserve EMPTY SPACE for these (never draw them): ${posterLogoList}\n`;
+    }
     userMessage += `Include AMFI disclaimer strip: ${payload.includeDisclaimer ? "YES" : "no"}\n`;
     if (payload.description) {
       userMessage += `\nTopic / creative brief (THIS DRIVES THE HEADLINE AND ILLUSTRATION):\n<user_description>\n${payload.description}\n</user_description>\n`;
@@ -2427,6 +2457,9 @@ function validateGeneratedJson(rawText: string, payload: GeneratePayload): Valid
     }
     if (!Array.isArray(parsed.logo_placeholders)) {
       return { ok: false, error: `"logo_placeholders" must be an array of reserved logo zones` };
+    }
+    if (payload.logoMode === "attach" && (!Array.isArray(parsed.upload_sequence) || parsed.upload_sequence.length === 0)) {
+      return { ok: false, error: `WITH-LOGOS mode requires a non-empty "upload_sequence" array listing every file the user must attach, in order` };
     }
     if (resolveTargetModel(payload) === "gpt-image") {
       const res = parsed.output?.resolution;
