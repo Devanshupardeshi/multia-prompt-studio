@@ -3,7 +3,7 @@
 // This file must NOT have "use client" or "use server" directives.
 
 export type GenerationMode =
-  | "standard" | "face_swap" | "mockup"
+  | "standard" | "face_swap" | "mockup" | "poster_design"
   | "3d_website" | "awwwards_website" | "deep_research"
   | "video_standard" | "video_logo_animation" | "video_product_showcase";
 
@@ -99,6 +99,15 @@ export interface GeneratePayload {
   ctaText?: string;
   productMaterial?: string;
   backgroundScene?: string;
+  // Poster Design mode
+  posterTemplate?: string;      // "mf_corner" (Bandhan × CNBC brand kit) | "custom"
+  posterType?: string;          // episode_promo | guest_announcement | nfo_alert | concept_explainer | market_update
+  headlineText?: string;
+  subheadlineText?: string;
+  guestDetails?: string;        // guest names + designations, one per line
+  logoPlaceholders?: string;    // comma-separated logos to reserve blank space for
+  posterBackground?: string;    // deep_navy | teal | orange_gradient | pastel
+  includeDisclaimer?: boolean;  // AMFI mutual-fund disclaimer strip
 }
 
 export interface CustomStyle {

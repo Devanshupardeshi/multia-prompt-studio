@@ -21,6 +21,9 @@ export async function POST(request: NextRequest) {
     if (payload.mode === "mockup" && (!payload.logoImage)) {
       return NextResponse.json({ error: "Logo image is required for mockup mode" }, { status: 400 });
     }
+    if (payload.mode === "poster_design" && (!payload.description || !payload.description.trim()) && (!payload.headlineText || !payload.headlineText.trim())) {
+      return NextResponse.json({ error: "A topic description or headline is required for Poster Design mode" }, { status: 400 });
+    }
     if (payload.mode === "3d_website" && (!payload.brandName || !payload.brandName.trim())) {
       return NextResponse.json({ error: "Brand name is required for 3D Website mode" }, { status: 400 });
     }
