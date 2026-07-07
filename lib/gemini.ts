@@ -519,10 +519,11 @@ function buildResponseSchema(payload: GeneratePayload): Record<string, unknown> 
             type: "OBJECT",
             properties: {
               name: { type: "STRING", description: "Which logo goes here, e.g. CNBC TV18." },
+              file: { type: "STRING", nullable: true, description: "EXACT asset file name to use from the brand's logo pack (e.g. 'CNBC TV18 NEW LOGO FINAL RGB_TV18 Reverse.png'), chosen per the CNBC logo law for this background. Null when no catalog file is known." },
               position: { type: "STRING", description: "Exact position and approximate size on the canvas." },
               instruction: { type: "STRING", description: "WITHOUT-LOGOS mode: keep this area as clean empty flat background — no text, no icon, no invented logo. WITH-LOGOS mode: 'composite the exact logo from attached image N here, pixel-faithful, no redrawing/recoloring/distortion'." },
             },
-            required: ["name", "position", "instruction"],
+            required: ["name", "file", "position", "instruction"],
           },
         },
         upload_sequence: {
@@ -532,7 +533,7 @@ function buildResponseSchema(payload: GeneratePayload): Record<string, unknown> 
             type: "OBJECT",
             properties: {
               order: { type: "INTEGER", description: "Attachment number, starting at 1." },
-              asset: { type: "STRING", description: "Which file to attach, e.g. 'CNBC TV18 logo (transparent PNG)'." },
+              asset: { type: "STRING", description: "Which file to attach — use the EXACT file name from the brand's logo pack when known (e.g. 'CNBC TV18 NEW LOGO FINAL RGB_TV18 Reverse.png'), chosen per the CNBC logo law for this background." },
               placement: { type: "STRING", description: "Where it lands on the poster." },
             },
             required: ["order", "asset", "placement"],
@@ -1393,12 +1394,13 @@ Produce ONE shot object. Make it one focused, coherent ${payload.duration || "10
 ## LAW 1 — REAL LOGOS (MOST IMPORTANT)
 Image models cannot invent real brand logos from memory — a hallucinated mark ruins the poster. Logo handling mode chosen by the user: ${attachLogos ? "WITH LOGOS (user attaches the real files)" : "WITHOUT LOGOS (reserve blank space)"}.
 ${attachLogos ? `WITH-LOGOS MODE — the user will ATTACH the real logo/photo files to ChatGPT or Gemini TOGETHER with this prompt, and the image model composites them:
-- Fill "upload_sequence" with the EXACT ordered list of files to attach, numbered from 1: guest/people photos FIRST, then logos in layout order (top-left → top-right → show logo unit → bottom strip). One entry per file, naming the asset and its placement.
+- Fill "upload_sequence" with the EXACT ordered list of files to attach, numbered from 1: guest/people photos FIRST, then logos in layout order (top-left → top-right → show logo unit → bottom strip). One entry per file, naming the asset and its placement — use the EXACT catalog file name whenever the logo comes from a known brand pack (see the CNBC law).
 - In the "prompt", reference every asset by that number: "composite the exact logo from attached image N at [position], approx [size], reproduced pixel-faithfully — do NOT redraw, recolor, restyle, distort, crop or add effects to it; keep clear space around it equal to its own height".
 - Each "logo_placeholders" entry carries the same composite-attached-image-N instruction (no empty zones in this mode).
 - The model must ONLY composite the attached files — never re-render a logo from memory, never substitute a lookalike mark.` : `WITHOUT-LOGOS MODE — logos are pasted in later by a designer:
 - Define a RESERVED PLACEHOLDER ZONE in "logo_placeholders" and in "layout_zones" with exact position and approximate size.
 - In the "prompt", explicitly describe each zone as: "clean EMPTY flat background space reserved in the [position] (approx [size]) — no text, no icon, no graphic elements there".
+- Still fill "logo_placeholders[].file" with the EXACT catalog file name the designer should paste in later (see the CNBC law), so they grab the right variant for this background.
 - NEVER instruct the model to draw a logo, never render the brand name as decorative text inside a reserved zone, never invent a substitute mark.
 - "upload_sequence" is an empty array in this mode${posterTarget === "nano-banana-pro" ? " (unless guest photos/assets are attached in the studio — list those)" : ""}.
 - Balance the composition so the reserved zones look intentional (part of the grid), not like holes.`}
@@ -1435,6 +1437,25 @@ Unless the user overrides it, reproduce this exact episode-poster template:
 - Human figures: realistic adult proportions, elegant confident poses, minimal facial detail done tastefully. BAN: big-head chibi/mascot/cartoon characters, thick childish outlines, emoji-style faces, crayon/doodle textures, toy-like plastic 3D renders.
 - Photo cutouts: professional studio-photography quality, natural skin texture, sharp clean cutout edges, lighting and grade matched to the poster palette.
 - State these positively in "prompt" (e.g. "premium editorial vector illustration, sophisticated gradients, professional finish") AND put the cartoon bans in "negative_prompt": cartoon, chibi, mascot style, childish clip-art, doodle, thick outlines, toy-like 3D render.
+
+## LAW 6 — CNBC LOGO USAGE (official CNBC Logo Usage Guide, October 2025 + asset pack)
+The 2026 CNBC logo = Azure Blue tick marker + Gotham-based wordmark. Colors: Broadcast Blue #001E5A, Azure Blue #0076FF, White #FFFFFF.
+VARIANT SELECTION — every CNBC logo zone must name the ONE correct file from the official pack, chosen by the poster background behind that zone:
+- LIGHT / pastel background → full-color "Blue" file (Broadcast Blue wordmark + azure tick). PREFERRED whenever the background is light.
+- DARK background (deep navy, teal, Broadcast Blue) → "Reverse" file (white wordmark + azure tick). PREFERRED on dark.
+- BUSY / photographic / strongly colored background (e.g. orange gradient) → one-color "White" file, placed on a low-contrast area.
+OFFICIAL FILE CATALOG (use these EXACT names in "logo_placeholders[].file" and "upload_sequence[].asset"):
+- CNBC-TV18 (default for MF Corner): "CNBC TV18 NEW LOGO FINAL RGB_TV18 Blue.png" | "CNBC TV18 NEW LOGO FINAL RGB_TV18 Reverse.png" | "CNBC TV18 NEW LOGO FINAL RGB_TV18 White.png"
+- CNBC-TV18.COM (digital/web co-branding): "CNBC-TV18 COM NEW LOGO FINAL RGB_TV18 Blue COM Black.png" | "CNBC-TV18 COM NEW LOGO FINAL RGB_TV18 Blue COM White.png" | "CNBC-TV18 COM NEW LOGO FINAL RGB_TV18 COM White.png"
+- CNBC-TV18 PRIME: "ALL CNBC NEW LOGO FINAL RGB_Prime Horizonatal.jpg" | "..._Prime Horizonatal Reverse.jpg" | "..._Prime Horizonatal White.jpg" (Vertical variants exist with the same suffixes — pick Horizontal for strips/corners, Vertical for tall side placements)
+- CNBC-AWAAZ (Hindi-language posters): "CNBC-AWAAZ NEW LOGO FINAL RGB_Awaaz Blue.png" | "CNBC-AWAAZ NEW LOGO FINAL RGB_AWAAZ Reverse.png" | "CNBC-AWAAZ NEW LOGO FINAL RGB_AWAAZ White.png"
+- CNBC BAJAR (Gujarati-language posters): "CNBC BAJAR NEW LOGO FINAL RGB_Bajar Blue.png" | "CNBC BAJAR NEW LOGO FINAL RGB_BAJAR Reverse.png" | "CNBC BAJAR NEW LOGO FINAL RGB_BAJAR White.png"
+Channel choice: CNBC-TV18 unless the user names another channel or the poster language implies it (Hindi → AWAAZ, Gujarati → BAJAR).
+PLACEMENT RULES (bake into the zone sizes in "layout_zones" and "prompt"):
+- Exclusion zone: clear space around the CNBC logo at least the width of the "C" in the wordmark — reserve zones with that padding included; give it more room when possible.
+- Never smaller than 20px height at 1080px canvas scale — keep corner zones generous.
+- The logo must sit on a calm, low-contrast area — never over busy illustration details.
+MISUSE BANS (also mirror into "negative_prompt" when a CNBC zone exists): never recolor the logo or tick marker, no gradients/shadows/bevels/outline on it, no distortion or proportion changes, never recreate the wordmark as text, no URLs appended, no masking images into the tick marker, no holiday/one-off customization.
 
 ## TARGET MODEL NOTES
 ${posterTarget === "gpt-image"
