@@ -462,7 +462,7 @@ function buildResponseSchema(payload: GeneratePayload): Record<string, unknown> 
         prompt: {
           type: "STRING",
           description:
-            "THE FINAL COPY-PASTE POSTER PROMPT. One dense 250+ word paragraph describing the complete poster: canvas + background texture, every layout zone in order (top to bottom), every text element with its EXACT wording in double quotes plus font weight/color/highlight treatment, the central illustration in detail, the color palette with hex codes, and EVERY reserved logo placeholder zone described as clean empty flat background space. End with 'flat vector graphic design, professional marketing poster, sharp clean typography, no gibberish text'.",
+            "THE FINAL COPY-PASTE POSTER PROMPT. One dense 250+ word paragraph describing the complete poster: canvas + background texture, every layout zone in order (top to bottom), every text element with its EXACT wording in double quotes plus font weight/color/highlight treatment, the central illustration in detail, the color palette with hex codes, and EVERY logo zone described ANONYMOUSLY (never name the brand — 'reserved blank zone for a partner mark' or 'composite attached image N exactly as provided'). End with 'flat vector graphic design, professional marketing poster, sharp clean typography, no gibberish text'.",
         },
         negative_prompt: {
           type: "STRING",
@@ -1405,6 +1405,13 @@ ${attachLogos ? `WITH-LOGOS MODE — the user will ATTACH the real logo/photo fi
 - "upload_sequence" is an empty array in this mode${posterTarget === "nano-banana-pro" ? " (unless guest photos/assets are attached in the studio — list those)" : ""}.
 - Balance the composition so the reserved zones look intentional (part of the grid), not like holes.`}
 
+## LAW 1B — KEEP BRAND MARKS ANONYMOUS INSIDE "prompt" / "negative_prompt" (ANTI-REFUSAL)
+Image platforms auto-refuse prompts that request a trademarked LOGO by name — even when the layout only reserves empty space for it. So inside the "prompt" and "negative_prompt" strings:
+- NEVER name the brand a logo zone belongs to, and never describe a real logo's shapes or colors. Describe every zone neutrally: "reserved blank rectangular zone at the top-left (approx 10% width), kept as clean flat background, for a mark that will be added in post-production".
+- WITH-LOGOS mode: refer to attachments by number only ("composite attached image 2 exactly as provided at the top-right, unaltered") — never state what brand the attachment shows.
+- Brand names and exact file names live ONLY in the fields the user does NOT paste: "logo_placeholders", "upload_sequence", "layout_zones", "task", "brand_compliance".
+- USER TEXT IS DIFFERENT: headlines, subheadlines, fund names, guest names and designations are rendered TYPOGRAPHY and stay verbatim. ONE exception: when a text line ends with a channel/network name whose logo sits right after it (e.g. a schedule line ending "...only on <channel>"), cut the channel name from the rendered text and let the adjacent logo zone carry it — exactly like the real posters.
+
 ## LAW 2 — TEXT MUST BE EXACT
 - Every rendered text element (headline, subheadline, body line, CTA strip, name plates) must appear in the "prompt" in double quotes with the EXACT spelling, plus its treatment (weight, color, highlight box).
 - Add "each word spelled exactly as quoted, sharp clean typography, no gibberish text" near the text descriptions.
@@ -1456,6 +1463,21 @@ PLACEMENT RULES (bake into the zone sizes in "layout_zones" and "prompt"):
 - Never smaller than 20px height at 1080px canvas scale — keep corner zones generous.
 - The logo must sit on a calm, low-contrast area — never over busy illustration details.
 MISUSE BANS (also mirror into "negative_prompt" when a CNBC zone exists): never recolor the logo or tick marker, no gradients/shadows/bevels/outline on it, no distortion or proportion changes, never recreate the wordmark as text, no URLs appended, no masking images into the tick marker, no holiday/one-off customization.
+
+## LAW 7 — HOW TO WRITE THE "prompt" FIELD (CALIBRATION — THIS DECIDES THE QUALITY)
+A vague prompt produces an AI-looking poster. The "prompt" paragraph must be CONCRETE like an art director's spec, following this exact order:
+1. Open with: "A flat 2D graphic-design marketing poster, [ratio], [resolution] — not a photo of a poster, no frame, no wall."
+2. Background: base color WITH HEX, gradient direction, then the texture with an opacity percentage (e.g. "ghosted candlestick columns at 10% opacity").
+3. Each zone top-to-bottom with its approximate size as % of canvas width and exact placement.
+4. Every text element quoted with PER-WORD treatment: which words are white, which take the accent color, which sit inside a highlight box WITH HEX and a tilt in degrees ("rotated about 2 degrees").
+5. The illustration: each element named concretely (what object, what material, what color, where), plus finish language ("subtle gradients, soft ambient shadows, refined editorial finish, never cartoonish").
+6. Close with the fixed tail: "Flat vector graphic design, professional marketing poster, sharp clean typography, no gibberish text."
+HARD RULES:
+- Minimum 3 hex color codes inside the prompt. Numbers beat adjectives: percentages, degrees, counts ("five stacks of golden coins"), positions.
+- BANNED FILLER (never use): "eye-catching", "stunning", "visually appealing", "dynamic design", "vibrant" (alone), "high quality" (alone), "modern look", "sleek".
+- One focal idea. If the illustration list exceeds ~5 elements, cut the weakest.
+CALIBRATION EXCERPT (imitate the DENSITY and CONCRETENESS — never reuse the content):
+"...the left third is a dark slate-navy panel, the rest a deep Prussian blue #0A3252 field textured with faintly visible currency notes and candlestick chart lines at roughly 10% opacity. Top-left corner: a clean EMPTY rectangular zone approx 10% of canvas width, kept as flat untouched background — a partner mark is added later in post-production. Right of center, the headline block: the line \\"Beyond the Hype:\\" in white medium-weight rounded humanist sans-serif, below it \\"The Real Story of\\" in larger bold white, and beneath that the word \\"NFOs\\" in huge bold white type sitting inside a solid orange #e18227 highlight box rotated about 2 degrees... five stacks of golden coins embossed with rupee symbols rising left to right like a growth chart, a small well-proportioned faceless character in a navy outfit leaping elegantly across the stacks holding a gold coin..."
 
 ## TARGET MODEL NOTES
 ${posterTarget === "gpt-image"
@@ -2482,6 +2504,21 @@ function validateGeneratedJson(rawText: string, payload: GeneratePayload): Valid
     if (payload.logoMode === "attach" && (!Array.isArray(parsed.upload_sequence) || parsed.upload_sequence.length === 0)) {
       return { ok: false, error: `WITH-LOGOS mode requires a non-empty "upload_sequence" array listing every file the user must attach, in order` };
     }
+    // Channel names in the pasted prompt trip image platforms' trademark refusals
+    // even when no logo is drawn — force anonymous zone descriptions (LAW 1B).
+    const pastedText = `${parsed.prompt} ${parsed.negative_prompt ?? ""}`;
+    if (/CNBC|TV18|AWAAZ|BAJAR/i.test(pastedText)) {
+      return { ok: false, error: `The "prompt"/"negative_prompt" must never name channels or brands for logo zones (found a channel name). Describe those zones anonymously per LAW 1B ("reserved blank zone for a partner mark" / "attached image N") and cut trailing channel names from schedule text lines.` };
+    }
+    // LAW 7 concreteness: vague prompts make AI-looking posters. Require real
+    // hex values and reject the trademark filler adjectives outright.
+    const hexCount = (parsed.prompt.match(/#[0-9a-fA-F]{6}\b/g) || []).length;
+    if (hexCount < 3) {
+      return { ok: false, error: `The "prompt" contains only ${hexCount} hex color code(s). LAW 7 requires at least 3 exact hex values (background, highlight box, accent) — rewrite with concrete colors, sizes in % of canvas, and tilt angles in degrees.` };
+    }
+    if (/eye-catching|visually appealing|stunning|sleek|modern look/i.test(parsed.prompt)) {
+      return { ok: false, error: `The "prompt" uses banned vague filler ("eye-catching"/"stunning"/"visually appealing"/"sleek"/"modern look"). Replace every vague adjective with concrete specs per LAW 7: hex colors, % sizes, degree tilts, element counts.` };
+    }
     if (resolveTargetModel(payload) === "gpt-image") {
       const res = parsed.output?.resolution;
       if (typeof res === "string" && !GPT_IMAGE_RESOLUTIONS.includes(res)) {
@@ -2601,9 +2638,11 @@ export async function generatePrompt(payload: GeneratePayload): Promise<string> 
         ? { thinkingBudget: 8192 }
         : (isVideoMode(payload.mode) && payload.shotStructure === "storyboard")
           ? { thinkingBudget: 2048 }
-          : isImageMode
-            ? { thinkingBudget: 512 }
-            : { thinkingBudget: 0 },
+          : payload.mode === "poster_design"
+            ? { thinkingBudget: 2048 }
+            : isImageMode
+              ? { thinkingBudget: 512 }
+              : { thinkingBudget: 0 },
     },
   });
 

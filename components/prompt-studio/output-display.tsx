@@ -236,6 +236,88 @@ export function OutputDisplay({
           </div>
         )}
 
+        {/* Poster Design — asset instructions: what to upload, in what order, which file */}
+        {json && !isLoading && mode === "poster_design" && (() => {
+          let parsed: any = {};
+          try { parsed = JSON.parse(json); } catch { return null; }
+          const seq: any[] = Array.isArray(parsed.upload_sequence) ? parsed.upload_sequence : [];
+          const zones: any[] = Array.isArray(parsed.logo_placeholders) ? parsed.logo_placeholders : [];
+          if (seq.length === 0 && zones.length === 0) return null;
+
+          const checklist = [
+            ...(seq.length > 0
+              ? ["ATTACH THESE FILES WITH THE PROMPT, IN THIS ORDER:", ...seq.map((s) => `${s.order}. ${s.asset} → ${s.placement}`)]
+              : []),
+            ...(zones.length > 0
+              ? [seq.length > 0 ? "" : "", "LOGO ZONES:", ...zones.map((z) => `• ${z.name}${z.file ? ` — use file: ${z.file}` : ""} @ ${z.position}`)]
+              : []),
+          ].join("\n");
+
+          return (
+            <div className="border border-sky-500/20 bg-sky-500/5 rounded-xl p-5 mb-4">
+              <div className="flex items-center justify-between mb-4">
+                <span className="text-xs text-sky-300/80 font-body uppercase tracking-[0.2em]">
+                  📎 Asset Instructions
+                </span>
+                <button
+                  onClick={() => copyText(checklist)}
+                  className="text-[11px] text-white/40 hover:text-white/80 transition-colors font-body uppercase tracking-wider px-2 py-1 rounded hover:bg-white/5 border border-white/10"
+                >
+                  {copied ? "Copied!" : "Copy Checklist"}
+                </button>
+              </div>
+
+              {seq.length > 0 && (
+                <div className="mb-4">
+                  <p className="text-[12px] text-white/60 font-body mb-2">
+                    Attach these files to ChatGPT / Gemini <span className="text-white/90 font-medium">together with the prompt, in exactly this order</span>:
+                  </p>
+                  <ol className="space-y-1.5">
+                    {seq.map((s, i) => (
+                      <li key={i} className="flex items-start gap-3">
+                        <span className="mt-0.5 min-w-5 h-5 px-1 rounded-full bg-sky-400/20 text-sky-300 text-[11px] font-mono flex items-center justify-center">
+                          {s.order ?? i + 1}
+                        </span>
+                        <span className="text-[13px] text-white/80 font-body leading-snug">
+                          <span className="font-mono text-sky-200/90">{s.asset}</span>
+                          {s.placement && <span className="text-white/40"> → {s.placement}</span>}
+                        </span>
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+              )}
+
+              {zones.length > 0 && (
+                <div>
+                  <p className="text-[12px] text-white/60 font-body mb-2">
+                    Logo zones on the poster{seq.length === 0 ? " (left empty by the AI — paste these files in yourself afterwards)" : ""}:
+                  </p>
+                  <ul className="space-y-2">
+                    {zones.map((z, i) => (
+                      <li key={i} className="text-[13px] font-body leading-snug">
+                        <span className="text-white/90 font-medium">{z.name}</span>
+                        <span className="text-white/40"> — {z.position}</span>
+                        {z.file && (
+                          <div className="mt-0.5 flex items-center gap-2">
+                            <code className="text-[12px] text-amber-200/90 bg-white/5 border border-white/10 rounded px-1.5 py-0.5">{z.file}</code>
+                            <button
+                              onClick={() => copyText(z.file)}
+                              className="text-[10px] text-white/30 hover:text-white/70 font-body uppercase tracking-wider"
+                            >
+                              Copy
+                            </button>
+                          </div>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          );
+        })()}
+
         {/* JSON output — standard modes */}
         {json && !isLoading && mode !== "3d_website" && mode !== "awwwards_website" && !(mode && isVideoMode(mode)) && (
           <div className="code-block">

@@ -3,8 +3,10 @@ import { generatePrompt, PoolBusyError } from "@/lib/gemini";
 import { incrementDailyPromptCount } from "@/lib/prompt-count-server";
 import { getSettingsCached } from "@/lib/api-keys";
 
-// Claude (OpenRouter) and heavy Awwwards/3D Gemini calls can run long — give them room.
-export const maxDuration = 60;
+// Claude (OpenRouter) and heavy Awwwards/3D/poster Gemini calls can run long —
+// a poster run is up to two calls (repair retry) plus rate-limit backoff.
+// Vercel clamps this to the plan's ceiling, so a high value is safe.
+export const maxDuration = 120;
 
 export async function POST(request: NextRequest) {
   try {

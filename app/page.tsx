@@ -104,8 +104,16 @@ export default function Home() {
           return;
         }
 
+        // No structured error means the platform killed the request before our
+        // route could answer (timeout, payload limit) — say which one.
+        const fallback =
+          response.status === 504 || response.status === 502 || response.status === 524
+            ? "The server timed out while generating (the model took too long). Try again — if it keeps happening, shorten the brief or remove attached images."
+            : response.status === 413
+              ? "Your attached images are too large for the server (limit ~4 MB total). Compress or resize them and try again."
+              : `Failed to generate prompt (HTTP ${response.status}). Please try again.`;
         patchMode(mode, {
-          error: result.error || "Failed to generate prompt",
+          error: result.error || fallback,
           queuedUntil: null,
           queueMessage: null,
         });
