@@ -16,7 +16,7 @@ import type {
   UsageEvent,
 } from "@/lib/api-keys-types";
 
-export const DEFAULT_MODEL = "gemini-3.5-flash";
+export const DEFAULT_MODEL = "gemini-3.6-flash";
 
 // Columns safe to send to the browser — deliberately excludes `key`.
 const SAFE_COLUMNS =

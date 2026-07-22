@@ -128,13 +128,11 @@ export function OutputDisplay({
   // non-JSON response renders instead of crashing the page.
   let prettyJson = json ?? "";
   let jsonBytes = prettyJson.length;
-  let promptField = "";
   if (json) {
     try {
       const parsed = JSON.parse(json);
       prettyJson = JSON.stringify(parsed, null, 2);
       jsonBytes = JSON.stringify(parsed).length;
-      if (typeof parsed.prompt === "string") promptField = parsed.prompt;
     } catch {
       // keep raw text
     }
@@ -326,14 +324,6 @@ export function OutputDisplay({
                 prompt.json
               </span>
               <div className="flex items-center gap-2">
-                {promptField && (
-                  <button
-                    onClick={() => copyText(promptField)}
-                    className="text-[11px] text-white/80 hover:text-white transition-colors font-body uppercase tracking-wider flex items-center gap-1.5 px-2 py-1 rounded bg-white/10 hover:bg-white/20 border border-white/10"
-                  >
-                    {copied ? "Copied!" : "✨ Copy Prompt"}
-                  </button>
-                )}
                 <button
                   onClick={handleCopy}
                   className="text-[11px] text-white/30 hover:text-white/70 transition-colors font-body uppercase tracking-wider flex items-center gap-1.5 px-2 py-1 rounded hover:bg-white/5"

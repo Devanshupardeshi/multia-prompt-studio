@@ -98,6 +98,7 @@ function StatusBadge({ status, cooldownUntil, now }: { status: KeyStatus; cooldo
 }
 
 const DEFAULT_MODELS = [
+  "gemini-3.6-flash",
   "gemini-3.5-flash",
   "gemini-2.5-flash",
   "gemini-2.5-flash-lite",
@@ -765,7 +766,7 @@ function SettingsTab({
 }) {
   const [cap, setCap] = useState("");
   const [maintenance, setMaintenance] = useState(false);
-  const [model, setModel] = useState("gemini-3.5-flash");
+  const [model, setModel] = useState("gemini-3.6-flash");
   const [provider, setProvider] = useState<"gemini" | "openrouter" | "bedrock">("gemini");
   const [orKey, setOrKey] = useState("");
   const [orModels, setOrModels] = useState<string[]>([]); // ordered fallback chain

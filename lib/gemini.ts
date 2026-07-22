@@ -33,7 +33,7 @@ function getApiKeys(): string[] {
 
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
-const GEMINI_URL = (key: string, model = "gemini-3.5-flash") =>
+const GEMINI_URL = (key: string, model = "gemini-3.6-flash") =>
   `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
 
 // ---------------------------------------------------------------------------
@@ -2670,7 +2670,7 @@ export async function generatePrompt(payload: GeneratePayload): Promise<string> 
 // ---------------------------------------------------------------------------
 
 // Direct API call with a specific key (no rotation) — used for parallel distribution
-async function callGeminiWithKey(body: Record<string, unknown>, apiKey: string, model = "gemini-3.5-flash"): Promise<string> {
+async function callGeminiWithKey(body: Record<string, unknown>, apiKey: string, model = "gemini-3.6-flash"): Promise<string> {
   const orSettings = await getSettingsCached();
   if (orSettings.provider === "openrouter") {
     return callOpenRouter(body, "deep_research");
