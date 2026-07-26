@@ -19,11 +19,42 @@ export interface PosterRefineInvariants {
   reserved: Array<{ label: string; bounds: PercentBounds }>;
 }
 
+/** Marked area, as fractions of the artwork (0–1). */
+export interface PosterRefineRegion {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
 export interface PosterRefineInput {
   instruction: string;
   invariants: PosterRefineInvariants;
-  /** True when the designer marked a specific region to change. */
-  hasMask: boolean;
+  /** Set when the designer marked an area to change. */
+  region?: PosterRefineRegion | null;
+  /** Set when the designer attached a visual reference for the change. */
+  hasReference?: boolean;
+}
+
+/**
+ * Turns a marked box into words.
+ *
+ * The ChatGPT OAuth transport rejects the edits API's `mask` parameter, so a
+ * region cannot be enforced pixel-wise. Describing it precisely — a named position
+ * plus exact percentages — is what is actually available, and vision models follow
+ * it reasonably well when the untouched-everything-else rule is stated alongside.
+ */
+export function describeRefineRegion(region: PosterRefineRegion): string {
+  const centreX = region.x + region.width / 2;
+  const centreY = region.y + region.height / 2;
+  const vertical = centreY < 0.34 ? "upper" : centreY > 0.66 ? "lower" : "middle";
+  const horizontal = centreX < 0.34 ? "left" : centreX > 0.66 ? "right" : "centre";
+  const position = horizontal === "centre" ? `${vertical}-centre` : `${vertical} ${horizontal}`;
+
+  const pct = (value: number) => Math.round(value * 1000) / 10;
+  return `the ${position} area of the canvas, spanning x ${pct(region.x)}%–${pct(
+    region.x + region.width,
+  )}% and y ${pct(region.y)}%–${pct(region.y + region.height)}%`;
 }
 
 export const MAX_REFINE_INSTRUCTION_CHARS = 600;
@@ -43,44 +74,28 @@ export function getRefineUploadSize(width: number, height: number) {
   };
 }
 
-/**
- * Converts a 0–1 region into pixel bounds on the uploaded image, clamped so a drag
- * that ran past the edge still produces a valid rectangle.
- */
-export function getMaskRect(
-  region: { x: number; y: number; width: number; height: number },
-  size: { width: number; height: number },
-) {
-  const clamp01 = (value: number) => Math.min(1, Math.max(0, value));
-  const x = clamp01(region.x);
-  const y = clamp01(region.y);
-  const width = clamp01(region.width + x) - x;
-  const height = clamp01(region.height + y) - y;
-
-  return {
-    x: Math.round(x * size.width),
-    y: Math.round(y * size.height),
-    width: Math.max(1, Math.round(width * size.width)),
-    height: Math.max(1, Math.round(height * size.height)),
-  };
-}
-
 function formatBounds(label: string, bounds: PercentBounds) {
   return `${label}: x ${bounds.x}-${Math.round((bounds.x + bounds.width) * 100) / 100}%, y ${bounds.y}-${Math.round((bounds.y + bounds.height) * 100) / 100}%`;
 }
 
 export function buildPosterRefinePrompt(input: PosterRefineInput): string {
-  const { instruction, invariants, hasMask } = input;
+  const { instruction, invariants, region, hasReference } = input;
   const reserved = invariants.reserved.map((area) => formatBounds(area.label, area.bounds)).join("; ");
 
+  const attachments = hasReference
+    ? "ATTACHED IMAGES: the first is the poster artwork to edit. The second is a visual reference the designer supplied for the requested change — read its style, colour, shape or material as guidance only. Never paste, collage or reproduce the reference itself into the poster."
+    : "ATTACHED IMAGE: the poster artwork to edit.";
+
   return `EDIT THE ATTACHED POSTER ARTWORK. This is a revision of an existing approved render, not a new poster.
+
+${attachments}
 
 WHAT TO CHANGE:
 ${instruction.trim()}
 
 ${
-    hasMask
-      ? "The attached mask marks the region to change. Apply the instruction inside that region only and leave every pixel outside it exactly as it is."
+    region
+      ? `WHERE: apply the change ONLY inside ${describeRefineRegion(region)}. Everything outside that area must come through completely unchanged — same shapes, same colours, same detail, pixel for pixel.`
       : "Apply the instruction to the whole image, changing as little as possible to achieve it."
   }
 

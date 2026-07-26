@@ -1,7 +1,6 @@
 "use client";
 
-import { getMaskRect, getRefineUploadSize } from "./poster-refine";
-import type { RefineRegion } from "@/components/prompt-studio/poster-refine-panel";
+import { getRefineUploadSize } from "./poster-refine";
 
 // Browser-only: needs canvas and Image.
 
@@ -18,44 +17,27 @@ function loadImage(source: string) {
   });
 }
 
-export interface RefineUpload {
-  image: string;
-  mask?: string;
-}
-
 /**
- * Prepares the artwork (and optionally a mask) for the refinement request.
+ * Downscales an image for upload.
  *
- * Mask convention follows the OpenAI edits API: fully transparent pixels are the
- * ones the model may change, everything opaque is preserved. So the mask starts
- * fully opaque and the marked region is cleared out of it.
+ * Everything sent up is capped at the long-edge limit: a full 2160x2700 PNG
+ * base64-encoded would exceed the platform request limit, and the render comes
+ * back at full canvas size regardless — these inputs are guidance, not output.
+ *
+ * Note there is no mask here. The ChatGPT OAuth transport rejects the edits API's
+ * `mask` parameter, so a marked area travels as a described region in the prompt
+ * instead (see describeRefineRegion).
  */
-export async function prepareRefineUpload(
-  artworkUrl: string,
-  region: RefineRegion | null,
-): Promise<RefineUpload> {
-  const image = await loadImage(artworkUrl);
+export async function prepareRefineImage(source: string): Promise<string> {
+  const image = await loadImage(source);
   const size = getRefineUploadSize(image.naturalWidth, image.naturalHeight);
 
   const canvas = document.createElement("canvas");
   canvas.width = size.width;
   canvas.height = size.height;
   const context = canvas.getContext("2d");
-  if (!context) throw new Error("This browser could not prepare the artwork for refinement.");
+  if (!context) throw new Error("This browser could not prepare the image for refinement.");
   context.drawImage(image, 0, 0, size.width, size.height);
 
-  if (!region) return { image: toDataUrl(canvas) };
-
-  const maskCanvas = document.createElement("canvas");
-  maskCanvas.width = size.width;
-  maskCanvas.height = size.height;
-  const maskContext = maskCanvas.getContext("2d");
-  if (!maskContext) throw new Error("This browser could not prepare the selected area.");
-
-  maskContext.fillStyle = "#000000";
-  maskContext.fillRect(0, 0, size.width, size.height);
-  const rect = getMaskRect(region, size);
-  maskContext.clearRect(rect.x, rect.y, rect.width, rect.height);
-
-  return { image: toDataUrl(canvas), mask: toDataUrl(maskCanvas) };
+  return toDataUrl(canvas);
 }

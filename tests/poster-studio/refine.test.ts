@@ -2,10 +2,11 @@ import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import {
   buildPosterRefinePrompt,
-  getMaskRect,
+  describeRefineRegion,
   getRefineUploadSize,
   REFINE_UPLOAD_MAX_EDGE,
   type PosterRefineInvariants,
+  type PosterRefineRegion,
 } from "../../lib/poster-refine";
 
 const INVARIANTS: PosterRefineInvariants = {
@@ -22,7 +23,7 @@ describe("the refinement prompt carries context the designer does not restate", 
   const prompt = buildPosterRefinePrompt({
     instruction: "The hero is too large — scale it down",
     invariants: INVARIANTS,
-    hasMask: false,
+    region: null,
   });
 
   test("it is framed as an edit of the existing artwork, not a new poster", () => {
@@ -49,24 +50,74 @@ describe("the refinement prompt carries context the designer does not restate", 
   });
 });
 
-describe("a marked region becomes a masked edit", () => {
-  test("the prompt tells the model to stay inside the mask", () => {
+describe("a marked region travels as text, since OAuth rejects edit masks", () => {
+  test("the region is described by position and exact percentages", () => {
     const prompt = buildPosterRefinePrompt({
       instruction: "Change the background here",
       invariants: INVARIANTS,
-      hasMask: true,
+      region: { x: 0.1, y: 0.7, width: 0.3, height: 0.2 },
     });
-    assert.match(prompt, /mask marks the region to change/i);
-    assert.match(prompt, /leave every pixel outside it exactly as it is/i);
+    assert.match(prompt, /lower left area/i);
+    assert.match(prompt, /x 10%–40%/);
+    assert.match(prompt, /y 70%–90%/);
+    assert.match(prompt, /outside that area must come through completely unchanged/i);
   });
 
-  test("without a mask it says so instead of referring to one", () => {
+  test("it never mentions a mask, which would fail on this transport", () => {
     const prompt = buildPosterRefinePrompt({
       instruction: "Change the background",
       invariants: INVARIANTS,
-      hasMask: false,
+      region: { x: 0.1, y: 0.1, width: 0.2, height: 0.2 },
     });
-    assert.doesNotMatch(prompt, /attached mask/i);
+    assert.doesNotMatch(prompt, /mask/i);
+  });
+
+  test("without a region it edits the whole image conservatively", () => {
+    const prompt = buildPosterRefinePrompt({
+      instruction: "Change the background",
+      invariants: INVARIANTS,
+      region: null,
+    });
+    assert.match(prompt, /changing as little as possible/i);
+    assert.doesNotMatch(prompt, /mask/i);
+  });
+});
+
+describe("region descriptions name a position a designer would recognise", () => {
+  const CASES: Array<{ region: PosterRefineRegion; expect: RegExp }> = [
+    { region: { x: 0.4, y: 0.0, width: 0.2, height: 0.2 }, expect: /upper-centre/ },
+    { region: { x: 0.0, y: 0.4, width: 0.2, height: 0.2 }, expect: /middle left/ },
+    { region: { x: 0.7, y: 0.7, width: 0.3, height: 0.3 }, expect: /lower right/ },
+    { region: { x: 0.3, y: 0.8, width: 0.4, height: 0.2 }, expect: /lower-centre/ },
+  ];
+  for (const { region, expect } of CASES) {
+    test(`${JSON.stringify(region)} reads as ${expect.source}`, () => {
+      assert.match(describeRefineRegion(region), expect);
+    });
+  }
+});
+
+describe("an attached reference is explained rather than pasted", () => {
+  test("the prompt names both images and forbids collaging the reference", () => {
+    const prompt = buildPosterRefinePrompt({
+      instruction: "Match this texture",
+      invariants: INVARIANTS,
+      region: null,
+      hasReference: true,
+    });
+    assert.match(prompt, /the first is the poster artwork to edit/i);
+    assert.match(prompt, /second is a visual reference/i);
+    assert.match(prompt, /Never paste, collage or reproduce the reference/i);
+  });
+
+  test("with no reference it describes a single attachment", () => {
+    const prompt = buildPosterRefinePrompt({
+      instruction: "Make it smaller",
+      invariants: INVARIANTS,
+      region: null,
+    });
+    assert.match(prompt, /ATTACHED IMAGE: the poster artwork to edit/);
+    assert.doesNotMatch(prompt, /second is a visual reference/i);
   });
 });
 
@@ -74,34 +125,11 @@ describe("upload sizing keeps the request under the platform limit", () => {
   test("a full-size poster is scaled down to the long-edge cap", () => {
     const size = getRefineUploadSize(2160, 2700);
     assert.equal(Math.max(size.width, size.height), REFINE_UPLOAD_MAX_EDGE);
-    // Aspect ratio must survive, or the mask would not line up with the artwork.
+    // Aspect ratio must survive so the described region still maps to what is seen.
     assert.ok(Math.abs(size.width / size.height - 2160 / 2700) < 0.01);
   });
 
   test("an already-small image is never upscaled", () => {
     assert.deepEqual(getRefineUploadSize(400, 500), { width: 400, height: 500 });
-  });
-});
-
-describe("mask geometry maps the drawn box onto the uploaded pixels", () => {
-  const size = { width: 800, height: 1000 };
-
-  test("a centre box converts to the matching pixel rect", () => {
-    const rect = getMaskRect({ x: 0.25, y: 0.5, width: 0.5, height: 0.25 }, size);
-    assert.deepEqual(rect, { x: 200, y: 500, width: 400, height: 250 });
-  });
-
-  test("a drag that ran past the edge is clamped inside the canvas", () => {
-    const rect = getMaskRect({ x: 0.8, y: 0.9, width: 0.5, height: 0.5 }, size);
-    assert.equal(rect.x, 640);
-    assert.equal(rect.y, 900);
-    assert.ok(rect.x + rect.width <= size.width, "must not extend past the right edge");
-    assert.ok(rect.y + rect.height <= size.height, "must not extend past the bottom edge");
-  });
-
-  test("a negative or zero-size selection still yields a usable rect", () => {
-    const rect = getMaskRect({ x: -0.2, y: -0.1, width: 0, height: 0 }, size);
-    assert.ok(rect.width >= 1 && rect.height >= 1);
-    assert.ok(rect.x >= 0 && rect.y >= 0);
   });
 });

@@ -336,6 +336,28 @@ export interface TopicFigureGuidance {
   avoid: string[];
   /** Real constituent counts when the topic names an index. */
   indexNote: string | null;
+  /** Rotation offset so the same topic does not always lead with the same example. */
+  rotation: number;
+}
+
+/**
+ * Small stable hash of the brief. Rotation has to vary per brief and per re-ask but
+ * stay deterministic, or the same request would produce different prompts on retry
+ * and nothing would be reproducible.
+ */
+function briefRotation(payload: PosterStudioPayload): number {
+  const source = `${payload.topic}|${payload.headline}|${payload.subheading}`;
+  let hash = 0;
+  for (let index = 0; index < source.length; index += 1) {
+    hash = (hash * 31 + source.charCodeAt(index)) | 0;
+  }
+  return Math.abs(hash) + (payload.rejectedFigures?.length ?? 0);
+}
+
+function rotate<T>(items: T[], offset: number): T[] {
+  if (items.length < 2) return items;
+  const start = offset % items.length;
+  return [...items.slice(start), ...items.slice(0, start)];
 }
 
 /**
@@ -363,14 +385,19 @@ export function getTopicFigureGuidance(payload: PosterStudioPayload): TopicFigur
         .join("; ")}. Use that real count as the design instruction — build the hero from that many parts (or an unmistakably dense set of roughly that many where the number is large), so the poster is factually about this index and not a generic "many coins" image. Never render the number as a digit.`
     : null;
 
+  const rotation = briefRotation(payload);
+
   const matched = TOPIC_FIGURE_PATTERNS.find((pattern) => pattern.match.test(brief));
   if (matched) {
     return {
       matchedId: matched.id,
       concept: matched.concept,
-      figures: matched.figures,
+      // Rotated so two posters on the same topic do not open with the same example,
+      // and so "show me different options" genuinely reshuffles the starting point.
+      figures: rotate(matched.figures, rotation),
       avoid: matched.avoid,
       indexNote,
+      rotation,
     };
   }
 
@@ -389,6 +416,7 @@ export function getTopicFigureGuidance(payload: PosterStudioPayload): TopicFigur
       "any object a viewer could not name in one second",
     ],
     indexNote,
+    rotation,
   };
 }
 
@@ -437,13 +465,45 @@ export function formatArtDirection(
   return lines.length ? lines.join("\n") : null;
 }
 
-/** Renders the subject brief for the system prompt. */
+const PROP_GROUP_LABELS: Record<keyof typeof INDIAN_FINANCIAL_PROPS, string> = {
+  currency: "Currency and coins",
+  householdSavings: "Household savings vessels",
+  shopAndMeasure: "Shop, ledger and measure",
+  kitchenAndServing: "Kitchen and serving",
+  documents: "Bank and fund paperwork",
+  gold: "Gold and jewellery",
+  growth: "Growing and seasonal",
+  digital: "Everyday digital money",
+  market: "Market landmarks",
+  festive: "Festive and seasonal",
+};
+
+/**
+ * Renders the subject brief for the system prompt.
+ *
+ * Deliberately NOT a menu. An earlier version handed the model three fixed options
+ * per topic and told it to "choose ONE", which made every poster on a topic reach
+ * for the same prop — every diversification brief became a steel thali. The list
+ * below is now framed as worked examples showing the required level of
+ * concreteness, sitting under the full prop vocabulary, with an explicit
+ * instruction to invent something specific to this brief. The examples also rotate
+ * per brief so they do not always open on the same one.
+ */
 export function formatTopicFigureGuidance(guidance: TopicFigureGuidance): string {
+  const vocabulary = (
+    Object.keys(INDIAN_FINANCIAL_PROPS) as Array<keyof typeof INDIAN_FINANCIAL_PROPS>
+  ).map((key) => `- ${PROP_GROUP_LABELS[key]}: ${INDIAN_FINANCIAL_PROPS[key]}`);
+
   return [
     `FINANCIAL IDEA TO MAKE VISIBLE: ${guidance.concept}`,
     ...(guidance.indexNote ? ["", `INDEX FACTS: ${guidance.indexNote}`] : []),
     "",
-    "SUBJECT OPTIONS — choose ONE and commit to it, or adapt one into a closer fit for this exact brief:",
+    "INVENT THE SUBJECT FOR THIS SPECIFIC BRIEF. Choose the object because its real physical structure explains THIS headline — not because it appears in a list. Two posters on the same topic should not use the same object. If an example below already fits perfectly, use it; otherwise reach past the examples into the wider vocabulary, or combine two props into one credible object.",
+    "",
+    "INDIAN MONEY VOCABULARY — the range available to you, not a checklist:",
+    ...vocabulary,
+    "",
+    "WORKED EXAMPLES — these show the level of concreteness required. Adapt or replace them; do not copy one verbatim unless it is genuinely the best fit for this headline:",
     ...guidance.figures.map((figure, index) => `${index + 1}. ${figure}`),
     "",
     "WRONG FOR THIS TOPIC:",

@@ -169,7 +169,11 @@ interface PosterStudioOutputProps {
   /** Previous rolls of this same prompt, oldest first. */
   renders: SuccessfulPosterImage[];
   onSelectRender: (index: number) => void;
-  onRefine: (instruction: string, region: RefineRegion | null) => void;
+  onRefine: (
+    instruction: string,
+    region: RefineRegion | null,
+    reference: string | null,
+  ) => void;
   isRefining: boolean;
   refineError: string | null;
 }

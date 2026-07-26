@@ -317,6 +317,65 @@ describe("every style category survives the whole contract chain", () => {
   });
 });
 
+describe("the vocabulary grounds without dictating one fixed prop", () => {
+  // The first version handed the model three fixed options and said "choose ONE",
+  // so every diversification poster became a steel thali. These lock in the fix.
+  test("the full prop vocabulary reaches the model, not just the topic examples", () => {
+    const rendered = formatTopicFigureGuidance(
+      getTopicFigureGuidance(brief("why diversification matters")),
+    );
+    // All ten prop groups, not only the three worked examples.
+    for (const prop of ["gullak", "taraju", "bahi-khata", "passbook", "bangles", "banyan", "UPI"]) {
+      assert.ok(rendered.includes(prop), `prop vocabulary is missing "${prop}"`);
+    }
+  });
+
+  test("it asks the model to invent for this brief rather than pick from a menu", () => {
+    const rendered = formatTopicFigureGuidance(
+      getTopicFigureGuidance(brief("why diversification matters")),
+    );
+    assert.match(rendered, /INVENT THE SUBJECT FOR THIS SPECIFIC BRIEF/);
+    assert.match(rendered, /not because it appears in a list/i);
+    assert.doesNotMatch(rendered, /choose ONE and commit/i);
+    assert.match(rendered, /WORKED EXAMPLES/);
+  });
+
+  test("two briefs on the same topic do not open with the same example", () => {
+    const leads = [
+      "Why one fund is not enough",
+      "Spread your risk across assets",
+      "How balanced funds work",
+      "One portfolio, many roles",
+    ].map(
+      (headline) =>
+        getTopicFigureGuidance(brief("why diversification matters", { headline })).figures[0],
+    );
+    assert.ok(new Set(leads).size > 1, "every headline led with the identical example");
+  });
+
+  test("asking for different options rotates the lead example", () => {
+    const first = getTopicFigureGuidance(brief("why diversification matters")).figures[0];
+    const second = getTopicFigureGuidance(
+      brief("why diversification matters", { rejectedFigures: ["one"] }),
+    ).figures[0];
+    assert.notEqual(first, second, "a re-ask must not lead with the same example");
+  });
+
+  test("rotation is deterministic, so a retry reproduces the same prompt", () => {
+    const once = getTopicFigureGuidance(brief("why diversification matters", { headline: "A" }));
+    const twice = getTopicFigureGuidance(brief("why diversification matters", { headline: "A" }));
+    assert.deepEqual(once.figures, twice.figures);
+  });
+
+  test("rotation preserves every option rather than dropping any", () => {
+    const base = getTopicFigureGuidance(brief("why diversification matters")).figures;
+    const rotated = getTopicFigureGuidance(
+      brief("why diversification matters", { rejectedFigures: ["a", "b"] }),
+    ).figures;
+    assert.deepEqual([...base].sort(), [...rotated].sort());
+  });
+});
+
 describe("the stock-template look is ruled out", () => {
   test("the default Indian mutual-fund template style is named as an anti-reference", () => {
     const globals = AVOID_GLOBALLY.join(" ");
@@ -332,7 +391,8 @@ describe("the assembled subject brief is usable", () => {
       getTopicFigureGuidance(brief("why diversification matters")),
     );
     assert.match(rendered, /FINANCIAL IDEA TO MAKE VISIBLE/);
-    assert.match(rendered, /SUBJECT OPTIONS/);
+    assert.match(rendered, /INDIAN MONEY VOCABULARY/);
+    assert.match(rendered, /WORKED EXAMPLES/);
     assert.match(rendered, /WRONG FOR THIS TOPIC/);
     assert.match(rendered, /ALSO WRONG FOR THIS AUDIENCE/);
     assert.match(rendered, /thali/i);

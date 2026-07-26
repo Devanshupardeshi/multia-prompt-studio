@@ -15,8 +15,14 @@ interface PosterRefinePanelProps {
   artwork: string;
   isBusy: boolean;
   error: string | null;
-  onSubmit: (instruction: string, region: RefineRegion | null) => void;
+  onSubmit: (
+    instruction: string,
+    region: RefineRegion | null,
+    reference: string | null,
+  ) => void;
 }
+
+const MAX_REFERENCE_BYTES = 12 * 1024 * 1024;
 
 const QUICK_EDITS = [
   "Make the hero object smaller and give it more breathing room",
@@ -36,6 +42,9 @@ export function PosterRefinePanel({ artwork, isBusy, error, onSubmit }: PosterRe
   const [instruction, setInstruction] = useState("");
   const [region, setRegion] = useState<RefineRegion | null>(null);
   const [drag, setDrag] = useState<{ x: number; y: number } | null>(null);
+  const [reference, setReference] = useState<string | null>(null);
+  const [referenceName, setReferenceName] = useState("");
+  const [uploadError, setUploadError] = useState("");
   const surfaceRef = useRef<HTMLDivElement | null>(null);
 
   const pointOf = useCallback((event: React.PointerEvent) => {
@@ -76,6 +85,23 @@ export function PosterRefinePanel({ artwork, isBusy, error, onSubmit }: PosterRe
     );
   };
 
+  const handleReference = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    if (file.size > MAX_REFERENCE_BYTES) {
+      setUploadError("Reference image must be smaller than 12 MB.");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      setReference(reader.result as string);
+      setReferenceName(file.name);
+      setUploadError("");
+    };
+    reader.readAsDataURL(file);
+  };
+
   const canSubmit = instruction.trim().length > 0 && !isBusy;
 
   return (
@@ -86,8 +112,9 @@ export function PosterRefinePanel({ artwork, isBusy, error, onSubmit }: PosterRe
           <h2>Change something about this artwork</h2>
         </div>
         <p>
-          Say only what should change. The brief, palette and reserved zones carry over
-          automatically. Drag a box on the artwork to limit the change to one area.
+Say only what should change &mdash; the brief, palette and reserved zones carry over
+          automatically. Drag a box to point at an area, and attach a reference if the
+          change is easier to show than to describe.
         </p>
       </div>
 
@@ -147,12 +174,50 @@ export function PosterRefinePanel({ artwork, isBusy, error, onSubmit }: PosterRe
             ))}
           </div>
 
+          <div className="poster-refine-reference">
+            {reference ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={reference} alt="Attached reference" />
+            ) : (
+              <span className="poster-refine-reference-empty" aria-hidden="true" />
+            )}
+            <div>
+              <label className="poster-upload-dark">
+                <input
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp"
+                  disabled={isBusy}
+                  onChange={handleReference}
+                />
+                {reference ? "Replace reference" : "Attach a reference image"}
+              </label>
+              {reference && (
+                <button
+                  type="button"
+                  className="poster-refine-clear"
+                  onClick={() => {
+                    setReference(null);
+                    setReferenceName("");
+                  }}
+                >
+                  Remove
+                </button>
+              )}
+              <small>
+                Optional. Used as guidance for the change only — its style, colour or shape,
+                never pasted into the poster.
+              </small>
+              {referenceName && <p className="poster-file-note">{referenceName}</p>}
+              {uploadError && <p className="poster-file-error">{uploadError}</p>}
+            </div>
+          </div>
+
           <div className="poster-refine-actions">
             <button
               type="button"
               className="btn-multia btn-multia-sm"
               disabled={!canSubmit}
-              onClick={() => onSubmit(instruction, region)}
+              onClick={() => onSubmit(instruction, region, reference)}
             >
               {isBusy ? "Refining…" : region ? "Refine this area" : "Refine artwork"}
             </button>

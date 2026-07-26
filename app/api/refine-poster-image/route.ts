@@ -9,6 +9,7 @@ import {
   buildPosterRefinePrompt,
   MAX_REFINE_INSTRUCTION_CHARS,
   type PosterRefineInvariants,
+  type PosterRefineRegion,
 } from "@/lib/poster-refine";
 import type { PercentBounds } from "@/lib/poster-types";
 
@@ -67,6 +68,22 @@ function parseInvariants(value: unknown): PosterRefineInvariants | null {
   };
 }
 
+function parseRegion(value: unknown): PosterRefineRegion | null {
+  if (!value || typeof value !== "object") return null;
+  const source = value as Record<string, unknown>;
+  const numbers = ["x", "y", "width", "height"].map((key) => Number(source[key]));
+  if (numbers.some((n) => !Number.isFinite(n))) return null;
+  const [x, y, width, height] = numbers;
+  if (width <= 0 || height <= 0) return null;
+  const clamp01 = (n: number) => Math.min(1, Math.max(0, n));
+  return {
+    x: clamp01(x),
+    y: clamp01(y),
+    width: clamp01(x + width) - clamp01(x),
+    height: clamp01(y + height) - clamp01(y),
+  };
+}
+
 /** gpt-image sizes are constrained; mirror the generation route's rule. */
 function getModelSize(width: number, height: number) {
   const MAX_PIXELS = 8_294_400;
@@ -115,11 +132,18 @@ export async function POST(request: Request) {
     );
   }
 
-  // Optional: only present when the designer marked a region.
-  const mask = source.mask === undefined ? null : decodeDataImage(source.mask);
-  if (source.mask !== undefined && !mask) {
-    return NextResponse.json({ error: "The selected region could not be read." }, { status: 400 });
+  // Optional visual reference for the requested change.
+  const reference = source.reference === undefined ? null : decodeDataImage(source.reference);
+  if (source.reference !== undefined && !reference) {
+    return NextResponse.json(
+      { error: "The reference image could not be read, or is too large." },
+      { status: 400 },
+    );
   }
+
+  // The marked area travels as text, not as an edits-API mask: the ChatGPT OAuth
+  // transport rejects `mask`, so sending one fails the whole request.
+  const region = parseRegion(source.region);
 
   const invariants = parseInvariants(source.invariants);
   if (!invariants) {
@@ -129,7 +153,8 @@ export async function POST(request: Request) {
   const prompt = buildPosterRefinePrompt({
     instruction,
     invariants,
-    hasMask: Boolean(mask),
+    region,
+    hasReference: Boolean(reference),
   });
 
   try {
@@ -141,8 +166,9 @@ export async function POST(request: Request) {
       model: openai.image("gpt-image-2"),
       prompt: {
         text: prompt,
-        images: [new Uint8Array(artwork)],
-        ...(mask ? { mask: new Uint8Array(mask) } : {}),
+        images: reference
+          ? [new Uint8Array(artwork), new Uint8Array(reference)]
+          : [new Uint8Array(artwork)],
       },
       size: getModelSize(invariants.canvas.width, invariants.canvas.height),
       providerOptions: { openai: { quality: "high" } },
@@ -168,7 +194,11 @@ export async function POST(request: Request) {
       resampled: true,
       upscaled: (metadata.width ?? 0) < invariants.canvas.width,
       quality: "high",
-      extra: { renderer: "gpt-image-2-refinement", masked: Boolean(mask) },
+      extra: {
+        renderer: "gpt-image-2-refinement",
+        regional: Boolean(region),
+        referenced: Boolean(reference),
+      },
     });
   } catch (error) {
     console.error("Poster refinement error:", error);

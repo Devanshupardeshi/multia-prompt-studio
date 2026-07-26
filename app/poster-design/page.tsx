@@ -3,7 +3,7 @@
 import { openaiAuthHeaders } from "@openai-oauth/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { readPngResponse } from "@/lib/png-response";
-import { prepareRefineUpload } from "@/lib/poster-refine-client";
+import { prepareRefineImage } from "@/lib/poster-refine-client";
 import type { RefineRegion } from "@/components/prompt-studio/poster-refine-panel";
 import { Header } from "@/components/prompt-studio/header";
 import { PosterStudioClarification } from "@/components/prompt-studio/poster-studio-clarification";
@@ -257,14 +257,17 @@ export default function PosterDesignPage() {
   // Follow-up edit of the current render. Reuses the same history, so a refinement
   // can be compared against what it came from and reverted by clicking back.
   const refineImage = useCallback(
-    async (instruction: string, region: RefineRegion | null) => {
+    async (instruction: string, region: RefineRegion | null, reference: string | null) => {
       if (imageState.status !== "success" || !concept || !lastPayload) return;
       const requestId = ++imageRequestId.current;
       setRefineError(null);
       setIsRefining(true);
 
       try {
-        const upload = await prepareRefineUpload(imageState.image, region);
+        const [image, referenceImage] = await Promise.all([
+          prepareRefineImage(imageState.image),
+          reference ? prepareRefineImage(reference) : Promise.resolve(undefined),
+        ]);
         const headers = await getAuthHeaders();
 
         const response = await fetch("/api/refine-poster-image", {
@@ -272,8 +275,9 @@ export default function PosterDesignPage() {
           headers: { ...headers, "Content-Type": "application/json" },
           body: JSON.stringify({
             instruction,
-            image: upload.image,
-            mask: upload.mask,
+            image,
+            reference: referenceImage,
+            region,
             invariants: {
               canvas: lastPayload.outputSize,
               background: concept.selectedColourCombination.background,

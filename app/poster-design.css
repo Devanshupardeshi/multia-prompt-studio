@@ -1690,3 +1690,41 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* Optional reference image attached to a refinement. */
+.poster-refine-reference {
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr);
+  gap: 0.75rem;
+  align-items: start;
+}
+
+.poster-refine-reference img,
+.poster-refine-reference-empty {
+  width: 56px;
+  height: 56px;
+  border: 1px solid #2b2b2b;
+  border-radius: 7px;
+  background: #0d0d0d;
+  object-fit: cover;
+}
+
+.poster-refine-reference-empty {
+  display: block;
+  border-style: dashed;
+}
+
+.poster-refine-reference > div {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.9rem;
+  min-width: 0;
+}
+
+.poster-refine-reference small {
+  flex: 1 1 100%;
+  color: rgba(255, 255, 255, 0.3);
+  font-size: 0.68rem;
+  line-height: 1.5;
+}
