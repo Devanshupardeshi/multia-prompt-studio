@@ -3,8 +3,8 @@ import { generatePrompt, PoolBusyError } from "@/lib/gemini";
 import { incrementDailyPromptCount } from "@/lib/prompt-count-server";
 import { getSettingsCached } from "@/lib/api-keys";
 
-// Claude (OpenRouter) and heavy Awwwards/3D/poster Gemini calls can run long —
-// a poster run is up to two calls (repair retry) plus rate-limit backoff.
+// Claude (OpenRouter) and heavy Awwwards/3D Gemini calls can run long —
+// a run is up to two calls (repair retry) plus rate-limit backoff.
 // Vercel clamps this to the plan's ceiling, so a high value is safe.
 export const maxDuration = 120;
 
@@ -22,9 +22,6 @@ export async function POST(request: NextRequest) {
     }
     if (payload.mode === "mockup" && (!payload.logoImage)) {
       return NextResponse.json({ error: "Logo image is required for mockup mode" }, { status: 400 });
-    }
-    if (payload.mode === "poster_design" && (!payload.description || !payload.description.trim()) && (!payload.headlineText || !payload.headlineText.trim())) {
-      return NextResponse.json({ error: "A topic description or headline is required for Poster Design mode" }, { status: 400 });
     }
     if (payload.mode === "3d_website" && (!payload.brandName || !payload.brandName.trim())) {
       return NextResponse.json({ error: "Brand name is required for 3D Website mode" }, { status: 400 });

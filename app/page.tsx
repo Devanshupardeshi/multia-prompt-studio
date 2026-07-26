@@ -1,6 +1,8 @@
 "use client";
 
+import { openaiAuthHeaders } from "@openai-oauth/react";
 import { useState, useCallback, useRef, useEffect } from "react";
+import { readPngResponse } from "@/lib/png-response";
 import { Header } from "@/components/prompt-studio/header";
 import { Hero } from "@/components/prompt-studio/hero";
 import { InputForm } from "@/components/prompt-studio/input-form";
@@ -8,7 +10,13 @@ import { OutputDisplay } from "@/components/prompt-studio/output-display";
 import { Footer } from "@/components/prompt-studio/footer";
 import { useDailyPromptCount } from "@/lib/use-daily-prompt-count";
 
-import { GeneratePayload, GenerationMode } from "@/lib/shared-types";
+import {
+  GeneratePayload,
+  GenerationMode,
+  ImageRenderState,
+  isImageMode,
+  PromptEngine,
+} from "@/lib/shared-types";
 
 // Never auto-wait longer than this for the pool to free up (longer waits ⇒ a daily
 // reset, which we surface as a message instead of holding the spinner).
@@ -20,9 +28,19 @@ type ModeResult = {
   json: string | null;
   error: string | null;
   lastInput?: GeneratePayload;
+  lastEngine?: PromptEngine;
   queuedUntil: number | null;
   queueMessage: string | null;
+  image?: ImageRenderState;
 };
+
+// openaiAuthHeaders() throws rather than returning {} when there is no session.
+function isMissingOAuthSession(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    /oauth session not found|not authenticated|unauthenticated|sign in with chatgpt/i.test(error.message)
+  );
+}
 
 export default function Home() {
   const [currentMode, setCurrentMode] = useState<GenerationMode>("standard");
@@ -31,11 +49,24 @@ export default function Home() {
   const { count: dailyPromptCount } = useDailyPromptCount();
 
   const retryTimer = useRef<number | null>(null);
-  const runRef = useRef<(payload: GeneratePayload) => void>(() => {});
+  const runRef = useRef<(payload: GeneratePayload, engine: PromptEngine) => void>(() => {});
+
+  // One counter per mode so a newer run invalidates an in-flight render, and the
+  // object URLs so replacing artwork doesn't leak several MB each time.
+  const imageRequestId = useRef<Record<string, number>>({});
+  const imageUrls = useRef<Record<string, string>>({});
+
+  const replaceImageUrl = useCallback((mode: string, next: string | null) => {
+    const previous = imageUrls.current[mode];
+    if (previous && previous !== next) URL.revokeObjectURL(previous);
+    if (next) imageUrls.current[mode] = next;
+    else delete imageUrls.current[mode];
+  }, []);
 
   useEffect(() => {
     return () => {
       if (retryTimer.current) window.clearTimeout(retryTimer.current);
+      Object.values(imageUrls.current).forEach((url) => URL.revokeObjectURL(url));
     };
   }, []);
 
@@ -47,24 +78,133 @@ export default function Home() {
     });
   }, []);
 
+  // Pass 2 of the GPT-5.6 Sol flow: hand the finished prompt to GPT Image 2.
+  const runGenerateImage = useCallback(
+    async (mode: GenerationMode, prompt: string) => {
+      const requestId = (imageRequestId.current[mode] ?? 0) + 1;
+      imageRequestId.current[mode] = requestId;
+      const isStale = () => imageRequestId.current[mode] !== requestId;
+
+      patchMode(mode, { image: { status: "loading" } });
+
+      let authHeaders: Record<string, string>;
+      try {
+        authHeaders = await openaiAuthHeaders();
+      } catch (authError) {
+        if (isStale()) return;
+        patchMode(mode, {
+          image: isMissingOAuthSession(authError)
+            ? { status: "signed-out" }
+            : {
+                status: "error",
+                error: authError instanceof Error ? authError.message : "Could not read the ChatGPT session.",
+              },
+        });
+        return;
+      }
+
+      try {
+        const response = await fetch("/api/generate-image", {
+          method: "POST",
+          headers: { ...authHeaders, "Content-Type": "application/json" },
+          body: JSON.stringify({ prompt }),
+        });
+
+        if (isStale()) return;
+
+        if (response.status === 401) {
+          patchMode(mode, { image: { status: "signed-out" } });
+          return;
+        }
+
+        // Success is a binary PNG stream; failures are still JSON.
+        if (response.ok && response.headers.get("Content-Type")?.startsWith("image/")) {
+          const decoded = await readPngResponse(response);
+          if (isStale()) {
+            URL.revokeObjectURL(decoded.image);
+            return;
+          }
+          replaceImageUrl(mode, decoded.image);
+          patchMode(mode, {
+            image: {
+              status: "success",
+              image: decoded.image,
+              width: decoded.width,
+              height: decoded.height,
+              sourceWidth: decoded.sourceWidth,
+              sourceHeight: decoded.sourceHeight,
+              upscaled: decoded.upscaled,
+              quality: decoded.quality,
+            },
+          });
+          return;
+        }
+
+        const result = await response.json().catch(() => ({}));
+        patchMode(mode, {
+          image: {
+            status: "error",
+            error: result.error || `Image generation failed (HTTP ${response.status}).`,
+          },
+        });
+      } catch (err) {
+        if (isStale()) return;
+        patchMode(mode, {
+          image: {
+            status: "error",
+            error: err instanceof Error ? err.message : "Image generation failed.",
+          },
+        });
+      }
+    },
+    [patchMode, replaceImageUrl]
+  );
+
   const runGenerate = useCallback(
-    async (payload: GeneratePayload) => {
+    async (payload: GeneratePayload, engine: PromptEngine = "gemini") => {
       const mode = payload.mode;
+      const viaChatGpt = engine === "chatgpt-5.6-sol";
       setLoadingMode(mode);
+      // A new run invalidates whatever render the previous one kicked off.
+      imageRequestId.current[mode] = (imageRequestId.current[mode] ?? 0) + 1;
+      replaceImageUrl(mode, null);
       patchMode(mode, {
         json: null,
         error: null,
         lastInput: payload,
+        lastEngine: engine,
         queuedUntil: null,
         queueMessage: null,
+        image: { status: "idle" },
       });
 
       const clearLoading = () => setLoadingMode((cur) => (cur === mode ? null : cur));
 
       try {
-        const response = await fetch("/api/generate", {
+        // The ChatGPT engine bills the user's own account, so it needs their bearer
+        // token attached; the Gemini engine uses the server-side key pool.
+        let authHeaders: Record<string, string> = {};
+        if (viaChatGpt) {
+          try {
+            authHeaders = await openaiAuthHeaders();
+          } catch (authError) {
+            patchMode(mode, {
+              error: isMissingOAuthSession(authError)
+                ? "Sign in with ChatGPT (top-right) to generate a prompt with GPT-5.6 Sol."
+                : authError instanceof Error
+                  ? authError.message
+                  : "Could not read the ChatGPT session.",
+              queuedUntil: null,
+              queueMessage: null,
+            });
+            clearLoading();
+            return;
+          }
+        }
+
+        const response = await fetch(viaChatGpt ? "/api/generate-chatgpt" : "/api/generate", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { ...authHeaders, "Content-Type": "application/json" },
           body: JSON.stringify(payload),
         });
 
@@ -73,6 +213,20 @@ export default function Home() {
 
         if (response.ok && typeof result.json === "string") {
           patchMode(mode, { json: result.json, error: null, queuedUntil: null, queueMessage: null });
+          clearLoading();
+          // Pass 2: this engine can render the prompt it just wrote.
+          if (viaChatGpt && isImageMode(mode)) {
+            void runGenerateImage(mode, result.json);
+          }
+          return;
+        }
+
+        if (viaChatGpt && response.status === 401) {
+          patchMode(mode, {
+            error: result.error || "Sign in with ChatGPT (top-right) to generate a prompt with GPT-5.6 Sol.",
+            queuedUntil: null,
+            queueMessage: null,
+          });
           clearLoading();
           return;
         }
@@ -86,7 +240,7 @@ export default function Home() {
             const waitMs = Math.max(1500, retryAfterMs + 1500);
             patchMode(mode, { queuedUntil: Date.now() + waitMs, queueMessage: "Waiting for a free key…" });
             // keep loadingMode = mode so the queue UI stays visible
-            retryTimer.current = window.setTimeout(() => runRef.current(payload), waitMs);
+            retryTimer.current = window.setTimeout(() => runRef.current(payload, engine), waitMs);
             return;
           }
 
@@ -127,7 +281,7 @@ export default function Home() {
         clearLoading();
       }
     },
-    [patchMode]
+    [patchMode, replaceImageUrl, runGenerateImage]
   );
 
   useEffect(() => {
@@ -135,21 +289,27 @@ export default function Home() {
   }, [runGenerate]);
 
   const handleGenerate = useCallback(
-    (payload: GeneratePayload) => {
+    (payload: GeneratePayload, engine: PromptEngine = "gemini") => {
       if (retryTimer.current) {
         window.clearTimeout(retryTimer.current);
         retryTimer.current = null;
       }
       setCurrentMode(payload.mode);
-      runGenerate(payload);
+      runGenerate(payload, engine);
     },
     [runGenerate]
   );
 
+  // Regenerate stays on whichever engine produced the current result.
   const handleRegenerate = useCallback(() => {
     const cur = byMode[currentMode];
-    if (cur?.lastInput) handleGenerate(cur.lastInput);
+    if (cur?.lastInput) handleGenerate(cur.lastInput, cur.lastEngine ?? "gemini");
   }, [byMode, currentMode, handleGenerate]);
+
+  const handleRetryImage = useCallback(() => {
+    const cur = byMode[currentMode];
+    if (cur?.json) void runGenerateImage(currentMode, cur.json);
+  }, [byMode, currentMode, runGenerateImage]);
 
   // Switching modes just changes which mode is shown — each mode keeps its own
   // inputs (in the form) and its own output (here).
@@ -197,6 +357,8 @@ export default function Home() {
             li?.productImage
           )
         }
+        image={cur?.image ?? { status: "idle" }}
+        onRetryImage={handleRetryImage}
       />
 
       <Footer />

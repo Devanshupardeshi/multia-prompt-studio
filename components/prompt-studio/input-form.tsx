@@ -50,11 +50,12 @@ const ASSET_STRATEGIES = [
   { id: "media", label: "Use my images / video as the hero" },
 ];
 
-import { GenerationMode, GeneratePayload, isVideoMode, CustomStyle } from "@/lib/shared-types";
+import Link from "next/link";
+import { GenerationMode, GeneratePayload, isImageMode, isVideoMode, CustomStyle, PromptEngine } from "@/lib/shared-types";
 
 // Mode selector grouped by output type.
 const MODE_GROUPS: { label: string; modes: GenerationMode[] }[] = [
-  { label: "Image", modes: ["standard", "face_swap", "mockup", "poster_design"] },
+  { label: "Image", modes: ["standard", "face_swap", "mockup"] },
   { label: "Website", modes: ["3d_website", "awwwards_website", "deep_research"] },
   { label: "Video", modes: ["video_standard", "video_logo_animation", "video_product_showcase"] },
 ];
@@ -105,27 +106,9 @@ const PRODUCT_PLATFORMS = ["instagram_reel", "tiktok", "youtube_ad", "website_he
 const PRODUCT_MATERIALS = ["metal", "glass", "plastic", "fabric", "wood", "leather", "ceramic"];
 const PRODUCT_BACKGROUNDS = ["studio_gradient", "marble_surface", "lifestyle_setting", "abstract_particles", "nature", "urban"];
 
-// Poster Design options
-const POSTER_TYPES = [
-  { id: "episode_promo", label: "Episode Promo" },
-  { id: "guest_announcement", label: "Guest Announcement" },
-  { id: "nfo_alert", label: "NFO Alert" },
-  { id: "concept_explainer", label: "Concept Explainer" },
-  { id: "market_update", label: "Market Update" },
-];
-const POSTER_BACKGROUNDS = [
-  { id: "deep_navy", label: "Deep Navy Blue" },
-  { id: "teal", label: "Teal / Petrol" },
-  { id: "orange_gradient", label: "Orange Gradient" },
-  { id: "pastel", label: "Light Pastel" },
-];
-const POSTER_ASPECTS = ["1:1", "4:5", "2:3", "16:9"];
-const DEFAULT_POSTER_LOGOS =
-  "CNBC TV18 (top-left), 25 Years + Bandhan Mutual Fund lockup (top-right), MF CORNER show logo unit (upper area), CNBC TV18 small (end of bottom strip)";
-
 
 interface InputFormProps {
-  onGenerate: (data: GeneratePayload) => void;
+  onGenerate: (data: GeneratePayload, engine: PromptEngine) => void;
   isLoading: boolean;
   onModeChange?: (mode: GenerationMode) => void;
 }
@@ -282,18 +265,6 @@ export function InputForm({ onGenerate, isLoading, onModeChange }: InputFormProp
   const [revealDirection, setRevealDirection] = useState("center_out");
   const [taglineText, setTaglineText] = useState("");
   const [preserveLogoIntegrity, setPreserveLogoIntegrity] = useState(true);
-  // Poster Design specific
-  const [posterTemplate, setPosterTemplate] = useState("mf_corner");
-  const [posterType, setPosterType] = useState("episode_promo");
-  const [headlineText, setHeadlineText] = useState("");
-  const [subheadlineText, setSubheadlineText] = useState("");
-  const [guestDetails, setGuestDetails] = useState("");
-  const [logoPlaceholders, setLogoPlaceholders] = useState(DEFAULT_POSTER_LOGOS);
-  const [logoMode, setLogoMode] = useState<"placeholder" | "attach">("placeholder");
-  const [posterBackground, setPosterBackground] = useState("deep_navy");
-  const [posterAspect, setPosterAspect] = useState("1:1");
-  const [includeDisclaimer, setIncludeDisclaimer] = useState(false);
-
   // Video product-showcase
   const [productImage, setProductImage] = useState<string | null>(null);
   const [productDescription, setProductDescription] = useState("");
@@ -391,8 +362,7 @@ export function InputForm({ onGenerate, isLoading, onModeChange }: InputFormProp
     }
   };
 
-  // Poster mode needs more slots (show logo + guest photos + a layout reference).
-  const maxReferenceImages = mode === "poster_design" ? 4 : 2;
+  const maxReferenceImages = 2;
 
   const handleMultipleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
@@ -465,7 +435,6 @@ export function InputForm({ onGenerate, isLoading, onModeChange }: InputFormProp
     if (mode === "standard") return description.trim().length > 0;
     if (mode === "face_swap") return sourceFaceImage !== null && targetPoseImage !== null;
     if (mode === "mockup") return logoImage !== null && (mockupReferenceImage !== null || logoDescription.trim().length > 0);
-    if (mode === "poster_design") return description.trim().length > 0 || headlineText.trim().length > 0;
     if (mode === "3d_website") return brandName.trim().length > 0;
     if (mode === "awwwards_website") return brandName.trim().length > 0;
     if (mode === "deep_research") return businessName.trim().length > 0;
@@ -475,7 +444,7 @@ export function InputForm({ onGenerate, isLoading, onModeChange }: InputFormProp
     return false;
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = (engine: PromptEngine = "gemini") => {
     if (!isValid()) return;
 
     const mediaUrls = additionalMediaUrls.filter((u) => u.trim());
@@ -512,7 +481,9 @@ export function InputForm({ onGenerate, isLoading, onModeChange }: InputFormProp
       logoDescription: logoDescription || undefined,
       mockupCount,
       mockupTypes: selectedMockupTypes.length > 0 ? selectedMockupTypes : undefined,
-      targetModel,
+      // The GPT-5.6 Sol path always renders through GPT Image 2, so its prompt has
+      // to target that regardless of the toggle set for the Gemini path.
+      targetModel: engine === "chatgpt-5.6-sol" ? "gpt-image" : targetModel,
       styleDirectives: styleDirectives.length > 0 ? styleDirectives : undefined,
       // 3D Website fields
       brandName: brandName.trim() || undefined,
@@ -552,7 +523,7 @@ export function InputForm({ onGenerate, isLoading, onModeChange }: InputFormProp
       targetVideoModel: targetVideoModel || undefined,
       shotStructure: shotStructure || undefined,
       duration: duration || undefined,
-      aspectRatio: (mode === "poster_design" ? posterAspect : aspectRatio) || undefined,
+      aspectRatio: aspectRatio || undefined,
       resolution: resolution || undefined,
       fps: fps || undefined,
       cameraMovement: cameraMovement || undefined,
@@ -583,17 +554,7 @@ export function InputForm({ onGenerate, isLoading, onModeChange }: InputFormProp
       ctaText: ctaText.trim() || undefined,
       productMaterial: productMaterial || undefined,
       backgroundScene: backgroundScene || undefined,
-      // Poster Design fields
-      posterTemplate: posterTemplate || undefined,
-      posterType: posterType || undefined,
-      headlineText: headlineText.trim() || undefined,
-      subheadlineText: subheadlineText.trim() || undefined,
-      guestDetails: guestDetails.trim() || undefined,
-      logoPlaceholders: logoPlaceholders.trim() || undefined,
-      logoMode,
-      posterBackground: posterBackground || undefined,
-      includeDisclaimer,
-    });
+    }, engine);
   };
 
   return (
@@ -620,6 +581,17 @@ export function InputForm({ onGenerate, isLoading, onModeChange }: InputFormProp
                       {m === "3d_website" ? "3D Website" : m === "awwwards_website" ? "Awwwards 3D" : m === "deep_research" ? "Deep Research" : m.replace("_", " ")}
                     </button>
                   ))
+                )}
+                {/* Poster Design is a full studio of its own (brief → contract →
+                    artwork → layer editor), so it navigates instead of switching mode. */}
+                {group.label === "Image" && (
+                  <Link
+                    href="/poster-design"
+                    className="px-4 py-2 text-xs font-body uppercase tracking-wider rounded transition-colors text-white/50 hover:text-white flex items-center gap-1.5"
+                  >
+                    Poster Design
+                    <span aria-hidden="true" className="text-[10px] text-white/30">↗</span>
+                  </Link>
                 )}
               </div>
             </div>
@@ -808,139 +780,6 @@ export function InputForm({ onGenerate, isLoading, onModeChange }: InputFormProp
                     </button>
                   ))}
                 </div>
-              </div>
-            </div>
-          )}
-
-          {mode === "poster_design" && (
-            <div className="mb-6 space-y-6">
-              {/* Template + Poster type */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-xs text-white/30 font-body uppercase tracking-[0.2em] mb-2">Template</label>
-                  <div className="flex gap-2">
-                    {([["mf_corner", "MF Corner × Bandhan"], ["custom", "Custom Brand"]] as const).map(([id, label]) => (
-                      <button key={id} onClick={() => setPosterTemplate(id)} className={`px-4 py-2 rounded text-sm transition-colors ${posterTemplate === id ? "bg-white text-black" : "bg-white/10 text-white/70 hover:bg-white/20"}`}>
-                        {label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-xs text-white/30 font-body uppercase tracking-[0.2em] mb-2">Poster Type</label>
-                  <div className="flex flex-wrap gap-2">
-                    {POSTER_TYPES.map((t) => (
-                      <button key={t.id} onClick={() => setPosterType(t.id)} className={`px-3 py-1.5 rounded-full text-xs transition-colors border ${posterType === t.id ? "bg-white text-black border-white" : "bg-transparent text-white/50 border-white/20 hover:border-white/40 hover:text-white"}`}>
-                        {t.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              {/* Topic */}
-              <div>
-                <label className="block text-xs text-white/30 font-body uppercase tracking-[0.2em] mb-2">Topic / Creative Brief (drives headline & illustration)</label>
-                <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="e.g., Episode on NFOs — beyond the hype, which new fund offers are actually worth it" rows={3} className="input-multia w-full px-4 py-3 text-sm resize-none custom-scrollbar" />
-              </div>
-
-              {/* Headline / Subheadline */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-xs text-white/30 font-body uppercase tracking-[0.2em] mb-2">Headline (Exact Text, Optional)</label>
-                  <input type="text" value={headlineText} onChange={(e) => setHeadlineText(e.target.value)} placeholder="e.g., Beyond the Hype: The Real Story of NFOs" className="input-multia w-full px-4 py-3 text-sm" />
-                </div>
-                <div>
-                  <label className="block text-xs text-white/30 font-body uppercase tracking-[0.2em] mb-2">Subheadline (Optional)</label>
-                  <input type="text" value={subheadlineText} onChange={(e) => setSubheadlineText(e.target.value)} placeholder="e.g., See which NFOs are worth it" className="input-multia w-full px-4 py-3 text-sm" />
-                </div>
-              </div>
-
-              {/* CTA + Guests */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-xs text-white/30 font-body uppercase tracking-[0.2em] mb-2">Bottom Strip / CTA (Exact Text)</label>
-                  <input type="text" value={ctaText} onChange={(e) => setCtaText(e.target.value)} placeholder="e.g., Watch MF-Corner Today at 2 PM only on" className="input-multia w-full px-4 py-3 text-sm" />
-                </div>
-                <div>
-                  <label className="block text-xs text-white/30 font-body uppercase tracking-[0.2em] mb-2">Guests (Name — Title, one per line)</label>
-                  <textarea value={guestDetails} onChange={(e) => setGuestDetails(e.target.value)} placeholder={"Gaurab Parij — Head, Sales & Marketing, Bandhan AMC\nAshutosh Singh — MD & CEO, BSE Index Services"} rows={2} className="input-multia w-full px-4 py-3 text-sm resize-none custom-scrollbar" />
-                </div>
-              </div>
-
-              {/* Logo handling */}
-              <div>
-                <label className="block text-xs text-white/30 font-body uppercase tracking-[0.2em] mb-2">Logo Handling</label>
-                <div className="flex gap-2 mb-3">
-                  {([["placeholder", "Without Logos (reserve space)"], ["attach", "With Logos (attach files)"]] as const).map(([id, label]) => (
-                    <button key={id} onClick={() => setLogoMode(id)} className={`px-4 py-2 rounded text-sm transition-colors ${logoMode === id ? "bg-white text-black" : "bg-white/10 text-white/70 hover:bg-white/20"}`}>
-                      {label}
-                    </button>
-                  ))}
-                </div>
-                <label className="block text-xs text-white/30 font-body uppercase tracking-[0.2em] mb-2">
-                  {logoMode === "attach" ? "Logos You Will Attach (with position)" : "Logos to Reserve Space For (never drawn by the AI)"}
-                </label>
-                <textarea value={logoPlaceholders} onChange={(e) => setLogoPlaceholders(e.target.value)} rows={2} className="input-multia w-full px-4 py-3 text-sm resize-none custom-scrollbar" />
-                <p className="text-[11px] text-white/25 font-body mt-1.5">
-                  {logoMode === "attach"
-                    ? "The generated JSON includes an upload_sequence — attach your real logo/photo files to ChatGPT or Gemini in exactly that order (guest photos first, then logos), and the prompt tells the model to composite each one pixel-faithfully."
-                    : "The prompt instructs the image model to leave these zones as clean empty space — you paste the real logos in later."}
-                </p>
-              </div>
-
-              {/* Background + Aspect + Disclaimer */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div>
-                  <label className="block text-xs text-white/30 font-body uppercase tracking-[0.2em] mb-2">Background</label>
-                  <div className="flex flex-wrap gap-2">
-                    {POSTER_BACKGROUNDS.map((b) => (
-                      <button key={b.id} onClick={() => setPosterBackground(b.id)} className={`px-3 py-1.5 rounded-full text-xs transition-colors border ${posterBackground === b.id ? "bg-white text-black border-white" : "bg-transparent text-white/50 border-white/20 hover:border-white/40 hover:text-white"}`}>
-                        {b.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-xs text-white/30 font-body uppercase tracking-[0.2em] mb-2">Aspect Ratio</label>
-                  <div className="flex gap-2">
-                    {POSTER_ASPECTS.map((a) => (
-                      <button key={a} onClick={() => setPosterAspect(a)} className={`px-3 py-2 rounded text-sm transition-colors ${posterAspect === a ? "bg-white text-black" : "bg-white/10 text-white/70 hover:bg-white/20"}`}>
-                        {a}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-xs text-white/30 font-body uppercase tracking-[0.2em] mb-2">AMFI Disclaimer Strip</label>
-                  <button onClick={() => setIncludeDisclaimer(!includeDisclaimer)} className={`relative w-10 h-5 rounded-full ${includeDisclaimer ? "bg-white" : "bg-white/10"}`}>
-                    <span className={`absolute top-0.5 w-4 h-4 rounded-full transition-all ${includeDisclaimer ? "left-[22px] bg-[#121212]" : "left-0.5 bg-white/40"}`} />
-                  </button>
-                </div>
-              </div>
-
-              {/* Asset / reference images */}
-              <div>
-                <label className="block text-xs text-white/30 font-body uppercase tracking-[0.2em] mb-2">Assets & References (Optional, Max 4 — show logo, guest photos, layout reference)</label>
-                <div className="flex items-center gap-4">
-                  {referenceImages.length < maxReferenceImages && (
-                    <label className="flex items-center justify-center px-4 py-2 text-xs font-body uppercase tracking-wider rounded border border-white/10 cursor-pointer hover:bg-white/5">
-                      <input type="file" accept="image/*" multiple onChange={handleMultipleImageUpload} className="hidden" disabled={isLoading} />
-                      Upload Image
-                    </label>
-                  )}
-                  {referenceImages.length > 0 && (
-                    <div className="flex gap-2">
-                      {referenceImages.map((img, i) => (
-                        <div key={i} className="relative group">
-                          <img src={img} alt="Asset" className="h-10 w-10 object-cover rounded border border-white/20" />
-                          <button onClick={() => removeReferenceImage(i)} className="absolute -top-2 -right-2 bg-black text-white rounded-full opacity-0 group-hover:opacity-100 border border-white/20">❌</button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-                <p className="text-[11px] text-white/25 font-body mt-1.5">These help the prompt engine see your assets (layout reference, guest photos, show logo). In &quot;With Logos&quot; mode you&apos;ll still attach the real files to ChatGPT/Gemini yourself, following the upload_sequence in the output.</p>
               </div>
             </div>
           )}
@@ -1742,7 +1581,7 @@ export function InputForm({ onGenerate, isLoading, onModeChange }: InputFormProp
           )}
 
           {/* Visual style picker (Multi-select) — hidden for 3D Website and Deep Research modes */}
-          {mode !== "3d_website" && mode !== "awwwards_website" && mode !== "deep_research" && !isVideoMode(mode) && <div className="mb-8">
+          {isImageMode(mode) && <div className="mb-8">
             <label className="block text-xs text-white/30 font-body uppercase tracking-[0.2em] mb-3">Styles (Select Multiple)</label>
             <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-3">
               {STYLE_PRESETS.map((style) => (
@@ -1816,7 +1655,7 @@ export function InputForm({ onGenerate, isLoading, onModeChange }: InputFormProp
           </div>}
 
           {/* Target image model selector — hidden for 3D Website and Deep Research modes */}
-          {mode !== "3d_website" && mode !== "awwwards_website" && mode !== "deep_research" && !isVideoMode(mode) && <div className="mb-8">
+          {isImageMode(mode) && <div className="mb-8">
             <label className="block text-xs text-white/30 font-body uppercase tracking-[0.2em] mb-3">Target Image Model</label>
             <div className="flex gap-2">
               {([["nano-banana-pro", "Nano Banana Pro"], ["gpt-image", "GPT Image"]] as const).map(([id, label]) => (
@@ -1831,14 +1670,35 @@ export function InputForm({ onGenerate, isLoading, onModeChange }: InputFormProp
             </div>
           </div>}
 
-          {/* Generate button */}
-          <button
-            onClick={handleSubmit}
-            disabled={!isValid() || isLoading}
-            className={`btn-multia w-full sm:w-auto ${!isValid() || isLoading ? "opacity-30 cursor-not-allowed" : ""}`}
-          >
-            {isLoading ? "Generating..." : "Generate Prompt"}
-          </button>
+          {/* Generate buttons — Gemini always, GPT-5.6 Sol for image modes only
+              (it is the one engine that can also render the image afterwards). */}
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+            <button
+              onClick={() => handleSubmit("gemini")}
+              disabled={!isValid() || isLoading}
+              className={`btn-multia w-full sm:w-auto ${!isValid() || isLoading ? "opacity-30 cursor-not-allowed" : ""}`}
+            >
+              {isLoading ? "Generating..." : "Generate Prompt"}
+            </button>
+
+            {isImageMode(mode) && (
+              <button
+                onClick={() => handleSubmit("chatgpt-5.6-sol")}
+                disabled={!isValid() || isLoading}
+                className={`btn-multia w-full sm:w-auto ${!isValid() || isLoading ? "opacity-30 cursor-not-allowed" : ""}`}
+              >
+                {isLoading ? "Generating..." : "Generate with GPT-5.6 Sol"}
+              </button>
+            )}
+          </div>
+
+          {isImageMode(mode) && (
+            <p className="text-[11px] text-white/25 font-body mt-3 max-w-xl">
+              GPT-5.6 Sol runs with high reasoning through your own ChatGPT account, targets GPT
+              Image 2, and renders the image automatically once the prompt is ready. Sign-in is
+              required (top-right).
+            </p>
+          )}
 
         </div>
       </div>

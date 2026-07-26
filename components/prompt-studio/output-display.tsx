@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect } from "react";
 
-import { GenerationMode, isVideoMode } from "@/lib/shared-types";
+import { GenerationMode, ImageRenderState, isImageMode, isVideoMode } from "@/lib/shared-types";
 
 interface OutputDisplayProps {
   json: string | null;
@@ -13,6 +13,9 @@ interface OutputDisplayProps {
   mode?: GenerationMode;
   queuedUntil?: number | null;
   queueMessage?: string | null;
+  /** GPT Image 2 render state — only ever leaves "idle" on the GPT-5.6 Sol path. */
+  image?: ImageRenderState;
+  onRetryImage?: () => void;
 }
 
 // Live countdown shown while the request is queued waiting for a free key in the pool.
@@ -93,6 +96,8 @@ export function OutputDisplay({
   mode,
   queuedUntil,
   queueMessage,
+  image = { status: "idle" },
+  onRetryImage,
 }: OutputDisplayProps) {
   const [copied, setCopied] = useState(false);
   const [activeLayer, setActiveLayer] = useState(0);
@@ -234,88 +239,6 @@ export function OutputDisplay({
           </div>
         )}
 
-        {/* Poster Design — asset instructions: what to upload, in what order, which file */}
-        {json && !isLoading && mode === "poster_design" && (() => {
-          let parsed: any = {};
-          try { parsed = JSON.parse(json); } catch { return null; }
-          const seq: any[] = Array.isArray(parsed.upload_sequence) ? parsed.upload_sequence : [];
-          const zones: any[] = Array.isArray(parsed.logo_placeholders) ? parsed.logo_placeholders : [];
-          if (seq.length === 0 && zones.length === 0) return null;
-
-          const checklist = [
-            ...(seq.length > 0
-              ? ["ATTACH THESE FILES WITH THE PROMPT, IN THIS ORDER:", ...seq.map((s) => `${s.order}. ${s.asset} → ${s.placement}`)]
-              : []),
-            ...(zones.length > 0
-              ? [seq.length > 0 ? "" : "", "LOGO ZONES:", ...zones.map((z) => `• ${z.name}${z.file ? ` — use file: ${z.file}` : ""} @ ${z.position}`)]
-              : []),
-          ].join("\n");
-
-          return (
-            <div className="border border-sky-500/20 bg-sky-500/5 rounded-xl p-5 mb-4">
-              <div className="flex items-center justify-between mb-4">
-                <span className="text-xs text-sky-300/80 font-body uppercase tracking-[0.2em]">
-                  📎 Asset Instructions
-                </span>
-                <button
-                  onClick={() => copyText(checklist)}
-                  className="text-[11px] text-white/40 hover:text-white/80 transition-colors font-body uppercase tracking-wider px-2 py-1 rounded hover:bg-white/5 border border-white/10"
-                >
-                  {copied ? "Copied!" : "Copy Checklist"}
-                </button>
-              </div>
-
-              {seq.length > 0 && (
-                <div className="mb-4">
-                  <p className="text-[12px] text-white/60 font-body mb-2">
-                    Attach these files to ChatGPT / Gemini <span className="text-white/90 font-medium">together with the prompt, in exactly this order</span>:
-                  </p>
-                  <ol className="space-y-1.5">
-                    {seq.map((s, i) => (
-                      <li key={i} className="flex items-start gap-3">
-                        <span className="mt-0.5 min-w-5 h-5 px-1 rounded-full bg-sky-400/20 text-sky-300 text-[11px] font-mono flex items-center justify-center">
-                          {s.order ?? i + 1}
-                        </span>
-                        <span className="text-[13px] text-white/80 font-body leading-snug">
-                          <span className="font-mono text-sky-200/90">{s.asset}</span>
-                          {s.placement && <span className="text-white/40"> → {s.placement}</span>}
-                        </span>
-                      </li>
-                    ))}
-                  </ol>
-                </div>
-              )}
-
-              {zones.length > 0 && (
-                <div>
-                  <p className="text-[12px] text-white/60 font-body mb-2">
-                    Logo zones on the poster{seq.length === 0 ? " (left empty by the AI — paste these files in yourself afterwards)" : ""}:
-                  </p>
-                  <ul className="space-y-2">
-                    {zones.map((z, i) => (
-                      <li key={i} className="text-[13px] font-body leading-snug">
-                        <span className="text-white/90 font-medium">{z.name}</span>
-                        <span className="text-white/40"> — {z.position}</span>
-                        {z.file && (
-                          <div className="mt-0.5 flex items-center gap-2">
-                            <code className="text-[12px] text-amber-200/90 bg-white/5 border border-white/10 rounded px-1.5 py-0.5">{z.file}</code>
-                            <button
-                              onClick={() => copyText(z.file)}
-                              className="text-[10px] text-white/30 hover:text-white/70 font-body uppercase tracking-wider"
-                            >
-                              Copy
-                            </button>
-                          </div>
-                        )}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </div>
-          );
-        })()}
-
         {/* JSON output — standard modes */}
         {json && !isLoading && mode !== "3d_website" && mode !== "awwwards_website" && !(mode && isVideoMode(mode)) && (
           <div className="code-block">
@@ -424,6 +347,85 @@ export function OutputDisplay({
                 Regenerate
               </button>
             </div>
+          </div>
+        )}
+
+        {/* GPT Image 2 render — only reached on the GPT-5.6 Sol path */}
+        {mode && isImageMode(mode) && image.status !== "idle" && (
+          <div className="mt-4">
+            <div className="flex items-center gap-3 mb-3">
+              <span className="text-xs text-white/40 font-body uppercase tracking-[0.2em]">
+                Generated Image
+              </span>
+              <span className="flex-1 h-px bg-white/5" />
+            </div>
+
+            {image.status === "loading" && (
+              <div className="border border-white/10 rounded-xl bg-white/[0.02] p-8 flex flex-col items-center gap-3">
+                <div className="w-8 h-8 rounded-full border-2 border-white/10 border-t-white/60 animate-spin" />
+                <p className="text-[13px] text-white/40 font-body">
+                  Rendering with GPT Image 2 — this can take a minute.
+                </p>
+              </div>
+            )}
+
+            {image.status === "signed-out" && (
+              <div className="border border-white/10 rounded-xl bg-white/[0.02] p-5">
+                <p className="text-[13px] text-white/50 font-body">
+                  Sign in with ChatGPT (top-right) to generate an image from this prompt.
+                </p>
+              </div>
+            )}
+
+            {image.status === "error" && (
+              <div className="border border-red-500/20 bg-red-500/5 rounded-xl p-5">
+                <p className="text-[13px] text-red-400/80 font-body mb-3">{image.error}</p>
+                {onRetryImage && (
+                  <button
+                    onClick={onRetryImage}
+                    className="text-[11px] text-white/50 hover:text-white transition-colors font-body uppercase tracking-wider px-3 py-1.5 rounded border border-white/10 hover:border-white/30"
+                  >
+                    Retry
+                  </button>
+                )}
+              </div>
+            )}
+
+            {image.status === "success" && (
+              <div className="border border-white/10 rounded-xl bg-white/[0.02] overflow-hidden">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={image.image}
+                  alt="Image generated from the prompt by GPT Image 2"
+                  className="w-full h-auto block"
+                />
+                <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-t border-white/5">
+                  <span className="text-[11px] text-white/30 font-mono">
+                    {image.width}x{image.height} PNG
+                    {" / "}source {image.sourceWidth}x{image.sourceHeight}
+                    {image.upscaled ? " / upscaled" : ""}
+                    {" / "}{image.quality}
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <a
+                      href={image.image}
+                      download={`multia-${mode}-${image.width}x${image.height}.png`}
+                      className="text-[11px] text-white/40 hover:text-white/80 transition-colors font-body uppercase tracking-wider px-2 py-1 rounded hover:bg-white/5 border border-white/10"
+                    >
+                      Download PNG
+                    </a>
+                    {onRetryImage && (
+                      <button
+                        onClick={onRetryImage}
+                        className="text-[11px] text-white/30 hover:text-white/70 transition-colors font-body uppercase tracking-wider px-2 py-1 rounded hover:bg-white/5"
+                      >
+                        Re-render
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
 

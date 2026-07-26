@@ -3,12 +3,42 @@
 // This file must NOT have "use client" or "use server" directives.
 
 export type GenerationMode =
-  | "standard" | "face_swap" | "mockup" | "poster_design"
+  | "standard" | "face_swap" | "mockup"
   | "3d_website" | "awwwards_website" | "deep_research"
   | "video_standard" | "video_logo_animation" | "video_product_showcase";
 
 const VIDEO_MODES: GenerationMode[] = ["video_standard", "video_logo_animation", "video_product_showcase"];
 export const isVideoMode = (m: GenerationMode): boolean => VIDEO_MODES.includes(m);
+
+// The modes whose output is a still image. These are the ones that can be handed
+// to GPT Image 2 for rendering, and the only ones offering the GPT-5.6 Sol prompt
+// engine. Kept here so the form, the output view and gemini.ts agree — the check
+// used to be spelled out (negatively) in three places and drifted.
+const IMAGE_MODES: GenerationMode[] = ["standard", "face_swap", "mockup"];
+export const isImageMode = (m: GenerationMode): boolean => IMAGE_MODES.includes(m);
+
+// Which model writes the prompt JSON. Both produce the same schema; "chatgpt-5.6-sol"
+// runs through the user's own ChatGPT OAuth session instead of the Gemini key pool.
+export type PromptEngine = "gemini" | "chatgpt-5.6-sol";
+
+// State of the GPT Image 2 render that follows a GPT-5.6 Sol prompt. Only ever
+// leaves "idle" on that path — the Gemini engine just emits the prompt.
+export type ImageRenderState =
+  | { status: "idle" }
+  | { status: "loading" }
+  | { status: "signed-out" }
+  | { status: "error"; error: string }
+  | {
+      status: "success";
+      /** Object URL for the PNG — same-origin, so it stays canvas-safe. */
+      image: string;
+      width: number;
+      height: number;
+      sourceWidth: number;
+      sourceHeight: number;
+      upscaled: boolean;
+      quality: string;
+    };
 
 export interface GeneratePayload {
   mode: GenerationMode;
@@ -99,16 +129,6 @@ export interface GeneratePayload {
   ctaText?: string;
   productMaterial?: string;
   backgroundScene?: string;
-  // Poster Design mode
-  posterTemplate?: string;      // "mf_corner" (Bandhan × CNBC brand kit) | "custom"
-  posterType?: string;          // episode_promo | guest_announcement | nfo_alert | concept_explainer | market_update
-  headlineText?: string;
-  subheadlineText?: string;
-  guestDetails?: string;        // guest names + designations, one per line
-  logoPlaceholders?: string;    // comma-separated logos to reserve blank space for
-  logoMode?: string;            // "attach" (user uploads real logo files with the prompt) | "placeholder" (reserve blank zones)
-  posterBackground?: string;    // deep_navy | teal | orange_gradient | pastel
-  includeDisclaimer?: boolean;  // AMFI mutual-fund disclaimer strip
 }
 
 export interface CustomStyle {

@@ -1,12 +1,16 @@
 "use client";
 
+import { SignInWithChatGPT } from "@openai-oauth/react";
+import Link from "next/link";
 import { useState, useEffect } from "react";
 
 interface HeaderProps {
-  dailyPromptCount: number | null;
+  // Optional: the Poster Studio has no prompt counter of its own.
+  dailyPromptCount?: number | null;
+  activeStudio?: "prompt" | "poster";
 }
 
-export function Header({ dailyPromptCount }: HeaderProps) {
+export function Header({ dailyPromptCount = null, activeStudio = "prompt" }: HeaderProps) {
   const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
@@ -28,26 +32,60 @@ export function Header({ dailyPromptCount }: HeaderProps) {
     >
       <div className="max-w-[1200px] mx-auto px-6 flex items-center justify-between">
         {/* Logo */}
-        <a href="#" className="flex items-baseline gap-1 group">
+        <Link href="/" className="flex items-baseline gap-1 group" aria-label="Multia Prompt Studio home">
           <span className="font-display text-2xl tracking-tight text-white transition-all duration-300">
             Multia
           </span>
           <span className="text-[10px] text-white/40 font-body tracking-widest uppercase">
             .in
           </span>
-        </a>
+        </Link>
 
-        {/* Center label */}
-        <div className="hidden sm:flex items-center gap-3">
-          <span className="w-6 h-px bg-white/20" />
-          <span className="text-xs text-white/40 font-body uppercase tracking-[0.2em]">
-            Prompt Studio
-          </span>
-          <span className="w-6 h-px bg-white/20" />
-        </div>
+        {/* Studio switcher */}
+        <nav
+          className="hidden md:flex items-center rounded-full border border-white/10 bg-black/20 p-1"
+          aria-label="Studio navigation"
+        >
+          <Link
+            href="/"
+            aria-current={activeStudio === "prompt" ? "page" : undefined}
+            className={`rounded-full px-3.5 py-1.5 text-[11px] font-body uppercase tracking-[0.14em] transition ${
+              activeStudio === "prompt" ? "bg-white text-[#121212]" : "text-white/45 hover:text-white"
+            }`}
+          >
+            Prompt
+          </Link>
+          <Link
+            href="/poster-design"
+            aria-current={activeStudio === "poster" ? "page" : undefined}
+            className={`rounded-full px-3.5 py-1.5 text-[11px] font-body uppercase tracking-[0.14em] transition ${
+              activeStudio === "poster" ? "bg-white text-[#121212]" : "text-white/45 hover:text-white"
+            }`}
+          >
+            Poster
+          </Link>
+        </nav>
 
         {/* Right side */}
         <div className="flex items-center gap-4">
+          {/* The package ships its own light-theme inline styles, so scale it down
+              to sit in the dark header without fighting its internals. */}
+          <SignInWithChatGPT
+            hideAttribution
+            style={{
+              minHeight: "34px",
+              minWidth: "auto",
+              padding: "0 14px",
+              fontSize: "12px",
+              borderRadius: "999px",
+            }}
+          />
+          <Link
+            href={activeStudio === "poster" ? "/" : "/poster-design"}
+            className="md:hidden text-[10px] text-white/60 uppercase tracking-wider"
+          >
+            {activeStudio === "poster" ? "Prompt" : "Poster"}
+          </Link>
           <div
             className="flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-2.5 sm:px-3 py-1.5"
             title="Successful prompts generated today"
