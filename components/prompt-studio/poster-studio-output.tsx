@@ -1373,8 +1373,12 @@ export function PosterStudioOutput({
       </div>
 
       <div className="poster-reference-lock">
-        <img src={referenceImage} alt={`${concept.referenceMatch.label} approved layout reference`} />
-        <div><span>Approved reference lock</span><strong>{concept.referenceMatch.label}</strong><p>{concept.referenceMatch.reason}</p></div>
+        <img src={referenceImage} alt={`${concept.referenceMatch.label} layout template`} />
+        {/* This is layout-geometry grounding only — auto-matched from copy length
+            against the 13 internal templates, unrelated to any reference image the
+            user did or didn't upload. No visual content is copied; it only decides
+            where headline/hero/logo zones sit. */}
+        <div><span>Layout template match</span><strong>{concept.referenceMatch.label}</strong><p>{concept.referenceMatch.reason}</p></div>
         <dl><div><dt>Layout</dt><dd>{concept.layoutArchetype.replaceAll("-", " ")}</dd></div><div><dt>Model style</dt><dd>{concept.selected3DModelReferenceCategory.label}</dd></div><div><dt>Palette</dt><dd>{concept.selectedColourCombination.name}</dd></div></dl>
       </div>
 
