@@ -246,7 +246,7 @@ Return the complete JSON object only. Do not wrap it in Markdown.
   return content;
 }
 
-function buildPosterSystemPrompt(payload: PosterStudioPayload): string {
+export function buildPosterSystemPrompt(payload: PosterStudioPayload): string {
   const lockedReference = getApprovedPoster(payload.referencePosterId);
   const referenceIndex = APPROVED_POSTERS.map(
     (poster) =>
@@ -293,7 +293,11 @@ ${
       ? "\nNo figure clarification is needed here: the Large & Midcap subject is LOCKED to the precision portfolio balance already specified above. Proceed directly to the complete production concept — do not ask the user to choose a figure for this topic."
       : `\nMANDATORY HERO-FIGURE QUESTION — ask this before writing the concept, every time:
 Before generating the production concept, you must first propose exactly 3 distinct, concrete hero-figure options for "${payload.topic}" and let the user choose one. Each option is a short (roughly 6-14 word) concrete description of a physically credible object or mechanism and what it financially represents — not a vague theme, not a colour or style choice, not yes/no. The three options must be meaningfully different metaphors from each other, not three variations of the same idea.
-To ask, return ONLY this JSON object and nothing else — do not generate the production concept yet on this pass: {"needs_clarification": true, "questions": [{"question": "Which figure should represent this topic?", "options": ["option A", "option B", "option C"]}]}. You may add up to 2 more short clarifying questions in the same array only if something else about the brief is genuinely ambiguous, but the hero-figure question above is always required on this first pass.`
+To ask, return ONLY this JSON object and nothing else — do not generate the production concept yet on this pass: {"needs_clarification": true, "questions": [{"question": "Which figure should represent this topic?", "options": ["option A", "option B", "option C"]}]}. You may add up to 2 more short clarifying questions in the same array only if something else about the brief is genuinely ambiguous, but the hero-figure question above is always required on this first pass.${
+          payload.rejectedFigures?.length
+            ? `\n\nALREADY REJECTED — the user has seen these options and asked for different ones. Do not repeat them, and do not offer a near-variation of any of them; change the underlying object, not just the wording:\n${payload.rejectedFigures.map((figure) => `- ${figure}`).join("\n")}\nReach further into the everyday Indian money vocabulary for genuinely different objects this time.`
+            : ""
+        }`
 }
 
 REQUIRED JSON SHAPE

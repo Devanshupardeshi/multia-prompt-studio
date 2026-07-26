@@ -370,6 +370,71 @@
   justify-self: start;
 }
 
+/* "Something else…" reads as a sibling of the generated options but visibly
+   optional, so it never competes with the model's suggestions. */
+.poster-clarification-custom-toggle {
+  border-style: dashed;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.poster-clarification-custom {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin-top: 0.8rem;
+}
+
+.poster-clarification-custom > span {
+  color: rgba(255, 255, 255, 0.45);
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.poster-clarification-custom input {
+  width: 100%;
+  min-height: 44px;
+  padding: 0 0.85rem;
+  border: 1px solid #303030;
+  border-radius: 8px;
+  background: #0d0d0d;
+  color: #ffffff;
+  font-family: inherit;
+  font-size: 0.85rem;
+}
+
+.poster-clarification-custom input:focus-visible {
+  border-color: #ffffff;
+}
+
+.poster-clarification-custom small {
+  color: rgba(255, 255, 255, 0.3);
+  font-size: 0.7rem;
+}
+
+.poster-clarification-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1.1rem;
+}
+
+.poster-clarification-more {
+  color: rgba(255, 255, 255, 0.46);
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  transition: color 160ms ease-out;
+}
+
+.poster-clarification-more:hover:not(:disabled) {
+  color: #ffffff;
+}
+
+.poster-clarification-more:disabled {
+  opacity: 0.4;
+}
+
 .poster-direction-field {
   margin-top: 1.1rem;
 }

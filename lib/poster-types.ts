@@ -59,6 +59,8 @@ export interface PosterStudioPayload {
   cnbcLogoVariant?: PosterCnbcLogoVariant;
   bandhanLogoVariant?: PosterBandhanLogoVariant;
   clarificationAnswers?: Record<string, string>;
+  /** Figure options already shown and rejected, so "show different options" returns new ones. */
+  rejectedFigures?: string[];
 }
 
 export interface PercentBounds {

@@ -6,6 +6,7 @@ import {
   getTopicFigureGuidance,
   TOPIC_FIGURE_PATTERNS,
 } from "../../lib/poster-figure-vocabulary";
+import { buildPosterSystemPrompt } from "../../lib/openai-poster";
 import {
   getFinancialNarrativeSeed,
   POSTER_CATEGORIES,
@@ -30,8 +31,6 @@ function brief(topic: string, overrides: Partial<PosterStudioPayload> = {}): Pos
     visualDirection: "",
     outputSize: { width: 2160, height: 2700 },
     backgroundChoice: "auto",
-    cnbcLogoVariant: "tv18",
-    bandhanLogoVariant: "dark-bg",
     ...overrides,
   } as PosterStudioPayload;
 }
@@ -158,6 +157,41 @@ describe("narrative seeds name objects rather than invented mechanisms", () => {
     const seed = getFinancialNarrativeSeed(brief("large cap and mid cap funds"));
     assert.match(seed.heroMetaphor, /taraju/i);
     assert.match(seed.heroMetaphor, /coin/i, "both loads must be recognisable money material");
+  });
+});
+
+describe("'show me different options' excludes what was already shown", () => {
+  const REJECTED = [
+    "Cane tokri holding many unequal coin-discs as one size-weighted index",
+    "Bound sheaf of currency slips representing companies measured as one index",
+  ];
+
+  test("rejected options are listed back to the model with a do-not-repeat rule", () => {
+    const prompt = buildPosterSystemPrompt(
+      brief("understanding nifty banknifty and sensex", { rejectedFigures: REJECTED }),
+    );
+    assert.match(prompt, /ALREADY REJECTED/);
+    for (const figure of REJECTED) {
+      assert.ok(prompt.includes(figure), `rejected option missing from prompt: ${figure}`);
+    }
+    assert.match(prompt, /do not offer a near-variation/i, "rewording must be ruled out too");
+  });
+
+  test("a first pass carries no exclusion block", () => {
+    const prompt = buildPosterSystemPrompt(brief("understanding nifty banknifty and sensex"));
+    assert.doesNotMatch(prompt, /ALREADY REJECTED/);
+  });
+
+  test("the exclusion block is dropped once the user has answered", () => {
+    const prompt = buildPosterSystemPrompt(
+      brief("understanding nifty banknifty and sensex", {
+        rejectedFigures: REJECTED,
+        clarificationAnswers: { "Which figure should represent this topic?": "A steel gullak" },
+      }),
+    );
+    // Answered briefs take the "produce the concept now" path, never the ask path.
+    assert.doesNotMatch(prompt, /ALREADY REJECTED/);
+    assert.match(prompt, /CLARIFICATION ALREADY ANSWERED/);
   });
 });
 

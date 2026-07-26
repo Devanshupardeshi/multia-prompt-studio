@@ -231,13 +231,24 @@ export default function PosterDesignPage() {
       if (!lastPayload) return;
       const questionTexts = Object.fromEntries(
         (clarification ?? [])
-          .filter((question) => answers[question.id])
-          .map((question) => [question.question, answers[question.id]]),
+          .filter((question) => answers[question.id]?.trim())
+          .map((question) => [question.question, answers[question.id].trim()]),
       );
       void runConcept({ ...lastPayload, clarificationAnswers: questionTexts });
     },
     [clarification, lastPayload, runConcept],
   );
+
+  // Re-ask for figure options, carrying forward everything already shown so the
+  // model has to reach for genuinely different objects instead of rewording.
+  const requestDifferentOptions = useCallback(() => {
+    if (!lastPayload || !clarification) return;
+    const alreadyShown = clarification.flatMap((question) => question.options);
+    const rejected = Array.from(
+      new Set([...(lastPayload.rejectedFigures ?? []), ...alreadyShown]),
+    ).slice(-24);
+    void runConcept({ ...lastPayload, clarificationAnswers: undefined, rejectedFigures: rejected });
+  }, [clarification, lastPayload, runConcept]);
 
   return (
     <main className="poster-page relative min-h-screen noise-overlay">
@@ -272,6 +283,7 @@ export default function PosterDesignPage() {
           <div id="poster-studio-clarification" className="poster-standard-content scroll-mt-24">
             <PosterStudioClarification
               questions={clarification}
+              onRequestDifferentOptions={requestDifferentOptions}
               isLoading={isLoading}
               onSubmit={submitClarificationAnswers}
             />

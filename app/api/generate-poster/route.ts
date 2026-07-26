@@ -114,6 +114,14 @@ function parsePayload(body: unknown): PosterStudioPayload | null {
     if (entries.length > 0) clarificationAnswers = Object.fromEntries(entries);
   }
 
+  const rawRejected = source.rejectedFigures;
+  const rejectedFigures = Array.isArray(rawRejected)
+    ? rawRejected
+        .filter((item): item is string => typeof item === "string" && item.trim().length > 0)
+        .slice(0, 24)
+        .map((item) => item.slice(0, 200))
+    : undefined;
+
   return {
     mode: "poster-design",
     headline,
@@ -130,6 +138,7 @@ function parsePayload(body: unknown): PosterStudioPayload | null {
     cnbcLogoVariant,
     bandhanLogoVariant,
     clarificationAnswers,
+    rejectedFigures: rejectedFigures?.length ? rejectedFigures : undefined,
   };
 }
 

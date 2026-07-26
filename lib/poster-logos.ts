@@ -74,10 +74,17 @@ export interface PosterLogoVariantChoice {
 }
 
 function resolveLogoAssets(choice: PosterLogoVariantChoice): Record<PosterLogoId, PosterLogoAssetDefinition> {
+  // Fall back rather than index blindly: a variant can arrive from an older saved
+  // concept or a hand-edited payload, and an unknown key would otherwise crash the
+  // whole concept build on an undefined lookup.
   const cnbcVariant = choice.cnbcLogoVariant ?? DEFAULT_CNBC_LOGO_VARIANT;
   const bandhanVariant = choice.bandhanLogoVariant ?? DEFAULT_BANDHAN_LOGO_VARIANT;
-  const cnbc = POSTER_LOGO_VARIANTS["cnbc-tv18"][cnbcVariant];
-  const bandhan = POSTER_LOGO_VARIANTS["bandhan-mutual-fund"][bandhanVariant];
+  const cnbc =
+    POSTER_LOGO_VARIANTS["cnbc-tv18"][cnbcVariant] ??
+    POSTER_LOGO_VARIANTS["cnbc-tv18"][DEFAULT_CNBC_LOGO_VARIANT];
+  const bandhan =
+    POSTER_LOGO_VARIANTS["bandhan-mutual-fund"][bandhanVariant] ??
+    POSTER_LOGO_VARIANTS["bandhan-mutual-fund"][DEFAULT_BANDHAN_LOGO_VARIANT];
 
   return {
     "cnbc-tv18": {
