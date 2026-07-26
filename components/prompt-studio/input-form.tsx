@@ -51,6 +51,7 @@ const ASSET_STRATEGIES = [
 ];
 
 import Link from "next/link";
+import { chatGptAuthHeaders } from "@/lib/chatgpt-session";
 import { GenerationMode, GeneratePayload, isImageMode, isVideoMode, CustomStyle, PromptEngine } from "@/lib/shared-types";
 
 // Mode selector grouped by output type.
@@ -154,9 +155,11 @@ export function InputForm({ onGenerate, isLoading, onModeChange }: InputFormProp
       setIsExtractingStyle(true);
       setStyleError(null);
       try {
+        // ChatGPT-only feature: forward the user's OAuth session.
+        const authHeaders = await chatGptAuthHeaders();
         const res = await fetch("/api/extract-style", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { ...authHeaders, "Content-Type": "application/json" },
           body: JSON.stringify({ image: base64 }),
         });
         const data = await res.json().catch(() => ({}));
@@ -408,9 +411,11 @@ export function InputForm({ onGenerate, isLoading, onModeChange }: InputFormProp
     setIsEnhancing(true);
     setEnhanceError(null);
     try {
+      // ChatGPT-only feature: forward the user's OAuth session.
+      const authHeaders = await chatGptAuthHeaders();
       const res = await fetch("/api/enhance", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { ...authHeaders, "Content-Type": "application/json" },
         body: JSON.stringify({ description: description.trim() }),
       });
       const data = await res.json().catch(() => ({}));
@@ -618,6 +623,7 @@ export function InputForm({ onGenerate, isLoading, onModeChange }: InputFormProp
                 <button
                   type="button"
                   onClick={handleEnhance}
+                  title="Expands your idea using GPT-5.6 Sol — requires ChatGPT sign-in"
                   disabled={isEnhancing || !description.trim() || isLoading}
                   className={`absolute bottom-3 right-3 text-[11px] font-body uppercase tracking-wider flex items-center gap-1.5 px-3 py-1.5 rounded transition-colors ${
                     isEnhancing || !description.trim() || isLoading
@@ -1634,6 +1640,7 @@ export function InputForm({ onGenerate, isLoading, onModeChange }: InputFormProp
 
               {/* Add custom style from a reference image */}
               <label
+                title="Reads a style off your image using GPT-5.6 Sol — requires ChatGPT sign-in"
                 className={`relative h-20 rounded-lg border border-dashed border-white/20 hover:border-white/50 cursor-pointer flex flex-col items-center justify-center gap-1 transition-colors ${
                   isExtractingStyle ? "opacity-50 pointer-events-none" : ""
                 }`}

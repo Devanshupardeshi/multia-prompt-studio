@@ -1,7 +1,7 @@
 "use client";
 
-import { openaiAuthHeaders } from "@openai-oauth/react";
 import { useState, useCallback, useRef, useEffect } from "react";
+import { chatGptAuthHeaders, isMissingChatGptSession } from "@/lib/chatgpt-session";
 import { readPngResponse } from "@/lib/png-response";
 import { Header } from "@/components/prompt-studio/header";
 import { Hero } from "@/components/prompt-studio/hero";
@@ -34,13 +34,8 @@ type ModeResult = {
   image?: ImageRenderState;
 };
 
-// openaiAuthHeaders() throws rather than returning {} when there is no session.
-function isMissingOAuthSession(error: unknown): boolean {
-  return (
-    error instanceof Error &&
-    /oauth session not found|not authenticated|unauthenticated|sign in with chatgpt/i.test(error.message)
-  );
-}
+const SIGN_IN_TO_GENERATE =
+  "Sign in with ChatGPT (top-right) to generate a prompt with GPT-5.6 Sol.";
 
 export default function Home() {
   const [currentMode, setCurrentMode] = useState<GenerationMode>("standard");
@@ -89,11 +84,11 @@ export default function Home() {
 
       let authHeaders: Record<string, string>;
       try {
-        authHeaders = await openaiAuthHeaders();
+        authHeaders = await chatGptAuthHeaders();
       } catch (authError) {
         if (isStale()) return;
         patchMode(mode, {
-          image: isMissingOAuthSession(authError)
+          image: isMissingChatGptSession(authError)
             ? { status: "signed-out" }
             : {
                 status: "error",
@@ -186,14 +181,10 @@ export default function Home() {
         let authHeaders: Record<string, string> = {};
         if (viaChatGpt) {
           try {
-            authHeaders = await openaiAuthHeaders();
+            authHeaders = await chatGptAuthHeaders(SIGN_IN_TO_GENERATE);
           } catch (authError) {
             patchMode(mode, {
-              error: isMissingOAuthSession(authError)
-                ? "Sign in with ChatGPT (top-right) to generate a prompt with GPT-5.6 Sol."
-                : authError instanceof Error
-                  ? authError.message
-                  : "Could not read the ChatGPT session.",
+              error: authError instanceof Error ? authError.message : SIGN_IN_TO_GENERATE,
               queuedUntil: null,
               queueMessage: null,
             });
@@ -223,7 +214,7 @@ export default function Home() {
 
         if (viaChatGpt && response.status === 401) {
           patchMode(mode, {
-            error: result.error || "Sign in with ChatGPT (top-right) to generate a prompt with GPT-5.6 Sol.",
+            error: result.error || SIGN_IN_TO_GENERATE,
             queuedUntil: null,
             queueMessage: null,
           });
