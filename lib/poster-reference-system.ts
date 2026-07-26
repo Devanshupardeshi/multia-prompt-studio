@@ -154,7 +154,8 @@ export const POSTER_CATEGORIES: Record<
     shortLabel: string;
     summary: string;
     promptDirective: string;
-    boardFile: string;
+    /** Optional: newer categories are specified in text only, with no reference board. */
+    boardFile?: string;
     referenceCrops: Array<{
       folder: string;
       file: string;
@@ -220,7 +221,7 @@ export const POSTER_CATEGORIES: Record<
     summary:
       "Bold simplified silhouettes and editorial symbolism translated into a refined dimensional finish.",
     promptDirective:
-      "Execute Dimensional Editorial Illustration only: use one lower-third hero cluster with four to six total rounded geometric shapes, bold silhouettes, smooth continuous contours, flat approved colour blocks and only one or two adjacent tonal facets for shallow depth. Keep the full canvas a single uninterrupted approved flat colour and preserve a separate zero-overlap headline zone. Remap all reference hues to the Bandhan palette. Use economical financial symbolism that a financial editor can explain component by component. Forbid photoreal lighting, cast shadows, glass transparency or blur, full CGI, thick cartoon outlines, starburst call-outs, numbered badges, stock-icon dashboards, clutter, pure typography compositions and copied reference subjects.\n\nPERSPECTIVE: isometric or flat-orthographic view only — never a photographic camera angle or one-point/two-point perspective.\nSHADING: flat cel-style shading, exactly one shallow highlight facet plus one shadow facet per shape for dimension — never photoreal light falloff, gradients across a whole shape, or a cast shadow onto the background.\nCONSTRUCTION: geometric primitives only (circles, rounded rectangles, capsules, triangles) combined into 4–6 total shapes; depth comes only from layering and overlap plus the one or two tonal facets, never from blur or atmospheric perspective.\nFINISH: contemporary editorial spot-illustration quality — the standard of a Bloomberg Businessweek or Economist finance illustration, not a children's-book or corporate-clipart style.\nSTYLE ONLY: this category decides HOW the subject is rendered, never WHAT the subject is. The subject comes from the topic brief. Reduce whichever object that brief specifies to bold simplified geometry — but keep it identifiable: every primitive needs at least one concrete cue that names the real object (a coin's milled rim, a note's folded corner, a gullak's slot, a katori's curve, a passbook's binding). A plain circle or capsule with no such cue reads as generic UI iconography, not finance.",
+      "Execute Dimensional Editorial Illustration only: use one lower-third hero cluster with four to six total rounded geometric shapes, bold silhouettes, smooth continuous contours, flat approved colour blocks and only one or two adjacent tonal facets for shallow depth. Keep the full canvas a single uninterrupted approved flat colour and preserve a separate zero-overlap headline zone. Remap all reference hues to the Bandhan palette. Use economical financial symbolism that a financial editor can explain component by component. Forbid photoreal lighting, cast shadows, glass transparency or blur, full CGI, thick cartoon outlines, starburst call-outs, numbered badges, stock-icon dashboards, clutter, pure typography compositions and copied reference subjects.\n\nCAMERA: flat front-on orthographic view only, and never isometric (isometric belongs to the diorama style) — never a photographic camera angle or one-point/two-point perspective.\nLIGHTING: flat cel-style shading, exactly one shallow highlight facet plus one shadow facet per shape for dimension — never photoreal light falloff, gradients across a whole shape, or a cast shadow onto the background.\nMATERIAL: flat matte authored colour blocks built from geometric primitives only (circles, rounded rectangles, capsules, triangles), combined into 4–6 total shapes.\nDEPTH: from overlap and layering plus the one or two tonal facets, never from blur, atmospheric perspective or a drop shadow.\nFINISH: contemporary editorial spot-illustration quality — the standard of a Bloomberg Businessweek or Economist finance illustration, not a children's-book or corporate-clipart style.\nSTYLE ONLY: this category decides HOW the subject is rendered, never WHAT the subject is. The subject comes from the topic brief. Reduce whichever object that brief specifies to bold simplified geometry — but keep it identifiable: every primitive needs at least one concrete cue that names the real object (a coin's milled rim, a note's folded corner, a gullak's slot, a katori's curve, a passbook's binding). A plain circle or capsule with no such cue reads as generic UI iconography, not finance.",
     boardFile: "style-3-illustrative.jpg",
     referenceCrops: [
       {
@@ -239,6 +240,38 @@ export const POSTER_CATEGORIES: Record<
         crop: { left: 900, top: 570, width: 420, height: 420 },
       },
     ],
+  },
+  // The three below are text-specified: no reference board, no crop assets. They
+  // exist because the original three all render "premium and serious", which suits
+  // market commentary but not the educational half of the campaign, and because
+  // glassmorphism drifts toward the generic shiny-blob look that now reads as AI
+  // output. Each is a genuinely different rendering approach, not a new subject.
+  "soft-clay": {
+    label: "Soft Clay",
+    shortLabel: "Clay",
+    summary:
+      "Warm handmade clay forms with visible tool marks — approachable, tactile, good for teaching topics.",
+    promptDirective:
+      "STYLE ONLY: this category decides HOW the subject is rendered, never WHAT the subject is. The subject comes from the topic brief. Sculpt whichever object that brief specifies as if modelled by hand in matte polymer clay.\n\nCAMERA: straight-on or gentle three-quarter view, 50–70mm equivalent, everything in focus — this is a tabletop object presented plainly, not a dramatic hero shot.\nLIGHTING: one soft broad light from above-front plus gentle ambient fill; soft wraparound falloff and one soft grounded contact shadow. No hard speculars, no rim lights, no dramatic contrast.\nMATERIAL: matte polymer clay with zero gloss — visible thumbprints, small tool marks, slightly uneven seams and gently rounded edges that show it was shaped by hand. Surfaces should look softly compressible, never injection-moulded or plastic.\nDEPTH: real dimensional forms with soft rounded corners and slight inflation, arranged with clear separation; depth comes from soft shadow between forms, not from blur.\nFINISH: premium handcrafted stop-motion quality (the standard of a well-art-directed clay animation still), warm and inviting, never a toy, never a children's cartoon, never glossy.\nPALETTE NOTE: keep clay bodies in muted, desaturated versions of the approved hues so the brand colours stay recognisable without turning pastel or candy-like.",
+    referenceCrops: [],
+  },
+  "isometric-diorama": {
+    label: "Isometric Miniature Diorama",
+    shortLabel: "Diorama",
+    summary:
+      "A small cutaway scene viewed isometrically — best when the topic is a process or a system with parts.",
+    promptDirective:
+      "STYLE ONLY: this category decides HOW the subject is rendered, never WHAT the subject is. The subject comes from the topic brief. Stage whichever object that brief specifies as a miniature model on a thin, minimal base.\n\nCAMERA: true isometric or a clean 45-degree top-down three-quarter view, orthographic or near-orthographic with minimal perspective convergence. Never a ground-level photographic angle.\nLIGHTING: single soft key from upper-left with broad ambient fill, physically based rendering, gentle ambient occlusion where parts meet the base. Even and readable, never moody.\nMATERIAL: physically based surfaces at miniature scale — matte and satin finishes reading as a well-made scale model, with fine tactile texture rather than mirror polish.\nDEPTH: the scene sits on a thin minimal plinth or inside a shallow open cutaway box, so the whole subject is comprehensible at once from that one angle. Everything rests on the base; nothing floats.\nFINISH: precise architectural-model quality — clean edges, honest scale cues, restrained detail. Never a cluttered hobby diorama and never a video-game asset.\nSCOPE NOTE: this is one miniature subject on a base, not a landscape, town, street or built environment.",
+    referenceCrops: [],
+  },
+  "layered-paper": {
+    label: "Layered Papercraft",
+    shortLabel: "Papercraft",
+    summary:
+      "Stacked cut-paper layers with real fibre and shadow — tactile and print-like, strong for festive moments.",
+    promptDirective:
+      "STYLE ONLY: this category decides HOW the subject is rendered, never WHAT the subject is. The subject comes from the topic brief. Construct whichever object that brief specifies from cut and stacked paper.\n\nCAMERA: straight-on frontal or very slight three-quarter, fully in focus, so the layer edges stay crisp and countable.\nLIGHTING: soft raking light from one side so each layer casts a short, soft shadow onto the layer beneath — the shadows are what create the depth and must be clearly visible but never harsh.\nMATERIAL: matte card and paper with visible fibre and grain, clean precise cut edges, slight natural curl at the corners. No gloss, no gradient fills across a piece — colour is the paper's own colour.\nDEPTH: 3–5 clearly separated stacked planes with real air between them, like a shadow-box. Depth comes only from layering and cast shadow, never from blur, perspective or photographic bokeh.\nFINISH: refined hand-cut craft quality — the standard of a commissioned paper-art editorial cover, not a die-cut template or a scrapbook.\nPALETTE NOTE: each paper layer is a flat approved brand colour; overlapping layers may darken slightly where they shadow one another.",
+    referenceCrops: [],
   },
 };
 

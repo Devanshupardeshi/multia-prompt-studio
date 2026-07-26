@@ -7,8 +7,10 @@ import {
   POSTER_PROMPT_MODEL_LABEL,
 } from "@/lib/openai-poster";
 import { stringifyPosterGenerationPrompt } from "@/lib/poster-generation-prompt";
-import { APPROVED_POSTERS } from "@/lib/poster-reference-system";
+import { APPROVED_POSTERS, POSTER_CATEGORIES } from "@/lib/poster-reference-system";
 import type {
+  PosterHeroMaterial,
+  PosterLightingMood,
   PosterBackgroundChoice,
   PosterBandhanLogoVariant,
   PosterCnbcLogoVariant,
@@ -20,11 +22,9 @@ import { getPosterConceptValidationErrors } from "@/lib/poster-types";
 export const maxDuration = 180;
 export const runtime = "nodejs";
 
-const CATEGORIES: PosterModelCategory[] = [
-  "mixed-media",
-  "glassmorphism-3d",
-  "illustrative",
-];
+// Derived from the registry rather than restated, so adding a style category cannot
+// silently 400 here while the form happily offers it.
+const CATEGORIES = Object.keys(POSTER_CATEGORIES) as PosterModelCategory[];
 
 function getText(body: Record<string, unknown>, key: string, maxLength: number) {
   const value = body[key];
@@ -114,6 +114,28 @@ function parsePayload(body: unknown): PosterStudioPayload | null {
     if (entries.length > 0) clarificationAnswers = Object.fromEntries(entries);
   }
 
+  const HERO_MATERIALS: PosterHeroMaterial[] = [
+    "auto",
+    "brass",
+    "steel",
+    "terracotta",
+    "gold",
+    "paper-currency",
+  ];
+  const heroMaterial = HERO_MATERIALS.includes(source.heroMaterial as PosterHeroMaterial)
+    ? (source.heroMaterial as PosterHeroMaterial)
+    : "auto";
+
+  const LIGHTING_MOODS: PosterLightingMood[] = [
+    "auto",
+    "studio-neutral",
+    "warm-festive",
+    "cool-editorial",
+  ];
+  const lightingMood = LIGHTING_MOODS.includes(source.lightingMood as PosterLightingMood)
+    ? (source.lightingMood as PosterLightingMood)
+    : "auto";
+
   const rawRejected = source.rejectedFigures;
   const rejectedFigures = Array.isArray(rawRejected)
     ? rawRejected
@@ -135,6 +157,8 @@ function parsePayload(body: unknown): PosterStudioPayload | null {
     referenceImage,
     outputSize: { width, height },
     backgroundChoice,
+    heroMaterial,
+    lightingMood,
     cnbcLogoVariant,
     bandhanLogoVariant,
     clarificationAnswers,

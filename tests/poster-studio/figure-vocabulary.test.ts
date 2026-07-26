@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import {
   AVOID_GLOBALLY,
+  formatArtDirection,
   formatTopicFigureGuidance,
   getTopicFigureGuidance,
   TOPIC_FIGURE_PATTERNS,
@@ -113,6 +114,36 @@ describe("topic drives the subject, with Indian props", () => {
     );
   });
 
+  test("every style category specifies the full render stack", () => {
+    // A category that omits one of these renders to the model's defaults for that
+    // axis, which is where generic AI-looking output comes from.
+    for (const id of CATEGORY_IDS) {
+      const directive = POSTER_CATEGORIES[id].promptDirective;
+      for (const axis of ["CAMERA", "LIGHTING", "MATERIAL", "DEPTH", "FINISH"]) {
+        assert.ok(
+          directive.includes(`${axis}:`),
+          `style category "${id}" is missing its ${axis} spec`,
+        );
+      }
+    }
+  });
+
+  test("every style category is distinguishable from the others", () => {
+    // Two categories that read the same produce the same picture, which defeats
+    // offering the choice at all.
+    const shortLabels = CATEGORY_IDS.map((id) => POSTER_CATEGORIES[id].shortLabel);
+    assert.equal(new Set(shortLabels).size, shortLabels.length, "short labels must be unique");
+
+    for (const id of CATEGORY_IDS) {
+      const directive = POSTER_CATEGORIES[id].promptDirective;
+      assert.match(
+        directive,
+        /Do not|never|Never|zero gloss|no gloss/,
+        `style category "${id}" must rule out the neighbouring styles it could collapse into`,
+      );
+    }
+  });
+
   test("every pattern offers at least two committed options and its own traps", () => {
     for (const pattern of TOPIC_FIGURE_PATTERNS) {
       assert.ok(pattern.figures.length >= 2, `${pattern.id} needs alternatives to choose between`);
@@ -192,6 +223,74 @@ describe("'show me different options' excludes what was already shown", () => {
     // Answered briefs take the "produce the concept now" path, never the ask path.
     assert.doesNotMatch(prompt, /ALREADY REJECTED/);
     assert.match(prompt, /CLARIFICATION ALREADY ANSWERED/);
+  });
+});
+
+describe("index topics get real constituent counts", () => {
+  const CASES: Array<{ topic: string; expect: RegExp }> = [
+    { topic: "understanding nifty and sensex", expect: /Nifty 50 measures 50 companies/ },
+    { topic: "what bank nifty tracks", expect: /Bank Nifty measures 12 companies/ },
+    { topic: "sensex explained", expect: /Sensex measures 30 companies/ },
+  ];
+
+  for (const { topic, expect } of CASES) {
+    test(`"${topic}" carries the real count`, () => {
+      const guidance = getTopicFigureGuidance(brief(topic));
+      assert.ok(guidance.indexNote, `no index note for "${topic}"`);
+      assert.match(guidance.indexNote ?? "", expect);
+    });
+  }
+
+  test("bank nifty is not mistaken for nifty 50", () => {
+    const note = getTopicFigureGuidance(brief("bank nifty basics")).indexNote ?? "";
+    assert.match(note, /Bank Nifty measures 12/);
+    assert.doesNotMatch(note, /Nifty 50 measures/);
+  });
+
+  test("the count must not be drawn as a digit", () => {
+    const rendered = formatTopicFigureGuidance(getTopicFigureGuidance(brief("nifty 50 explained")));
+    assert.match(rendered, /INDEX FACTS/);
+    assert.match(rendered, /Never render the number as a digit/);
+  });
+
+  test("non-index topics carry no index note", () => {
+    assert.equal(getTopicFigureGuidance(brief("how SIP works")).indexNote, null);
+  });
+});
+
+describe("art direction refines without overriding the style", () => {
+  test("a material choice is stated as a preference the style can veto", () => {
+    const direction = formatArtDirection("brass", "auto") ?? "";
+    assert.match(direction, /HERO MATERIAL/);
+    assert.match(direction, /brass/i);
+    assert.match(direction, /preference, not an override/i);
+    assert.match(direction, /clay must stay clay/i);
+    assert.doesNotMatch(direction, /LIGHTING MOOD/);
+  });
+
+  test("a mood choice only shifts temperature and contrast", () => {
+    const direction = formatArtDirection("auto", "warm-festive") ?? "";
+    assert.match(direction, /LIGHTING MOOD/);
+    assert.match(direction, /diyas/i);
+    assert.match(direction, /colour-temperature and contrast shift only/i);
+  });
+
+  test("auto on both sides adds nothing to the prompt", () => {
+    assert.equal(formatArtDirection("auto", "auto"), null);
+    assert.equal(formatArtDirection(undefined, undefined), null);
+  });
+
+  test("an unknown value is ignored rather than injected raw", () => {
+    assert.equal(formatArtDirection("unobtanium", "strobe"), null);
+  });
+});
+
+describe("the stock-template look is ruled out", () => {
+  test("the default Indian mutual-fund template style is named as an anti-reference", () => {
+    const globals = AVOID_GLOBALLY.join(" ");
+    assert.match(globals, /clip-art/i);
+    assert.match(globals, /cartoon families|businessmen/i);
+    assert.match(globals, /template/i);
   });
 });
 

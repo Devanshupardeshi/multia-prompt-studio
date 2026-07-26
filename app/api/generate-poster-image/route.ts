@@ -207,10 +207,11 @@ export async function POST(request: Request) {
     const openai = createOpenAIOAuth(openaiCredentials(request));
     const result = await generateImage({
       model: openai.image("gpt-image-2"),
-      prompt: {
-        text: promptResult.text,
-        images: styleReferences.slice(0, 3),
-      },
+      // Text-specified categories ship no crop assets. Send a plain string rather
+      // than an empty images array so the provider gets a well-formed request.
+      prompt: styleReferences.length
+        ? { text: promptResult.text, images: styleReferences.slice(0, 3) }
+        : promptResult.text,
       size: modelSize.size,
       providerOptions: {
         openai: {

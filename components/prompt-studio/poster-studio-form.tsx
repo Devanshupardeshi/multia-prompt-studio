@@ -7,6 +7,8 @@ import {
 } from "@/lib/poster-reference-system";
 import type {
   PosterBackgroundChoice,
+  PosterHeroMaterial,
+  PosterLightingMood,
   PosterModelCategory,
   PosterSize,
   PosterStudioPayload,
@@ -20,6 +22,24 @@ const BACKGROUND_CHOICES: Array<{
   { id: "auto", label: "Auto (Prussian Blue default)", swatch: POSTER_BACKGROUND_COMBINATIONS["prussian-blue"].background },
   { id: "prussian-blue", label: POSTER_BACKGROUND_COMBINATIONS["prussian-blue"].name, swatch: POSTER_BACKGROUND_COMBINATIONS["prussian-blue"].background },
   { id: "maroon-navy", label: POSTER_BACKGROUND_COMBINATIONS["maroon-navy"].name, swatch: `linear-gradient(135deg, ${POSTER_BACKGROUND_COMBINATIONS["maroon-navy"].background}, ${POSTER_BACKGROUND_COMBINATIONS["prussian-blue"].background})` },
+];
+
+// Both default to "auto", where the selected style decides. Material is a subject
+// property; mood is a colour-temperature shift on top of whatever the style does.
+const HERO_MATERIAL_CHOICES: Array<{ id: PosterHeroMaterial; label: string }> = [
+  { id: "auto", label: "Auto (style decides)" },
+  { id: "brass", label: "Brass" },
+  { id: "steel", label: "Steel" },
+  { id: "terracotta", label: "Terracotta" },
+  { id: "gold", label: "Gold" },
+  { id: "paper-currency", label: "Banknote paper" },
+];
+
+const LIGHTING_MOOD_CHOICES: Array<{ id: PosterLightingMood; label: string }> = [
+  { id: "auto", label: "Auto (style decides)" },
+  { id: "studio-neutral", label: "Studio neutral" },
+  { id: "warm-festive", label: "Warm festive" },
+  { id: "cool-editorial", label: "Cool editorial" },
 ];
 
 interface PosterStudioFormProps {
@@ -53,6 +73,8 @@ export function PosterStudioForm({ isLoading, onGenerate }: PosterStudioFormProp
   const [topic, setTopic] = useState("");
   const [modelCategory, setModelCategory] = useState<PosterModelCategory>("glassmorphism-3d");
   const [backgroundChoice, setBackgroundChoice] = useState<PosterBackgroundChoice>("auto");
+  const [heroMaterial, setHeroMaterial] = useState<PosterHeroMaterial>("auto");
+  const [lightingMood, setLightingMood] = useState<PosterLightingMood>("auto");
   const [visualDirection, setVisualDirection] = useState("");
   const [referenceImage, setReferenceImage] = useState<string | undefined>();
   const [referenceImageName, setReferenceImageName] = useState("");
@@ -113,6 +135,8 @@ export function PosterStudioForm({ isLoading, onGenerate }: PosterStudioFormProp
       referenceImage,
       outputSize,
       backgroundChoice,
+      heroMaterial,
+      lightingMood,
     });
   };
 
@@ -216,11 +240,17 @@ export function PosterStudioForm({ isLoading, onGenerate }: PosterStudioFormProp
                 aria-pressed={selected}
                 className={`poster-dark-category ${selected ? "is-selected" : ""}`}
               >
-                <img src={`/poster-studio/reference-boards/${category.boardFile}`} alt="" />
+                {category.boardFile ? (
+                  <img src={`/poster-studio/reference-boards/${category.boardFile}`} alt="" />
+                ) : (
+                  // Text-specified styles have no reference board; show the summary
+                  // rather than a broken or borrowed image.
+                  <p className="poster-category-summary">{category.summary}</p>
+                )}
                 <span aria-hidden="true" />
                 <div>
                   <strong>{category.shortLabel}</strong>
-                  <small>{selected ? "Selected reference" : "Select reference"}</small>
+                  <small>{selected ? "Selected style" : "Select style"}</small>
                 </div>
               </button>
             );
@@ -247,6 +277,42 @@ export function PosterStudioForm({ isLoading, onGenerate }: PosterStudioFormProp
           </div>
           <small>Matches the deep campaign colour scheme used in approved posters &mdash; never a white or light background.</small>
         </fieldset>
+
+        <div className="poster-fields-grid">
+          <label className="poster-dark-field">
+            <FieldLabel>Hero material</FieldLabel>
+            <select
+              value={heroMaterial}
+              onChange={(event) => setHeroMaterial(event.target.value as PosterHeroMaterial)}
+              disabled={isLoading}
+              className={fieldClass}
+            >
+              {HERO_MATERIAL_CHOICES.map((choice) => (
+                <option value={choice.id} key={choice.id}>{choice.label}</option>
+              ))}
+            </select>
+            <small className="poster-field-note">
+              What the object is made of. Clay and Papercraft ignore this &mdash; their material is the style.
+            </small>
+          </label>
+
+          <label className="poster-dark-field">
+            <FieldLabel>Lighting mood</FieldLabel>
+            <select
+              value={lightingMood}
+              onChange={(event) => setLightingMood(event.target.value as PosterLightingMood)}
+              disabled={isLoading}
+              className={fieldClass}
+            >
+              {LIGHTING_MOOD_CHOICES.map((choice) => (
+                <option value={choice.id} key={choice.id}>{choice.label}</option>
+              ))}
+            </select>
+            <small className="poster-field-note">
+              Shifts colour temperature and contrast only. Warm festive suits Diwali and Dhanteras posts.
+            </small>
+          </label>
+        </div>
 
         <label className="poster-dark-field poster-direction-field">
           <FieldLabel count={`${visualDirection.length}/1200`}>Optional visual direction</FieldLabel>

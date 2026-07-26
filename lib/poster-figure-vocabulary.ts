@@ -47,6 +47,10 @@ export const INDIAN_FINANCIAL_PROPS = {
  * explicit because image models default to Western finance stock imagery.
  */
 export const AVOID_GLOBALLY = [
+  // The default visual language of Indian mutual-fund marketing is stock-template
+  // clip-art. Naming it explicitly matters: it is the single most likely thing the
+  // model will reach for when asked for an "Indian mutual fund poster".
+  "the generic Indian mutual-fund template look — flat vector clip-art, smiling cartoon families or businessmen, tiny icon sets, a tablet or phone showing a rising chart, confetti and starbursts. This campaign is premium editorial work, not a PosterMyWall or stock-template layout",
   "the Western cartoon piggy bank (use a gullak instead)",
   "dollar signs, dollar bills, euro symbols or any non-Indian currency",
   "the Wall Street charging bull, Western skyscraper skylines or glass-tower financial districts",
@@ -296,11 +300,42 @@ export const TOPIC_FIGURE_PATTERNS: TopicFigurePattern[] = [
   },
 ];
 
+/**
+ * Named Indian indices and how many companies each actually measures. An index
+ * poster is far more convincing when the count is real — "a bound sheaf of fifty"
+ * is a designable instruction; "a crowd of coins" is not.
+ */
+const INDEX_CONSTITUENTS: Array<{ match: RegExp; label: string; count: number }> = [
+  { match: /\bbank\s?nifty\b/i, label: "Bank Nifty", count: 12 },
+  { match: /\bnifty\s?next\s?50\b/i, label: "Nifty Next 50", count: 50 },
+  { match: /\bnifty\s?100\b/i, label: "Nifty 100", count: 100 },
+  { match: /\bnifty\b/i, label: "Nifty 50", count: 50 },
+  { match: /\bsensex\b/i, label: "Sensex", count: 30 },
+];
+
+export function getIndexConstituents(brief: string) {
+  // Ordered specific-first, and each match consumes its own text so a broader
+  // pattern cannot re-match it — otherwise "bank nifty" also reports Nifty 50,
+  // and the poster would be built from the wrong number of parts.
+  let remaining = brief;
+  const found: typeof INDEX_CONSTITUENTS = [];
+
+  for (const index of INDEX_CONSTITUENTS) {
+    if (!index.match.test(remaining)) continue;
+    found.push(index);
+    remaining = remaining.replace(new RegExp(index.match.source, "gi"), " ");
+  }
+
+  return found;
+}
+
 export interface TopicFigureGuidance {
   matchedId: string | null;
   concept: string;
   figures: string[];
   avoid: string[];
+  /** Real constituent counts when the topic names an index. */
+  indexNote: string | null;
 }
 
 /**
@@ -321,6 +356,13 @@ export function getTopicFigureGuidance(payload: PosterStudioPayload): TopicFigur
     .join(" ")
     .toLowerCase();
 
+  const indices = getIndexConstituents(brief);
+  const indexNote = indices.length
+    ? `${indices
+        .map((index) => `${index.label} measures ${index.count} companies`)
+        .join("; ")}. Use that real count as the design instruction — build the hero from that many parts (or an unmistakably dense set of roughly that many where the number is large), so the poster is factually about this index and not a generic "many coins" image. Never render the number as a digit.`
+    : null;
+
   const matched = TOPIC_FIGURE_PATTERNS.find((pattern) => pattern.match.test(brief));
   if (matched) {
     return {
@@ -328,6 +370,7 @@ export function getTopicFigureGuidance(payload: PosterStudioPayload): TopicFigur
       concept: matched.concept,
       figures: matched.figures,
       avoid: matched.avoid,
+      indexNote,
     };
   }
 
@@ -345,13 +388,60 @@ export function getTopicFigureGuidance(payload: PosterStudioPayload): TopicFigur
       "abstract parts described by function rather than by object — no cradles, gates, trays, modules, accumulators, levers or frames",
       "any object a viewer could not name in one second",
     ],
+    indexNote,
   };
+}
+
+/**
+ * Optional art direction. Both default to "auto", where the style category decides.
+ * A material choice is stated as a preference the style overrides when they
+ * genuinely conflict — clay and papercraft ARE their material, so a brass request
+ * cannot win there without breaking the style contract.
+ */
+const HERO_MATERIALS: Record<string, string> = {
+  brass: "aged brass with warm anisotropic sheen, fine turning marks and darkened recesses",
+  steel: "brushed stainless steel with a cool matte finish and soft directional highlights",
+  terracotta: "unglazed terracotta with a fine matte grain, gently chipped edges and earthen warmth",
+  gold: "warm 22-carat gold with soft directional highlights, restrained rather than glittering",
+  "paper-currency": "real Indian banknote paper with visible fibre, printed guilloche detail and soft folds",
+};
+
+const LIGHTING_MOODS: Record<string, string> = {
+  "studio-neutral":
+    "neutral studio light — balanced white key, gentle fill, no colour cast; the reference default",
+  "warm-festive":
+    "warm festive light with a low golden key and a soft amber bounce, as if lit by diyas just off-frame; celebratory without turning orange",
+  "cool-editorial":
+    "cool editorial light — slightly blue-neutral key, crisper falloff and deeper shadow, serious and news-like",
+};
+
+export function formatArtDirection(
+  heroMaterial: string | undefined,
+  lightingMood: string | undefined,
+): string | null {
+  const lines: string[] = [];
+  const material = heroMaterial && heroMaterial !== "auto" ? HERO_MATERIALS[heroMaterial] : null;
+  const mood = lightingMood && lightingMood !== "auto" ? LIGHTING_MOODS[lightingMood] : null;
+
+  if (material) {
+    lines.push(
+      `HERO MATERIAL: render the hero object in ${material}. This is a preference, not an override — where the selected style already defines its own material (clay must stay clay, cut paper must stay paper), keep the style and ignore this line.`,
+    );
+  }
+  if (mood) {
+    lines.push(
+      `LIGHTING MOOD: ${mood}. Apply it as a colour-temperature and contrast shift only; keep the style's own lighting setup, direction and shadow behaviour.`,
+    );
+  }
+
+  return lines.length ? lines.join("\n") : null;
 }
 
 /** Renders the subject brief for the system prompt. */
 export function formatTopicFigureGuidance(guidance: TopicFigureGuidance): string {
   return [
     `FINANCIAL IDEA TO MAKE VISIBLE: ${guidance.concept}`,
+    ...(guidance.indexNote ? ["", `INDEX FACTS: ${guidance.indexNote}`] : []),
     "",
     "SUBJECT OPTIONS — choose ONE and commit to it, or adapt one into a closer fit for this exact brief:",
     ...guidance.figures.map((figure, index) => `${index + 1}. ${figure}`),

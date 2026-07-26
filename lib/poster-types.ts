@@ -3,7 +3,10 @@ import { getPosterGeometryErrors } from "./poster-geometry";
 export type PosterModelCategory =
   | "mixed-media"
   | "glassmorphism-3d"
-  | "illustrative";
+  | "illustrative"
+  | "soft-clay"
+  | "isometric-diorama"
+  | "layered-paper";
 
 export type PosterLayoutArchetype =
   | "centered-editorial-stack"
@@ -21,6 +24,22 @@ export interface PosterSize {
 }
 
 export type PosterBackgroundChoice = "auto" | "prussian-blue" | "maroon-navy";
+
+// Hero material is a SUBJECT property (what the object is made of), not a style
+// property — a brass taraju and a steel taraju are the same object in the same
+// style. "auto" lets the style category decide, which is what clay and papercraft
+// require since their material is the style.
+export type PosterHeroMaterial =
+  | "auto"
+  | "brass"
+  | "steel"
+  | "terracotta"
+  | "gold"
+  | "paper-currency";
+
+// Orthogonal to both subject and style: shifts colour temperature and contrast
+// without changing what the object is or how it is constructed.
+export type PosterLightingMood = "auto" | "studio-neutral" | "warm-festive" | "cool-editorial";
 
 // CNBC ships a 2x2: channel (TV18 | AWAAZ) x colour (blue for light backgrounds,
 // white/reverse for dark ones). The campaign background is always a deep brand
@@ -55,6 +74,8 @@ export interface PosterStudioPayload {
   referenceImage?: string;
   outputSize: PosterSize;
   backgroundChoice: PosterBackgroundChoice;
+  heroMaterial?: PosterHeroMaterial;
+  lightingMood?: PosterLightingMood;
   // Optional: the variant is now chosen in the editor, not the brief.
   cnbcLogoVariant?: PosterCnbcLogoVariant;
   bandhanLogoVariant?: PosterBandhanLogoVariant;

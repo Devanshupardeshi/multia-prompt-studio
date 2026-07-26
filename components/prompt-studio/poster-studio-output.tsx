@@ -45,7 +45,7 @@ export type PosterImageState =
       promptLengthAfter: number;
     };
 
-type SuccessfulPosterImage = Extract<PosterImageState, { status: "success" }>;
+export type SuccessfulPosterImage = Extract<PosterImageState, { status: "success" }>;
 type PosterPreviewMode = "poster" | "artwork" | "layout";
 type EditableTextRole = PosterEditableTextRole;
 
@@ -165,6 +165,9 @@ interface PosterStudioOutputProps {
   imageState: PosterImageState;
   onRegenerate: () => void;
   onRetryImage: () => void;
+  /** Previous rolls of this same prompt, oldest first. */
+  renders: SuccessfulPosterImage[];
+  onSelectRender: (index: number) => void;
 }
 
 function downloadText(content: string, filename: string, type: string) {
@@ -1052,6 +1055,8 @@ export function PosterStudioOutput({
   imageState,
   onRegenerate,
   onRetryImage,
+  renders,
+  onSelectRender,
 }: PosterStudioOutputProps) {
   const [copied, setCopied] = useState(false);
   const [previewMode, setPreviewMode] = useState<PosterPreviewMode>("poster");
@@ -1470,9 +1475,37 @@ export function PosterStudioOutput({
           {imageState.status === "loading" && <p><i />Rendering the complete poster artwork from the approved composition…</p>}
           {imageState.status === "signed-out" && <p>Sign in with ChatGPT to render the artwork.</p>}
           {imageState.status === "error" && <div><p>{imageState.error}</p><button type="button" onClick={onRetryImage}>Retry artwork</button></div>}
-          {imageState.status === "success" && <div><p>Exact {imageState.width} × {imageState.height} PNG · artwork source {imageState.sourceWidth} × {imageState.sourceHeight}{imageState.upscaled ? " · resized to requested output" : ""} · prompt {imageState.promptLengthBefore.toLocaleString()} → {imageState.compactContractLength.toLocaleString()} contract chars → {imageState.promptLengthAfter.toLocaleString()} provider chars</p><span className="poster-download-actions"><button type="button" className="is-primary" disabled={isExporting || exportBlockers.length > 0} onClick={exportFinalPoster}>{isExporting ? "Exporting…" : finalDownload.label}</button><button type="button" onClick={() => downloadPoster(imageState.image, imageState.width, imageState.height)}>{artworkDownload.label}</button></span></div>}
+          {imageState.status === "success" && <div><p>Exact {imageState.width} × {imageState.height} PNG · artwork source {imageState.sourceWidth} × {imageState.sourceHeight}{imageState.upscaled ? " · resized to requested output" : ""} · prompt {imageState.promptLengthBefore.toLocaleString()} → {imageState.compactContractLength.toLocaleString()} contract chars → {imageState.promptLengthAfter.toLocaleString()} provider chars</p><span className="poster-download-actions"><button type="button" className="is-primary" disabled={isExporting || exportBlockers.length > 0} onClick={exportFinalPoster}>{isExporting ? "Exporting…" : finalDownload.label}</button><button type="button" onClick={() => downloadPoster(imageState.image, imageState.width, imageState.height)}>{artworkDownload.label}</button><button type="button" onClick={onRetryImage}>Render again</button></span></div>}
           {exportError && <p className="poster-export-error">{exportError}</p>}
         </div>
+
+        {/* Re-rolls of the same approved prompt. The concept does not change, so
+            these are directly comparable — pick the best roll rather than
+            regenerating the whole concept to escape one weak render. */}
+        {renders.length > 1 && (
+          <div className="poster-render-history">
+            <span>This prompt, {renders.length} rolls</span>
+            <div className="poster-render-strip">
+              {renders.map((render, index) => {
+                const isActive =
+                  imageState.status === "success" && imageState.image === render.image;
+                return (
+                  <button
+                    type="button"
+                    key={render.image}
+                    aria-pressed={isActive}
+                    aria-label={`Show roll ${index + 1} of ${renders.length}`}
+                    className={isActive ? "is-active" : ""}
+                    onClick={() => onSelectRender(index)}
+                  >
+                    <img src={render.image} alt="" />
+                    <small>{index + 1}</small>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="poster-production-heading">

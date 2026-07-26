@@ -4,6 +4,7 @@ import path from "node:path";
 import { generateText, type UserContent } from "ai";
 import sharp from "sharp";
 import {
+  formatArtDirection,
   formatTopicFigureGuidance,
   getTopicFigureGuidance,
 } from "@/lib/poster-figure-vocabulary";
@@ -101,6 +102,12 @@ export function getLargeMidcapCategoryExecution(
       return "CATEGORY EXECUTION — PREMIUM 3D / GLASSMORPHISM ONLY: render the taraju as a physically based product object — warm anisotropic brass on the beam and pans, struck-metal relief on the coins, restrained translucent glass or acrylic detail with controlled refraction, soft product lighting and credible contact shadows. Keep the coin stacks opaque enough to read immediately. Do not use torn paper, photographic cutouts, halftone collage or newsprint texture.";
     case "illustrative":
       return "CATEGORY EXECUTION — DIMENSIONAL EDITORIAL ILLUSTRATIVE ONLY: author the taraju from simplified graphic forms with matte or softly dimensional surfaces, reduced detail and a deliberate silhouette — but keep the beam, the two hanging pans, the seated pivot and the milled coin rims clearly identifiable. Do not use photographic cutouts, torn-paper collage, transparent glass product rendering or glossy CGI spectacle.";
+    case "soft-clay":
+      return "CATEGORY EXECUTION — SOFT CLAY ONLY: model the taraju in matte hand-shaped polymer clay with visible thumbprints and tool marks, softly rounded beam and pans, and clay coin stacks with gently pressed edges. One broad soft light, one soft contact shadow, zero gloss. Do not use photographic cutouts, glass, polished metal or paper layers.";
+    case "isometric-diorama":
+      return "CATEGORY EXECUTION — ISOMETRIC MINIATURE DIORAMA ONLY: present the taraju as a precise miniature model on a thin minimal base, seen in true isometric or a clean 45-degree top-down three-quarter view, physically based matte and satin surfaces with ambient occlusion at every contact point. Keep the beam, both pans and the coin stacks readable from that single angle. Do not use a ground-level photographic angle, torn paper, clay or glossy glass.";
+    case "layered-paper":
+      return "CATEGORY EXECUTION — LAYERED PAPERCRAFT ONLY: build the taraju from stacked planes of matte cut card — base, upright, beam, each pan and each coin stack as separate layers with visible paper fibre, crisp cut edges and short soft shadows between them. Depth comes only from the stacking. Do not use photographic cutouts, glass, polished metal, clay or blur.";
   }
 }
 
@@ -257,13 +264,14 @@ export function buildPosterSystemPrompt(payload: PosterStudioPayload): string {
   // Subject first, style second, each clearly labelled. The topic picks the object;
   // the category only says how to render it.
   const subjectBrief = formatTopicFigureGuidance(getTopicFigureGuidance(payload));
+  const artDirection = formatArtDirection(payload.heroMaterial, payload.lightingMood);
 
   return `${POSTER_CAMPAIGN_SYSTEM_PROMPT}
 ${subjectBrief}
 
 STYLE SPEC — ${category.label}. This decides HOW the subject above is rendered. It must not change WHAT the subject is.
 ${category.promptDirective}
-
+${artDirection ? `\nART DIRECTION — optional refinements chosen by the designer.\n${artDirection}\n` : ""}
 TASK RULES
 - Behave as a senior financial-campaign designer, not a generic prompt writer.
 - Use exactly one of the three observed archetypes. Body copy or long headline/subheading requires split-brand-copy; short copy without body uses centered-editorial-stack; left-copy-right-hero is legacy and is allowed only when its approved reference is explicitly selected.

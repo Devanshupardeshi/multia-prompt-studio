@@ -325,6 +325,15 @@ export function getCategoryExecution(category: PosterModelCategory) {
   if (category === "illustrative") {
     return "Execute Dimensional Editorial Illustration only: use bold simplified silhouettes, smooth authored contours, flat approved colour blocks and no more than two adjacent tonal facets for shallow depth. Do not substitute photographic collage, glass transparency, blur, photoreal lighting or generic CGI.";
   }
+  if (category === "soft-clay") {
+    return "Execute Soft Clay only: matte hand-modelled polymer clay with visible thumbprints, tool marks and softly rounded edges, lit by one broad soft light with a soft grounded contact shadow. Zero gloss anywhere. Do not substitute glossy CGI, glass, metal, photographic collage, paper layers or an isometric model.";
+  }
+  if (category === "isometric-diorama") {
+    return "Execute Isometric Miniature Diorama only: a true isometric or clean 45-degree top-down view of one miniature subject resting on a thin minimal base, physically based matte and satin surfaces, soft key light with ambient occlusion at every contact point. Do not substitute a ground-level photographic angle, glossy glass product rendering, paper layers, clay or photographic collage — and never expand it into a town, street or landscape.";
+  }
+  if (category === "layered-paper") {
+    return "Execute Layered Papercraft only: 3–5 stacked planes of matte cut card with visible paper fibre, crisp cut edges and short soft cast shadows between layers creating all of the depth. Do not substitute torn photographic collage, glass, metal, clay, gradients within a piece or photographic depth-of-field blur.";
+  }
   return "Execute Premium 3D / Glassmorphism only: use a mechanically credible product-shot hero in satin metal, frosted ceramic or matte black, with translucent glass limited to functional parts, controlled refraction, one restrained specular highlight and soft grounded contact shadows. Do not substitute paper collage, photographic cutouts, halftone/newsprint or neon spectacle.";
 }
 
@@ -361,9 +370,19 @@ function composePrompt(
   compactContract: string,
   compactNegativePrompt: string,
 ) {
+  // Ordering follows OpenAI's guidance for the gpt-image family: scene/background
+  // first, then subject, then details, then constraints. The background rule used to
+  // sit near the bottom with the other composition rules, which is the position the
+  // model weighs least — and washed-out or white backgrounds were the result.
   return `FULL POSTER ARTWORK — BACKGROUND AND HERO ILLUSTRATION ONLY.
 
-Create the complete poster-ready artwork described by the compact production contract below at exactly ${input.width} × ${input.height} pixels and the same aspect ratio. Generate the approved background treatment, restrained financial detailing and one central metaphor together. Typography and official logos will be added later as editable layers.
+Create the complete poster-ready artwork described by the compact production contract below at exactly ${input.width} × ${input.height} pixels and the same aspect ratio. This is a printed marketing poster for a financial campaign. Typography and official logos are added later as editable layers, so generate artwork only.
+
+SCENE AND BACKGROUND (establish this first):
+Fill the entire canvas edge to edge with the background_system dominant colour and treatment from the contract below — a rich, deep field or gradient built only from the approved_palette core hues. The background is never white, off-white, ivory, cream, pale or empty. Add at most one restrained, topic-relevant texture at low contrast, confined behind the hero. No candlestick grids, dashboards, fake data or generic finance decoration.
+
+SUBJECT:
+One central financial metaphor, exactly as specified in the contract, sitting inside composition.hero_bounds_percent.
 
 ${compactContract}
 
@@ -380,8 +399,8 @@ NON-NEGOTIABLE COMPOSITION RULES:
 - Treat hero_execution_contract as a subject lock whenever subject_locked is true. Render every required part and reject every forbidden substitution.
 - If the concept uses a balance, both loads must rest on real trays connected through one credible beam and fulcrum.
 - Preserve every enabled copy-safe area, especially the body-copy information panel. Never enlarge the hero into it.
-- BACKGROUND IS MANDATORY AND NON-NEGOTIABLE: fill the entire canvas with background_system's dominant colour and treatment — a rich, deep gradient or solid field built only from approved_palette's core hues. The background must NEVER be white, off-white, ivory, cream, pale or a blank/empty field, exactly like every approved CNBC/Bandhan campaign poster. Do not add generic candlestick grids, dashboards, fake data or random finance decoration.
-- Keep the hero simple and immediately recognisable, calibrated to the same complexity as real approved posters (e.g. a piggy bank with coins and cash, a glass jar of coins, an hourglass with coins) — one clear hero built from a small number of parts, not an elaborate multi-object scene. If a viewer cannot identify the hero object and its financial meaning within one second at thumbnail size, it is too complicated.
+- The background established above is mandatory and non-negotiable. Re-check before finishing that the canvas is filled with the approved deep field and is not white, pale or empty.
+- Keep the hero simple and immediately recognisable — one clear object built from a small number of parts (a gullak with coins at its slot, a taraju holding two coin stacks, a steel thali with filled katoris), not an elaborate multi-object scene. If a viewer cannot identify the hero object and its financial meaning within one second at thumbnail size, it is too complicated.
 - Generate no text, letters, words, numerals, pseudo-text, dial labels, scale markings, logos, brand marks, watermarks, signatures or interface elements.
 
 NEGATIVE PROMPT:

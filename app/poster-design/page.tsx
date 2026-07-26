@@ -6,7 +6,11 @@ import { readPngResponse } from "@/lib/png-response";
 import { Header } from "@/components/prompt-studio/header";
 import { PosterStudioClarification } from "@/components/prompt-studio/poster-studio-clarification";
 import { PosterStudioForm } from "@/components/prompt-studio/poster-studio-form";
-import { PosterStudioOutput, type PosterImageState } from "@/components/prompt-studio/poster-studio-output";
+import {
+  PosterStudioOutput,
+  type PosterImageState,
+  type SuccessfulPosterImage,
+} from "@/components/prompt-studio/poster-studio-output";
 import type { PosterClarificationQuestion, PosterConcept, PosterStudioPayload } from "@/lib/poster-types";
 import { validatePosterConcept } from "@/lib/poster-types";
 
@@ -55,17 +59,31 @@ export default function PosterDesignPage() {
   const conceptRequestId = useRef(0);
   const imageRequestId = useRef(0);
 
-  // The artwork is a multi-megabyte object URL, so release the previous one rather
-  // than leaking one per generation.
-  const artworkUrl = useRef<string | null>(null);
-  const replaceArtworkUrl = useCallback((next: string | null) => {
-    if (artworkUrl.current && artworkUrl.current !== next) {
-      URL.revokeObjectURL(artworkUrl.current);
+  // Re-rolling the same prompt is the cheapest way to a better render, so keep the
+  // last few so they can be compared instead of lost. Each is a multi-megabyte
+  // object URL, hence the hard cap and the explicit revoke on eviction.
+  const MAX_RENDERS = 4;
+  const [renders, setRenders] = useState<SuccessfulPosterImage[]>([]);
+  const artworkUrls = useRef<string[]>([]);
+
+  const trackArtworkUrl = useCallback((next: string) => {
+    artworkUrls.current = [...artworkUrls.current, next];
+    while (artworkUrls.current.length > MAX_RENDERS) {
+      const evicted = artworkUrls.current.shift();
+      if (evicted) URL.revokeObjectURL(evicted);
     }
-    artworkUrl.current = next;
   }, []);
 
-  useEffect(() => () => replaceArtworkUrl(null), [replaceArtworkUrl]);
+  const clearArtworkUrls = useCallback(() => {
+    artworkUrls.current.forEach((url) => URL.revokeObjectURL(url));
+    artworkUrls.current = [];
+    setRenders([]);
+  }, []);
+
+  useEffect(() => {
+    const urls = artworkUrls;
+    return () => urls.current.forEach((url) => URL.revokeObjectURL(url));
+  }, []);
 
   const runImage = useCallback(
     async (nextConcept: PosterConcept, payload: PosterStudioPayload, nextPromptJson: string) => {
@@ -106,8 +124,8 @@ export default function PosterDesignPage() {
             URL.revokeObjectURL(decoded.image);
             return;
           }
-          replaceArtworkUrl(decoded.image);
-          setImageState({
+          trackArtworkUrl(decoded.image);
+          const rendered: SuccessfulPosterImage = {
             status: "success",
             image: decoded.image,
             width: decoded.width,
@@ -119,7 +137,9 @@ export default function PosterDesignPage() {
             promptLengthBefore: decoded.number("promptLengthBefore"),
             compactContractLength: decoded.number("compactContractLength"),
             promptLengthAfter: decoded.number("promptLengthAfter"),
-          });
+          };
+          setRenders((current) => [...current, rendered].slice(-MAX_RENDERS));
+          setImageState(rendered);
           return;
         }
 
@@ -136,7 +156,7 @@ export default function PosterDesignPage() {
         });
       }
     },
-    [replaceArtworkUrl],
+    [trackArtworkUrl],
   );
 
   const runConcept = useCallback(
@@ -149,6 +169,8 @@ export default function PosterDesignPage() {
       setError(null);
       setClarification(null);
       setImageState({ status: "idle" });
+      // A new concept invalidates the old renders — they belong to a different prompt.
+      clearArtworkUrls();
       setIsLoading(true);
 
       let headers: Awaited<ReturnType<typeof openaiAuthHeaders>>;
@@ -222,9 +244,19 @@ export default function PosterDesignPage() {
     if (lastPayload) void runConcept(lastPayload);
   }, [lastPayload, runConcept]);
 
+  // Same prompt, new roll. This is the cheapest quality lever available — the
+  // concept is already approved, only the render varies.
   const retryImage = useCallback(() => {
     if (concept && lastPayload && promptJson) void runImage(concept, lastPayload, promptJson);
   }, [concept, lastPayload, promptJson, runImage]);
+
+  const selectRender = useCallback((index: number) => {
+    setRenders((current) => {
+      const chosen = current[index];
+      if (chosen) setImageState(chosen);
+      return current;
+    });
+  }, []);
 
   const submitClarificationAnswers = useCallback(
     (answers: Record<string, string>) => {
@@ -303,6 +335,8 @@ export default function PosterDesignPage() {
           imageState={imageState}
           onRegenerate={regenerate}
           onRetryImage={retryImage}
+          renders={renders}
+          onSelectRender={selectRender}
         />
       </div>
 
