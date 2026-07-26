@@ -3,6 +3,7 @@ import { openaiCredentials } from "@openai-oauth/react/server";
 import { generateImage } from "ai";
 import { NextResponse } from "next/server";
 import sharp from "sharp";
+import { correctGptImageWarmCast } from "@/lib/image-color-correction";
 import { classifyImageResolution } from "@/lib/image-resolution";
 import { isAuthenticationError } from "@/lib/openai-oauth-errors";
 import { pngStreamResponse } from "@/lib/png-response";
@@ -79,13 +80,14 @@ async function createRequestedExportPng(base64: string, output: RequestedExport)
     output.height,
   );
 
-  const { data, info } = await sharp(source)
-    .resize(output.width, output.height, {
+  const { data, info } = await correctGptImageWarmCast(
+    sharp(source).resize(output.width, output.height, {
       fit: "cover",
       kernel: sharp.kernel.lanczos3,
       position: "centre",
       withoutEnlargement: false,
-    })
+    }),
+  )
     .png({
       adaptiveFiltering: true,
       compressionLevel: 9,

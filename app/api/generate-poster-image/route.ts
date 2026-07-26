@@ -15,6 +15,7 @@ import {
 } from "@/lib/poster-image-prompt";
 import type { PosterModelCategory } from "@/lib/poster-types";
 import { pngStreamResponse } from "@/lib/png-response";
+import { correctGptImageWarmCast } from "@/lib/image-color-correction";
 
 export const maxDuration = 300;
 export const runtime = "nodejs";
@@ -120,12 +121,13 @@ async function createExactPosterPng(base64: string, width: number, height: numbe
     throw new Error("Unable to read the generated poster artwork dimensions");
   }
 
-  const data = await sharp(source)
-    .resize(width, height, {
+  const data = await correctGptImageWarmCast(
+    sharp(source).resize(width, height, {
       fit: "fill",
       kernel: sharp.kernel.lanczos3,
       withoutEnlargement: false,
-    })
+    }),
+  )
     .png({ compressionLevel: 9, adaptiveFiltering: true })
     .toBuffer();
 

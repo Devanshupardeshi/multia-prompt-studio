@@ -393,12 +393,18 @@ export function OutputDisplay({
 
             {image.status === "success" && (
               <div className="border border-white/10 rounded-xl bg-white/[0.02] overflow-hidden">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={image.image}
-                  alt="Image generated from the prompt by GPT Image 2"
-                  className="w-full h-auto block"
-                />
+                {/* Portrait renders (e.g. 2160x3840) at native width would blow past
+                    the viewport height — cap by height and let width follow the
+                    aspect ratio, same approach as the poster editor's preview. */}
+                <div className="flex items-center justify-center bg-black/30 p-3">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={image.image}
+                    alt="Image generated from the prompt by GPT Image 2"
+                    className="block w-auto h-auto max-w-full object-contain"
+                    style={{ maxHeight: "70vh" }}
+                  />
+                </div>
                 <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-t border-white/5">
                   <span className="text-[11px] text-white/30 font-mono">
                     {image.width}x{image.height} PNG
@@ -407,6 +413,14 @@ export function OutputDisplay({
                     {" / "}{image.quality}
                   </span>
                   <div className="flex items-center gap-2">
+                    <a
+                      href={image.image}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[11px] text-white/40 hover:text-white/80 transition-colors font-body uppercase tracking-wider px-2 py-1 rounded hover:bg-white/5 border border-white/10"
+                    >
+                      View Full Size
+                    </a>
                     <a
                       href={image.image}
                       download={`multia-${mode}-${image.width}x${image.height}.png`}

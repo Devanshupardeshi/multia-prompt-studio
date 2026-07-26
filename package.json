@@ -7,7 +7,7 @@
     "dev": "next dev",
     "lint": "eslint .",
     "start": "next start",
-    "test": "tsx --test tests/poster-studio/poster-studio.test.ts tests/chatgpt/user-content.test.ts"
+    "test": "tsx --test tests/poster-studio/poster-studio.test.ts tests/chatgpt/user-content.test.ts tests/image-color-correction.test.ts"
   },
   "dependencies": {
     "@openai-oauth/ai-sdk": "^2.0.0",
