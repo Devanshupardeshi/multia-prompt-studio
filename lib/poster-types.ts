@@ -1,12 +1,19 @@
 import { getPosterGeometryErrors } from "./poster-geometry";
 
-export type PosterModelCategory =
-  | "mixed-media"
-  | "glassmorphism-3d"
-  | "illustrative"
-  | "soft-clay"
-  | "isometric-diorama"
-  | "layered-paper";
+// Single source of truth: the runtime list and the type are derived from each
+// other, so adding a style category cannot leave a hardcoded validator behind.
+// (It did exactly that once — a new category passed the route and the form, then
+// failed shape validation with an unhelpful "does not match the contract shape".)
+export const POSTER_MODEL_CATEGORIES = [
+  "mixed-media",
+  "glassmorphism-3d",
+  "illustrative",
+  "soft-clay",
+  "isometric-diorama",
+  "layered-paper",
+] as const;
+
+export type PosterModelCategory = (typeof POSTER_MODEL_CATEGORIES)[number];
 
 export type PosterLayoutArchetype =
   | "centered-editorial-stack"
@@ -356,8 +363,8 @@ function validatePosterConceptShape(value: unknown): value is PosterConcept {
 
   if (!isRecord(value.selected3DModelReferenceCategory)) return false;
   if (
-    !["mixed-media", "glassmorphism-3d", "illustrative"].includes(
-      value.selected3DModelReferenceCategory.id as string,
+    !POSTER_MODEL_CATEGORIES.includes(
+      value.selected3DModelReferenceCategory.id as PosterModelCategory,
     ) ||
     !isString(value.selected3DModelReferenceCategory.label) ||
     !isString(value.selected3DModelReferenceCategory.application)

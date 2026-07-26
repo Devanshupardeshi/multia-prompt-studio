@@ -1580,3 +1580,113 @@
   color: rgba(255, 255, 255, 0.75);
   font-size: 0.62rem;
 }
+
+/* Follow-up refinement: say what changes, optionally mark where. */
+.poster-refine {
+  display: grid;
+  gap: 1.1rem;
+  margin-top: 2rem;
+  padding-top: 1.75rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.poster-refine-body {
+  display: grid;
+  grid-template-columns: minmax(0, 260px) minmax(0, 1fr);
+  gap: 1.5rem;
+  align-items: start;
+}
+
+.poster-refine-surface {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid #2b2b2b;
+  border-radius: 10px;
+  background: #0d0d0d;
+  cursor: crosshair;
+  touch-action: none;
+  user-select: none;
+}
+
+.poster-refine-surface.is-busy {
+  cursor: progress;
+  opacity: 0.6;
+}
+
+.poster-refine-surface img {
+  display: block;
+  width: 100%;
+  height: auto;
+  pointer-events: none;
+}
+
+.poster-refine-region {
+  position: absolute;
+  border: 2px solid #ffffff;
+  background: rgba(255, 255, 255, 0.14);
+  pointer-events: none;
+}
+
+.poster-refine-hint {
+  position: absolute;
+  right: 0.5rem;
+  bottom: 0.5rem;
+  left: 0.5rem;
+  padding: 0.3rem 0.45rem;
+  border-radius: 5px;
+  background: rgba(0, 0, 0, 0.66);
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 0.66rem;
+  text-align: center;
+  pointer-events: none;
+}
+
+.poster-refine-controls {
+  display: grid;
+  gap: 0.9rem;
+  min-width: 0;
+}
+
+.poster-refine-quick {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.poster-refine-quick button {
+  padding: 0.4rem 0.7rem;
+  border: 1px dashed #303030;
+  border-radius: 999px;
+  color: rgba(255, 255, 255, 0.45);
+  font-size: 0.7rem;
+  text-align: left;
+  transition: color 160ms ease-out, border-color 160ms ease-out;
+}
+
+.poster-refine-quick button:hover:not(:disabled) {
+  border-color: #606060;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.poster-refine-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.poster-refine-clear {
+  color: rgba(255, 255, 255, 0.42);
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.poster-refine-clear:hover {
+  color: #ffffff;
+}
+
+@media (max-width: 780px) {
+  .poster-refine-body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

@@ -13,6 +13,7 @@ import {
   buildPosterImagePrompt,
   PosterImagePromptValidationError,
 } from "@/lib/poster-image-prompt";
+import { POSTER_MODEL_CATEGORIES } from "@/lib/poster-types";
 import type { PosterModelCategory } from "@/lib/poster-types";
 import { pngStreamResponse } from "@/lib/png-response";
 import { correctGptImageWarmCast } from "@/lib/image-color-correction";
@@ -41,9 +42,9 @@ function parseBody(value: unknown): ImageRequestBody | null {
     typeof body.prompt !== "string" ||
     !body.prompt.trim() ||
     typeof body.negativePrompt !== "string" ||
-    !["mixed-media", "glassmorphism-3d", "illustrative"].includes(
-      body.modelCategory as string,
-    ) ||
+    // Derived, not restated — a hardcoded copy here would 400 a new style at the
+    // render step even after its concept generated successfully.
+    !POSTER_MODEL_CATEGORIES.includes(body.modelCategory as PosterModelCategory) ||
     !Number.isInteger(width) ||
     !Number.isInteger(height) ||
     width < 512 ||

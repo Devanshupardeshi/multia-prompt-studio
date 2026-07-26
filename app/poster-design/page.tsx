@@ -3,6 +3,8 @@
 import { openaiAuthHeaders } from "@openai-oauth/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { readPngResponse } from "@/lib/png-response";
+import { prepareRefineUpload } from "@/lib/poster-refine-client";
+import type { RefineRegion } from "@/components/prompt-studio/poster-refine-panel";
 import { Header } from "@/components/prompt-studio/header";
 import { PosterStudioClarification } from "@/components/prompt-studio/poster-studio-clarification";
 import { PosterStudioForm } from "@/components/prompt-studio/poster-studio-form";
@@ -56,6 +58,8 @@ export default function PosterDesignPage() {
   const [error, setError] = useState<string | null>(null);
   const [imageState, setImageState] = useState<PosterImageState>({ status: "idle" });
   const [clarification, setClarification] = useState<PosterClarificationQuestion[] | null>(null);
+  const [isRefining, setIsRefining] = useState(false);
+  const [refineError, setRefineError] = useState<string | null>(null);
   const conceptRequestId = useRef(0);
   const imageRequestId = useRef(0);
 
@@ -250,6 +254,89 @@ export default function PosterDesignPage() {
     if (concept && lastPayload && promptJson) void runImage(concept, lastPayload, promptJson);
   }, [concept, lastPayload, promptJson, runImage]);
 
+  // Follow-up edit of the current render. Reuses the same history, so a refinement
+  // can be compared against what it came from and reverted by clicking back.
+  const refineImage = useCallback(
+    async (instruction: string, region: RefineRegion | null) => {
+      if (imageState.status !== "success" || !concept || !lastPayload) return;
+      const requestId = ++imageRequestId.current;
+      setRefineError(null);
+      setIsRefining(true);
+
+      try {
+        const upload = await prepareRefineUpload(imageState.image, region);
+        const headers = await getAuthHeaders();
+
+        const response = await fetch("/api/refine-poster-image", {
+          method: "POST",
+          headers: { ...headers, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            instruction,
+            image: upload.image,
+            mask: upload.mask,
+            invariants: {
+              canvas: lastPayload.outputSize,
+              background: concept.selectedColourCombination.background,
+              palette: [
+                concept.selectedColourCombination.background,
+                ...concept.selectedColourCombination.accents,
+              ],
+              reserved: [
+                ...concept.logoSafeAreas.map((area) => ({
+                  label: `${area.logo} logo-safe area`,
+                  bounds: area.boundsPercent,
+                })),
+              ],
+            },
+          }),
+        });
+
+        if (imageRequestId.current !== requestId) return;
+
+        if (response.status === 401) {
+          setRefineError("Sign in with ChatGPT to refine the artwork.");
+          return;
+        }
+
+        if (response.ok && response.headers.get("Content-Type")?.startsWith("image/")) {
+          const decoded = await readPngResponse(response);
+          if (imageRequestId.current !== requestId) {
+            URL.revokeObjectURL(decoded.image);
+            return;
+          }
+          trackArtworkUrl(decoded.image);
+          const rendered: SuccessfulPosterImage = {
+            status: "success",
+            image: decoded.image,
+            width: decoded.width,
+            height: decoded.height,
+            sourceWidth: decoded.sourceWidth,
+            sourceHeight: decoded.sourceHeight,
+            upscaled: decoded.upscaled,
+            quality: "high",
+            promptLengthBefore: 0,
+            compactContractLength: 0,
+            promptLengthAfter: 0,
+          };
+          setRenders((current) => [...current, rendered].slice(-MAX_RENDERS));
+          setImageState(rendered);
+          return;
+        }
+
+        const result = (await response.json().catch(() => ({}))) as { error?: unknown };
+        setRefineError(errorMessage(result.error, `Refinement failed (HTTP ${response.status}).`));
+      } catch (requestError) {
+        if (imageRequestId.current !== requestId) return;
+        setRefineError(
+          requestError instanceof Error ? requestError.message : "Refinement failed.",
+        );
+      } finally {
+        if (imageRequestId.current === requestId) setIsRefining(false);
+      }
+    },
+    [concept, imageState, lastPayload, trackArtworkUrl],
+  );
+
   const selectRender = useCallback((index: number) => {
     setRenders((current) => {
       const chosen = current[index];
@@ -337,6 +424,9 @@ export default function PosterDesignPage() {
           onRetryImage={retryImage}
           renders={renders}
           onSelectRender={selectRender}
+          onRefine={refineImage}
+          isRefining={isRefining}
+          refineError={refineError}
         />
       </div>
 

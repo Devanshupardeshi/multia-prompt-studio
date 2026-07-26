@@ -14,6 +14,7 @@ import {
   type PosterEditableTextRole,
 } from "@/lib/poster-editor-core";
 import { POSTER_LOGO_VARIANT_OPTIONS } from "@/lib/poster-logos";
+import { PosterRefinePanel, type RefineRegion } from "@/components/prompt-studio/poster-refine-panel";
 import {
   clampBoundsToContainer,
   validatePosterGeometry,
@@ -168,6 +169,9 @@ interface PosterStudioOutputProps {
   /** Previous rolls of this same prompt, oldest first. */
   renders: SuccessfulPosterImage[];
   onSelectRender: (index: number) => void;
+  onRefine: (instruction: string, region: RefineRegion | null) => void;
+  isRefining: boolean;
+  refineError: string | null;
 }
 
 function downloadText(content: string, filename: string, type: string) {
@@ -1057,6 +1061,9 @@ export function PosterStudioOutput({
   onRetryImage,
   renders,
   onSelectRender,
+  onRefine,
+  isRefining,
+  refineError,
 }: PosterStudioOutputProps) {
   const [copied, setCopied] = useState(false);
   const [previewMode, setPreviewMode] = useState<PosterPreviewMode>("poster");
@@ -1507,6 +1514,15 @@ export function PosterStudioOutput({
           </div>
         )}
       </div>
+
+      {imageState.status === "success" && (
+        <PosterRefinePanel
+          artwork={imageState.image}
+          isBusy={isRefining}
+          error={refineError}
+          onSubmit={onRefine}
+        />
+      )}
 
       <div className="poster-production-heading">
         <div><span>Production plan</span><h2>All decisions, still editable</h2></div>

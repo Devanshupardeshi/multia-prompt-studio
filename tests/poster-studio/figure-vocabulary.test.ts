@@ -10,8 +10,13 @@ import {
 import { buildPosterSystemPrompt } from "../../lib/openai-poster";
 import {
   getFinancialNarrativeSeed,
+  getPosterOutputSchema,
   POSTER_CATEGORIES,
 } from "../../lib/poster-reference-system";
+import {
+  getPosterConceptValidationErrors,
+  POSTER_MODEL_CATEGORIES,
+} from "../../lib/poster-types";
 import type { PosterModelCategory, PosterStudioPayload } from "../../lib/poster-types";
 
 // These guard the fix for the "3D figures are irrelevant / not Indian" failure.
@@ -282,6 +287,33 @@ describe("art direction refines without overriding the style", () => {
 
   test("an unknown value is ignored rather than injected raw", () => {
     assert.equal(formatArtDirection("unobtanium", "strobe"), null);
+  });
+});
+
+describe("every style category survives the whole contract chain", () => {
+  // A hardcoded category list in the shape validator once let a new style pass the
+  // form and the route, then fail with "does not match the production-contract
+  // shape" only after a paid model call. Every category must validate end to end.
+  for (const id of CATEGORY_IDS) {
+    test(`${id} produces a concept that passes contract validation`, () => {
+      const payload = brief("understanding nifty and sensex", {
+        headline: "Understanding index funds",
+        modelCategory: id,
+      });
+      const errors = getPosterConceptValidationErrors(getPosterOutputSchema(payload), {
+        topic: payload.topic,
+        expectedCanvas: payload.outputSize,
+      });
+      assert.deepEqual(errors, [], `${id} failed contract validation`);
+    });
+  }
+
+  test("the registry and the validated union cannot drift apart", () => {
+    assert.deepEqual(
+      [...POSTER_MODEL_CATEGORIES].sort(),
+      [...CATEGORY_IDS].sort(),
+      "POSTER_CATEGORIES and POSTER_MODEL_CATEGORIES must list the same styles",
+    );
   });
 });
 
