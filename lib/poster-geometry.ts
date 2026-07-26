@@ -76,9 +76,7 @@ export function clampBoundsToContainer(
 }
 
 function logoIdForSafeArea(area: PosterSafeArea): PosterLogoId {
-  if (area.logo === "CNBC") return "cnbc-tv18";
-  if (area.logo === "Bandhan Mutual Fund") return "bandhan-mutual-fund";
-  return "mf-corner";
+  return area.logo === "CNBC" ? "cnbc-tv18" : "bandhan-mutual-fund";
 }
 
 function findLayer(

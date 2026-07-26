@@ -35,16 +35,37 @@ export const POSTER_LOGO_VARIANTS: {
   "bandhan-mutual-fund": Record<PosterBandhanLogoVariant, PosterLogoVariantDefinition>;
 } = {
   "cnbc-tv18": {
-    tv18: { brandName: "CNBC TV18", sourceFile: "Group 1.png" },
-    awaaz: { brandName: "CNBC-AWAAZ", sourceFile: "Layer_1.png" },
+    "tv18-white": { brandName: "CNBC TV18 (white)", sourceFile: "Group 4.png" },
+    "tv18-blue": { brandName: "CNBC TV18 (blue)", sourceFile: "Group 1.png" },
+    "awaaz-white": { brandName: "CNBC-AWAAZ (white)", sourceFile: "Layer_1-1.png" },
+    "awaaz-blue": { brandName: "CNBC-AWAAZ (blue)", sourceFile: "Layer_1.png" },
   },
   "bandhan-mutual-fund": {
-    "dark-bg": { brandName: "Bandhan Mutual Fund + 25 Years", sourceFile: "Group.png" },
-    "light-bg": { brandName: "Bandhan Mutual Fund + 25 Years", sourceFile: "Section.png" },
+    "dark-bg": { brandName: "Bandhan Mutual Fund + 25 Years (white text)", sourceFile: "Group.png" },
+    "light-bg": { brandName: "Bandhan Mutual Fund + 25 Years (navy text)", sourceFile: "Section.png" },
   },
 };
 
-export const DEFAULT_CNBC_LOGO_VARIANT: PosterCnbcLogoVariant = "tv18";
+/** Editor dropdown options, in the order they should be offered. */
+export const POSTER_LOGO_VARIANT_OPTIONS: Record<
+  PosterLogoId,
+  Array<{ value: string; label: string }>
+> = {
+  "cnbc-tv18": [
+    { value: "tv18-white", label: "CNBC TV18 — white (for dark backgrounds)" },
+    { value: "tv18-blue", label: "CNBC TV18 — blue (for light backgrounds)" },
+    { value: "awaaz-white", label: "CNBC-AWAAZ — white (for dark backgrounds)" },
+    { value: "awaaz-blue", label: "CNBC-AWAAZ — blue (for light backgrounds)" },
+  ],
+  "bandhan-mutual-fund": [
+    { value: "dark-bg", label: "Bandhan — white text (for dark backgrounds)" },
+    { value: "light-bg", label: "Bandhan — navy text (for light backgrounds)" },
+  ],
+};
+
+// Campaign backgrounds are always a deep brand colour, so the reverse/white marks
+// are the correct default — the blue marks disappear against Prussian Blue.
+export const DEFAULT_CNBC_LOGO_VARIANT: PosterCnbcLogoVariant = "tv18-white";
 export const DEFAULT_BANDHAN_LOGO_VARIANT: PosterBandhanLogoVariant = "dark-bg";
 
 export interface PosterLogoVariantChoice {
@@ -73,17 +94,10 @@ function resolveLogoAssets(choice: PosterLogoVariantChoice): Record<PosterLogoId
       assetPath: `/api/poster-logo?id=bandhan-mutual-fund&variant=${bandhanVariant}`,
       sourceFile: bandhan.sourceFile,
     },
-    "mf-corner": {
-      id: "mf-corner",
-      safeAreaName: "MF Corner",
-      brandName: "MF Corner",
-      assetPath: "/api/poster-logo?id=mf-corner",
-    },
   };
 }
 
 export function getPosterLogoFile(id: string | undefined, variant: string | undefined): string | null {
-  if (id === "mf-corner") return null;
   if (id === "cnbc-tv18") {
     return POSTER_LOGO_VARIANTS["cnbc-tv18"][(variant as PosterCnbcLogoVariant) ?? DEFAULT_CNBC_LOGO_VARIANT]
       ?.sourceFile ?? null;

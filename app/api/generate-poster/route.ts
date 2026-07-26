@@ -82,12 +82,17 @@ function parsePayload(body: unknown): PosterStudioPayload | null {
     ? (source.backgroundChoice as PosterBackgroundChoice)
     : "auto";
 
-  const CNBC_LOGO_VARIANTS: PosterCnbcLogoVariant[] = ["tv18", "awaaz"];
+  const CNBC_LOGO_VARIANTS: PosterCnbcLogoVariant[] = [
+    "tv18-white",
+    "tv18-blue",
+    "awaaz-white",
+    "awaaz-blue",
+  ];
   const cnbcLogoVariant = CNBC_LOGO_VARIANTS.includes(
     source.cnbcLogoVariant as PosterCnbcLogoVariant,
   )
     ? (source.cnbcLogoVariant as PosterCnbcLogoVariant)
-    : "tv18";
+    : "tv18-white";
 
   const BANDHAN_LOGO_VARIANTS: PosterBandhanLogoVariant[] = ["dark-bg", "light-bg"];
   const bandhanLogoVariant = BANDHAN_LOGO_VARIANTS.includes(

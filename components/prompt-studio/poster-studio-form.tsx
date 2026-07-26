@@ -7,8 +7,6 @@ import {
 } from "@/lib/poster-reference-system";
 import type {
   PosterBackgroundChoice,
-  PosterBandhanLogoVariant,
-  PosterCnbcLogoVariant,
   PosterModelCategory,
   PosterSize,
   PosterStudioPayload,
@@ -22,16 +20,6 @@ const BACKGROUND_CHOICES: Array<{
   { id: "auto", label: "Auto (Prussian Blue default)", swatch: POSTER_BACKGROUND_COMBINATIONS["prussian-blue"].background },
   { id: "prussian-blue", label: POSTER_BACKGROUND_COMBINATIONS["prussian-blue"].name, swatch: POSTER_BACKGROUND_COMBINATIONS["prussian-blue"].background },
   { id: "maroon-navy", label: POSTER_BACKGROUND_COMBINATIONS["maroon-navy"].name, swatch: `linear-gradient(135deg, ${POSTER_BACKGROUND_COMBINATIONS["maroon-navy"].background}, ${POSTER_BACKGROUND_COMBINATIONS["prussian-blue"].background})` },
-];
-
-const CNBC_LOGO_CHOICES: Array<{ id: PosterCnbcLogoVariant; label: string }> = [
-  { id: "tv18", label: "CNBC TV18" },
-  { id: "awaaz", label: "CNBC-AWAAZ" },
-];
-
-const BANDHAN_LOGO_CHOICES: Array<{ id: PosterBandhanLogoVariant; label: string }> = [
-  { id: "dark-bg", label: "White text (for dark background)" },
-  { id: "light-bg", label: "Navy text (for light background)" },
 ];
 
 interface PosterStudioFormProps {
@@ -65,8 +53,6 @@ export function PosterStudioForm({ isLoading, onGenerate }: PosterStudioFormProp
   const [topic, setTopic] = useState("");
   const [modelCategory, setModelCategory] = useState<PosterModelCategory>("glassmorphism-3d");
   const [backgroundChoice, setBackgroundChoice] = useState<PosterBackgroundChoice>("auto");
-  const [cnbcLogoVariant, setCnbcLogoVariant] = useState<PosterCnbcLogoVariant>("tv18");
-  const [bandhanLogoVariant, setBandhanLogoVariant] = useState<PosterBandhanLogoVariant>("dark-bg");
   const [visualDirection, setVisualDirection] = useState("");
   const [referenceImage, setReferenceImage] = useState<string | undefined>();
   const [referenceImageName, setReferenceImageName] = useState("");
@@ -127,8 +113,6 @@ export function PosterStudioForm({ isLoading, onGenerate }: PosterStudioFormProp
       referenceImage,
       outputSize,
       backgroundChoice,
-      cnbcLogoVariant,
-      bandhanLogoVariant,
     });
   };
 
@@ -262,41 +246,6 @@ export function PosterStudioForm({ isLoading, onGenerate }: PosterStudioFormProp
             ))}
           </div>
           <small>Matches the deep campaign colour scheme used in approved posters &mdash; never a white or light background.</small>
-        </fieldset>
-
-        <fieldset className="poster-dark-field poster-background-field">
-          <FieldLabel>Logo marks</FieldLabel>
-          <div className="poster-background-choice-row" role="radiogroup" aria-label="CNBC logo variant">
-            {CNBC_LOGO_CHOICES.map((choice) => (
-              <button
-                type="button"
-                key={choice.id}
-                onClick={() => setCnbcLogoVariant(choice.id)}
-                disabled={isLoading}
-                role="radio"
-                aria-checked={cnbcLogoVariant === choice.id}
-                className={`poster-background-choice ${cnbcLogoVariant === choice.id ? "is-selected" : ""}`}
-              >
-                {choice.label}
-              </button>
-            ))}
-          </div>
-          <div className="poster-background-choice-row" role="radiogroup" aria-label="Bandhan Mutual Fund logo variant">
-            {BANDHAN_LOGO_CHOICES.map((choice) => (
-              <button
-                type="button"
-                key={choice.id}
-                onClick={() => setBandhanLogoVariant(choice.id)}
-                disabled={isLoading}
-                role="radio"
-                aria-checked={bandhanLogoVariant === choice.id}
-                className={`poster-background-choice ${bandhanLogoVariant === choice.id ? "is-selected" : ""}`}
-              >
-                {choice.label}
-              </button>
-            ))}
-          </div>
-          <small>Both are real, unmodified brand marks &mdash; pick the CNBC channel sub-brand and the Bandhan text colour that matches your chosen background.</small>
         </fieldset>
 
         <label className="poster-dark-field poster-direction-field">

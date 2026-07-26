@@ -13,6 +13,7 @@ import {
   scaleAspectLockedLogoBounds,
   type PosterEditableTextRole,
 } from "@/lib/poster-editor-core";
+import { POSTER_LOGO_VARIANT_OPTIONS } from "@/lib/poster-logos";
 import {
   clampBoundsToContainer,
   validatePosterGeometry,
@@ -713,6 +714,11 @@ function PosterTypographyInspector({
   );
 }
 
+/** Reads the ?variant= back off an asset path so the dropdown reflects the layer. */
+function variantOf(assetPath: string): string {
+  return new URLSearchParams(assetPath.split("?")[1] ?? "").get("variant") ?? "";
+}
+
 function PosterLogoInspector({
   layers,
   selectedId,
@@ -720,6 +726,7 @@ function PosterLogoInspector({
   onMove,
   onScale,
   onReset,
+  onChangeVariant,
 }: {
   layers: EditableLogoLayer[];
   selectedId: string;
@@ -727,6 +734,7 @@ function PosterLogoInspector({
   onMove: (id: string, bounds: PercentBounds) => void;
   onScale: (id: string, widthPercent: number) => void;
   onReset: (id: string) => void;
+  onChangeVariant: (id: string, variant: string) => void;
 }) {
   const layer = layers.find((candidate) => candidate.id === selectedId) ?? layers[0];
   if (!layer) return null;
@@ -750,6 +758,19 @@ function PosterLogoInspector({
           </button>
         ))}
       </div>
+      <label className="poster-inspector-field poster-logo-variant-field">
+        <span>Logo version</span>
+        <select
+          value={variantOf(layer.logo.assetPath)}
+          onChange={(event) => onChangeVariant(layer.id, event.currentTarget.value)}
+        >
+          {(POSTER_LOGO_VARIANT_OPTIONS[layer.logo.id] ?? []).map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+      </label>
       <div className="poster-ubuntu-lock poster-logo-asset-contract">
         <div><span>Expected official asset</span><strong>{layer.logo.assetPath}</strong></div>
         <small>Missing files use a neutral labelled placeholder in preview and export.</small>
@@ -821,6 +842,7 @@ function PosterPreview({
   onMove,
   onMoveLogo,
   onScaleLogo,
+  onChangeLogoVariant,
   onResetLogo,
   onChange,
   onResetLayer,
@@ -838,6 +860,7 @@ function PosterPreview({
   onMove: (role: EditableTextRole, bounds: PercentBounds) => void;
   onMoveLogo: (id: string, bounds: PercentBounds) => void;
   onScaleLogo: (id: string, widthPercent: number) => void;
+  onChangeLogoVariant: (id: string, variant: string) => void;
   onResetLogo: (id: string) => void;
   onChange: (role: EditableTextRole, patch: EditableTextLayerPatch) => void;
   onResetLayer: (role: EditableTextRole) => void;
@@ -919,6 +942,7 @@ function PosterPreview({
             onMove={onMoveLogo}
             onScale={onScaleLogo}
             onReset={onResetLogo}
+            onChangeVariant={onChangeLogoVariant}
           />
         </div>
       )}
@@ -1197,6 +1221,30 @@ export function PosterStudioOutput({
     );
   }, [activeLogoLayers, concept, moveLogoLayer]);
 
+  // Swapping the variant only rewrites the asset URL and the display name — bounds,
+  // scale and position stay exactly as the designer left them. The preview <img>
+  // and the export canvas both read assetPath, so this is all that is needed.
+  const changeLogoVariant = useCallback((id: string, variant: string) => {
+    setLogoLayers((current) =>
+      (current ?? rawDefaultLogoLayers).map((layer) => {
+        if (layer.id !== id) return layer;
+        const option = (POSTER_LOGO_VARIANT_OPTIONS[layer.logo.id] ?? []).find(
+          (candidate) => candidate.value === variant,
+        );
+        if (!option) return layer;
+        const [base] = layer.logo.assetPath.split("?");
+        return {
+          ...layer,
+          logo: {
+            ...layer.logo,
+            brandName: option.label,
+            assetPath: `${base}?id=${encodeURIComponent(layer.logo.id)}&variant=${encodeURIComponent(variant)}`,
+          },
+        };
+      }),
+    );
+  }, [rawDefaultLogoLayers]);
+
   const resetLogoLayer = useCallback((id: string) => {
     const initial = rawDefaultLogoLayers.find((layer) => layer.id === id);
     if (!initial) return;
@@ -1404,6 +1452,7 @@ export function PosterStudioOutput({
           onMove={moveTextLayer}
           onMoveLogo={moveLogoLayer}
           onScaleLogo={scaleLogoLayer}
+          onChangeLogoVariant={changeLogoVariant}
           onResetLogo={resetLogoLayer}
           onChange={updateTextLayer}
           onResetLayer={resetTextLayer}

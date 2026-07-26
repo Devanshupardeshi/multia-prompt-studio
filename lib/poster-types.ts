@@ -10,7 +10,10 @@ export type PosterLayoutArchetype =
   | "split-brand-copy"
   | "left-copy-right-hero";
 
-export type PosterLogoId = "cnbc-tv18" | "bandhan-mutual-fund" | "mf-corner";
+// MF Corner is the show name, not a supplied logo asset. It used to reserve a
+// third safe area that rendered as an empty labelled box on every poster, so it is
+// no longer part of the logo system or the layout.
+export type PosterLogoId = "cnbc-tv18" | "bandhan-mutual-fund";
 
 export interface PosterSize {
   width: number;
@@ -19,7 +22,14 @@ export interface PosterSize {
 
 export type PosterBackgroundChoice = "auto" | "prussian-blue" | "maroon-navy";
 
-export type PosterCnbcLogoVariant = "tv18" | "awaaz";
+// CNBC ships a 2x2: channel (TV18 | AWAAZ) x colour (blue for light backgrounds,
+// white/reverse for dark ones). The campaign background is always a deep brand
+// colour, so the white variants are the correct default.
+export type PosterCnbcLogoVariant =
+  | "tv18-white"
+  | "tv18-blue"
+  | "awaaz-white"
+  | "awaaz-blue";
 export type PosterBandhanLogoVariant = "dark-bg" | "light-bg";
 
 export interface PosterClarificationQuestion {
@@ -45,8 +55,9 @@ export interface PosterStudioPayload {
   referenceImage?: string;
   outputSize: PosterSize;
   backgroundChoice: PosterBackgroundChoice;
-  cnbcLogoVariant: PosterCnbcLogoVariant;
-  bandhanLogoVariant: PosterBandhanLogoVariant;
+  // Optional: the variant is now chosen in the editor, not the brief.
+  cnbcLogoVariant?: PosterCnbcLogoVariant;
+  bandhanLogoVariant?: PosterBandhanLogoVariant;
   clarificationAnswers?: Record<string, string>;
 }
 
@@ -72,7 +83,7 @@ export interface PosterTextTreatment {
 }
 
 export interface PosterSafeArea {
-  logo: "CNBC" | "Bandhan Mutual Fund" | "MF Corner";
+  logo: "CNBC" | "Bandhan Mutual Fund";
   boundsPercent: PercentBounds;
   instruction: string;
 }
@@ -296,11 +307,11 @@ function validatePosterConceptShape(value: unknown): value is PosterConcept {
 
   if (
     !Array.isArray(value.logoSafeAreas) ||
-    value.logoSafeAreas.length !== 3 ||
+    value.logoSafeAreas.length !== 2 ||
     !value.logoSafeAreas.every(
       (area) =>
         isRecord(area) &&
-        ["CNBC", "Bandhan Mutual Fund", "MF Corner"].includes(area.logo as string) &&
+        ["CNBC", "Bandhan Mutual Fund"].includes(area.logo as string) &&
         isBounds(area.boundsPercent) &&
         typeof area.instruction === "string",
     )
@@ -356,7 +367,7 @@ function validatePosterConceptShape(value: unknown): value is PosterConcept {
         typeof layer.notes === "string" &&
         (layer.type !== "logo" ||
           (isRecord(layer.logo) &&
-            ["cnbc-tv18", "bandhan-mutual-fund", "mf-corner"].includes(
+            ["cnbc-tv18", "bandhan-mutual-fund"].includes(
               layer.logo.id as string,
             ) &&
             isString(layer.logo.brandName) &&

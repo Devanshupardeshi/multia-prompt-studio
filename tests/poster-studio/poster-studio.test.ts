@@ -159,7 +159,7 @@ describe("canonical contract fixtures", () => {
     const logoLayers = concept.editablePosterLayoutSpecification.layers.filter(
       (layer) => layer.type === "logo",
     );
-    assert.equal(logoLayers.length, 3);
+    assert.equal(logoLayers.length, 2);
     for (const layer of logoLayers) {
       assert.equal(layer.editable, true);
       assert.equal(layer.logo?.aspectRatioLocked, true);
@@ -176,7 +176,7 @@ describe("canonical contract fixtures", () => {
       concept,
       LARGE_MIDCAP_DETERMINISTIC_FIXTURE,
     );
-    assert.equal(production.editable_overlay.logo_layers.length, 3);
+    assert.equal(production.editable_overlay.logo_layers.length, 2);
   });
 });
 
@@ -280,7 +280,7 @@ describe("structured prompt compaction and category isolation", () => {
     assert.equal(compact.category.id, input.modelCategory);
     assert.equal(compact.output.width, input.width);
     assert.equal(compact.output.height, input.height);
-    assert.equal(compact.composition.logo_safe_areas.length, 3);
+    assert.equal(compact.composition.logo_safe_areas.length, 2);
     assert.equal(compact.composition.copy_safe_areas.length, 4);
     assert.ok(compact.financial_semantics.visual_mappings.length >= 2);
     assert.ok(compact.financial_semantics.relationship);
@@ -705,11 +705,11 @@ describe("logo variant selection", () => {
     );
   }
 
-  test("defaults to CNBC TV18 and the dark-background Bandhan mark", () => {
+  test("defaults to the white CNBC TV18 mark and the dark-background Bandhan mark", () => {
     const concept = getPosterOutputSchema(LARGE_MIDCAP_DETERMINISTIC_FIXTURE);
     const cnbc = findLogo(concept, "CNBC");
-    assert.equal(cnbc?.logo?.brandName, "CNBC TV18");
-    assert.match(cnbc!.logo!.assetPath, /variant=tv18/);
+    assert.equal(cnbc?.logo?.brandName, "CNBC TV18 (white)");
+    assert.match(cnbc!.logo!.assetPath, /variant=tv18-white/);
     const bandhan = findLogo(concept, "Bandhan");
     assert.match(bandhan!.logo!.assetPath, /variant=dark-bg/);
   });
@@ -717,12 +717,12 @@ describe("logo variant selection", () => {
   test("an explicit CNBC-AWAAZ / light-background choice changes the resolved asset path", () => {
     const concept = getPosterOutputSchema({
       ...LARGE_MIDCAP_DETERMINISTIC_FIXTURE,
-      cnbcLogoVariant: "awaaz",
+      cnbcLogoVariant: "awaaz-white",
       bandhanLogoVariant: "light-bg",
     });
     const cnbc = findLogo(concept, "CNBC");
-    assert.equal(cnbc?.logo?.brandName, "CNBC-AWAAZ");
-    assert.match(cnbc!.logo!.assetPath, /variant=awaaz/);
+    assert.equal(cnbc?.logo?.brandName, "CNBC-AWAAZ (white)");
+    assert.match(cnbc!.logo!.assetPath, /variant=awaaz-white/);
     const bandhan = findLogo(concept, "Bandhan");
     assert.match(bandhan!.logo!.assetPath, /variant=light-bg/);
   });

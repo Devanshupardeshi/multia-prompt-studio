@@ -146,10 +146,12 @@ function extractRequiredContract(
     };
   });
 
+  // Two supplied marks: CNBC and Bandhan. MF Corner is the show name, not an
+  // asset, so it no longer reserves a zone.
   const rawLogoAreas = composition.logo_safe_areas;
-  if (!Array.isArray(rawLogoAreas) || rawLogoAreas.length !== 3) {
+  if (!Array.isArray(rawLogoAreas) || rawLogoAreas.length !== 2) {
     throw new PosterImagePromptValidationError(
-      "The production contract must retain exactly three numerical logo-safe areas.",
+      "The production contract must retain exactly two numerical logo-safe areas.",
     );
   }
   const logoSafeAreas = rawLogoAreas.map((area, index) => {

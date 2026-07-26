@@ -1031,6 +1031,11 @@
   gap: 0.38rem;
 }
 
+/* Logo version picker sits above the asset contract, full width of the inspector. */
+.poster-logo-variant-field {
+  margin-bottom: 0.85rem;
+}
+
 .poster-inspector-field input,
 .poster-inspector-field select,
 .poster-inspector-field textarea {

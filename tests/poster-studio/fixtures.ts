@@ -16,7 +16,7 @@ export const LARGE_MIDCAP_DETERMINISTIC_FIXTURE: PosterStudioPayload = {
     "Use one physically credible balance mechanism and preserve all measured copy and logo exclusions.",
   outputSize: { width: 2160, height: 2700 },
   backgroundChoice: "auto",
-  cnbcLogoVariant: "tv18",
+  cnbcLogoVariant: "tv18-white",
   bandhanLogoVariant: "dark-bg",
 };
 

@@ -4,6 +4,10 @@ import path from "node:path";
 import { generateText, type UserContent } from "ai";
 import sharp from "sharp";
 import {
+  formatTopicFigureGuidance,
+  getTopicFigureGuidance,
+} from "@/lib/poster-figure-vocabulary";
+import {
   APPROVED_POSTERS,
   DESIGN_SYSTEM,
   getApprovedPoster,
@@ -92,11 +96,11 @@ export function getLargeMidcapCategoryExecution(
 ) {
   switch (category) {
     case "mixed-media":
-      return "CATEGORY EXECUTION — MIXED MEDIA ONLY: construct the real metal balance, beam, trays and fulcrum as a high-detail black-and-white or strongly desaturated photographic cutout with authentic metal texture. Apply colour only to tactile layered paper/card portfolio weights—Prussian blue on the single large-cap load and orange/gold on the smaller mid-cap loads. Use restrained halftone/newsprint texture, precise collage edges and shallow analogue depth. Do not create a fully CGI miniature or colourise the entire photograph.";
+      return "CATEGORY EXECUTION — MIXED MEDIA ONLY: construct the taraju's brass beam, pans and pivot as a high-detail black-and-white or strongly desaturated photographic cutout with authentic worn-brass texture. Apply colour only to the tactile layered paper/card coin stacks — Prussian blue on the single large-cap stack and orange/gold on the smaller mid-cap stacks. Use restrained halftone/newsprint texture, precise collage edges and shallow analogue depth. Do not create a fully CGI miniature or colourise the entire photograph.";
     case "glassmorphism-3d":
-      return "CATEGORY EXECUTION — PREMIUM 3D / GLASSMORPHISM ONLY: render the connected balance as a physically based product object with restrained translucent glass or acrylic details, controlled refraction, precise polished metal, soft product-lighting highlights and credible contact shadows. Keep the calibrated portfolio loads opaque enough to read immediately. Do not use torn paper, photographic cutouts, halftone collage or newsprint texture.";
+      return "CATEGORY EXECUTION — PREMIUM 3D / GLASSMORPHISM ONLY: render the taraju as a physically based product object — warm anisotropic brass on the beam and pans, struck-metal relief on the coins, restrained translucent glass or acrylic detail with controlled refraction, soft product lighting and credible contact shadows. Keep the coin stacks opaque enough to read immediately. Do not use torn paper, photographic cutouts, halftone collage or newsprint texture.";
     case "illustrative":
-      return "CATEGORY EXECUTION — DIMENSIONAL EDITORIAL ILLUSTRATIVE ONLY: author the connected balance from simplified graphic forms with matte or softly dimensional surfaces, reduced detail, deliberate silhouette and editorial rather than photoreal material logic. Keep every mechanical connection legible. Do not use photographic cutouts, torn-paper collage, transparent glass product rendering or glossy CGI spectacle.";
+      return "CATEGORY EXECUTION — DIMENSIONAL EDITORIAL ILLUSTRATIVE ONLY: author the taraju from simplified graphic forms with matte or softly dimensional surfaces, reduced detail and a deliberate silhouette — but keep the beam, the two hanging pans, the seated pivot and the milled coin rims clearly identifiable. Do not use photographic cutouts, torn-paper collage, transparent glass product rendering or glossy CGI spectacle.";
   }
 }
 
@@ -130,7 +134,7 @@ export function buildLargeMidcapMasterPrompt(
     .map((area) => formatPercentBounds(`${area.logo} logo-safe area`, area.boundsPercent))
     .join("; ");
 
-  return `Create background and hero artwork only for a premium CNBC × Bandhan Mutual Fund MF Corner poster at exactly ${payload.outputSize.width} × ${payload.outputSize.height} pixels, ${getAspectRatio(payload.outputSize.width, payload.outputSize.height)} aspect ratio. SUBJECT LOCK — this overrides every conflicting hero suggestion: render one centred precision portfolio balance inside ${formatPercentBounds("hero bounds", heroBounds)}. It is one connected instrument with a low premium base, one mechanically credible central fulcrum, one continuous perfectly level beam and two real shallow trays. The left tray carries one broad, low, heavyweight Prussian-blue calibrated portfolio weight; the right tray carries a considered cluster of three to five smaller orange/gold calibrated portfolio weights. Every load rests fully on its tray; neither side floats; no extra subject competes with the instrument. The left load means large-cap scale and relative stability; the smaller grouped loads mean mid-cap breadth and growth potential; the shared level balance means a deliberate portfolio mix. Do not turn either side into buildings, houses, a skyline, city blocks, a bridge, columns, a construction scene, infrastructure, a staircase, a bar chart, coin piles or labeled objects. At thumbnail size the silhouette must immediately read as one precision balance, not two separate piles on plinths. ${getLargeMidcapCategoryExecution(payload.modelCategory)} Use a frontal three-quarter product camera at approximately 75–85 mm with minimal perspective distortion. Light from upper-left with a soft frontal fill, restrained rim separation and one broad grounded contact shadow beneath the shared base. Use only approved colours: dominant ${background}; accents ${accents.join(", ") || DESIGN_SYSTEM.primary.orangeStart}; small highlights may use #FEFEFE. Background: a deep ${background} editorial field with subtle tonal depth, one soft light pool behind the balance and one very faint two-density market-cap distribution texture confined behind the hero; no generic chart, candlestick grid, dashboard or fake data. Keep all reserved regions completely quiet and empty: ${logoBounds}; ${copyBounds}. Financial guardrail: ${financialNarrative.guardrail} Generate no text, letters, words, numerals, pseudo-text, logos, trademarks, watermarks, signatures, labels, scale markings or interface elements.`;
+  return `Create background and hero artwork only for a premium CNBC × Bandhan Mutual Fund MF Corner poster at exactly ${payload.outputSize.width} × ${payload.outputSize.height} pixels, ${getAspectRatio(payload.outputSize.width, payload.outputSize.height)} aspect ratio. SUBJECT LOCK — this overrides every conflicting hero suggestion: render one centred taraju, the two-pan brass balance found in any Indian kirana shop, inside ${formatPercentBounds("hero bounds", heroBounds)}. It is one connected object with a grounded wooden or brass base, one seated central pivot, one continuous level beam and two real shallow brass pans hanging from it. The left pan carries one broad, heavy stack of large Prussian-blue-toned coins; the right pan carries a group of three to five smaller orange/gold coin stacks. Every stack rests fully on its pan; neither side floats; no extra subject competes with the balance. The left stack means large-cap scale and relative stability; the smaller grouped stacks mean mid-cap breadth and growth potential; the level beam means a deliberate portfolio mix. Do not turn either side into buildings, houses, a skyline, city blocks, a bridge, columns, a construction scene, infrastructure, a staircase, a bar chart or labeled objects, and do not render it as a laboratory scale, a precision instrument or an engineered mechanism. At thumbnail size the silhouette must immediately read as one shopkeeper's balance holding coins, not two separate piles on plinths. ${getLargeMidcapCategoryExecution(payload.modelCategory)} Use a frontal three-quarter product camera at approximately 75–85 mm with minimal perspective distortion. Light from upper-left with a soft frontal fill, restrained rim separation and one broad grounded contact shadow beneath the shared base. Use only approved colours: dominant ${background}; accents ${accents.join(", ") || DESIGN_SYSTEM.primary.orangeStart}; small highlights may use #FEFEFE. Background: a deep ${background} editorial field with subtle tonal depth, one soft light pool behind the balance and one very faint two-density market-cap distribution texture confined behind the hero; no generic chart, candlestick grid, dashboard or fake data. Keep all reserved regions completely quiet and empty: ${logoBounds}; ${copyBounds}. Financial guardrail: ${financialNarrative.guardrail} Generate no text, letters, words, numerals, pseudo-text, logos, trademarks, watermarks, signatures, labels, scale markings or interface elements.`;
 }
 
 async function prepareImageBuffer(source: Buffer): Promise<{
@@ -250,9 +254,14 @@ function buildPosterSystemPrompt(payload: PosterStudioPayload): string {
   ).join("\n");
 
   const category = POSTER_CATEGORIES[payload.modelCategory];
+  // Subject first, style second, each clearly labelled. The topic picks the object;
+  // the category only says how to render it.
+  const subjectBrief = formatTopicFigureGuidance(getTopicFigureGuidance(payload));
 
   return `${POSTER_CAMPAIGN_SYSTEM_PROMPT}
-${category.label}
+${subjectBrief}
+
+STYLE SPEC — ${category.label}. This decides HOW the subject above is rendered. It must not change WHAT the subject is.
 ${category.promptDirective}
 
 TASK RULES
