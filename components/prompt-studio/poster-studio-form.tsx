@@ -2,7 +2,6 @@
 
 import { useMemo, useState } from "react";
 import {
-  APPROVED_POSTERS,
   POSTER_BACKGROUND_COMBINATIONS,
   POSTER_CATEGORIES,
 } from "@/lib/poster-reference-system";
@@ -69,7 +68,6 @@ export function PosterStudioForm({ isLoading, onGenerate }: PosterStudioFormProp
   const [cnbcLogoVariant, setCnbcLogoVariant] = useState<PosterCnbcLogoVariant>("tv18");
   const [bandhanLogoVariant, setBandhanLogoVariant] = useState<PosterBandhanLogoVariant>("dark-bg");
   const [visualDirection, setVisualDirection] = useState("");
-  const [referencePosterId, setReferencePosterId] = useState("");
   const [referenceImage, setReferenceImage] = useState<string | undefined>();
   const [referenceImageName, setReferenceImageName] = useState("");
   const [uploadError, setUploadError] = useState("");
@@ -85,7 +83,6 @@ export function PosterStudioForm({ isLoading, onGenerate }: PosterStudioFormProp
     };
   }, [customHeight, customWidth, sizePreset]);
 
-  const selectedReference = APPROVED_POSTERS.find((poster) => poster.id === referencePosterId);
   const validSize =
     Number.isInteger(outputSize.width) &&
     Number.isInteger(outputSize.height) &&
@@ -107,7 +104,6 @@ export function PosterStudioForm({ isLoading, onGenerate }: PosterStudioFormProp
     reader.onload = () => {
       setReferenceImage(reader.result as string);
       setReferenceImageName(file.name);
-      setReferencePosterId("");
       setUploadError("");
     };
     reader.readAsDataURL(file);
@@ -125,7 +121,9 @@ export function PosterStudioForm({ isLoading, onGenerate }: PosterStudioFormProp
       topic: topic.trim(),
       modelCategory,
       visualDirection: visualDirection.trim(),
-      referencePosterId: referencePosterId || undefined,
+      // No approved-poster picker anymore — nothing is sent to the model unless the
+      // user explicitly uploads a reference image below.
+      referencePosterId: undefined,
       referenceImage,
       outputSize,
       backgroundChoice,
@@ -319,52 +317,32 @@ export function PosterStudioForm({ isLoading, onGenerate }: PosterStudioFormProp
         <div className="poster-block-heading">
           <div>
             <span>Campaign grounding</span>
-            <h2>Approved poster reference</h2>
+            <h2>Reference image (optional)</h2>
           </div>
-          <p>Its hierarchy is matched; its words, logos and hero object are never copied.</p>
+          <p>
+            Its layout and visual tone are matched; its words, logos and hero object are never
+            copied. Nothing is sent to the model unless you upload one here.
+          </p>
         </div>
 
         <div className="poster-dark-reference-row">
           <div className="poster-dark-reference-preview">
-            {selectedReference ? (
-              <img src={`/api/poster-reference?id=${encodeURIComponent(selectedReference.id)}`} alt={`${selectedReference.label} approved campaign poster`} />
-            ) : referenceImage ? (
+            {referenceImage ? (
               <img src={referenceImage} alt="Uploaded poster reference" />
             ) : (
-              <div><span>Auto-match</span><small>GPT-5.6 Sol selects the closest approved hierarchy</small></div>
+              <div><span>No reference</span><small>GPT-5.6 Sol works from the brief and the category spec alone</small></div>
             )}
           </div>
 
           <div className="poster-reference-controls">
-            <label className="poster-dark-field">
-              <FieldLabel>Approved poster</FieldLabel>
-              <select
-                value={referencePosterId}
-                onChange={(event) => {
-                  setReferencePosterId(event.target.value);
-                  if (event.target.value) {
-                    setReferenceImage(undefined);
-                    setReferenceImageName("");
-                  }
-                }}
-                disabled={isLoading}
-                className={fieldClass}
-              >
-                <option value="">Auto-match from all 13 approved posters</option>
-                {APPROVED_POSTERS.map((poster) => (
-                  <option value={poster.id} key={poster.id}>{poster.label} — {poster.archetype.replaceAll("-", " ")}</option>
-                ))}
-              </select>
-            </label>
-
             <div className="poster-reference-actions">
               <label className="poster-upload-dark">
                 <input type="file" accept="image/png,image/jpeg,image/webp" onChange={handleUpload} disabled={isLoading} />
-                Upload another reference
+                {referenceImage ? "Replace reference" : "Upload reference image"}
               </label>
-              {(referenceImage || referencePosterId) && (
-                <button type="button" onClick={() => { setReferenceImage(undefined); setReferenceImageName(""); setReferencePosterId(""); }}>
-                  Clear reference
+              {referenceImage && (
+                <button type="button" onClick={() => { setReferenceImage(undefined); setReferenceImageName(""); }}>
+                  Remove
                 </button>
               )}
             </div>

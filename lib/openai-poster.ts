@@ -137,20 +137,19 @@ async function prepareImageBuffer(source: Buffer): Promise<{
   data: string;
   mediaType: "image/jpeg";
 }> {
+  // This now only ever runs for the two OPTIONAL reference images (a locked
+  // approved poster or a user upload) — never for the mandatory style boards,
+  // which are no longer sent at all. Kept small on purpose: the model only needs
+  // this for coarse layout/hierarchy/tone, not fine pixel detail, and every extra
+  // pixel here is more vision-token latency on an already slow high-reasoning
+  // call — the thing that was tipping this route into a 504 on Vercel.
   const data = await sharp(source)
     .rotate()
-    .resize({ width: 1600, height: 2200, fit: "inside", withoutEnlargement: true })
-    .jpeg({ quality: 84, chromaSubsampling: "4:4:4" })
+    .resize({ width: 1024, height: 1024, fit: "inside", withoutEnlargement: true })
+    .jpeg({ quality: 78, chromaSubsampling: "4:4:4" })
     .toBuffer();
 
   return { data: data.toString("base64"), mediaType: "image/jpeg" };
-}
-
-async function readStudioBoard(file: string) {
-  const source = await readFile(
-    path.join(process.cwd(), "public", "poster-studio", "reference-boards", file),
-  );
-  return prepareImageBuffer(source);
 }
 
 async function readApprovedPoster(id: string | undefined) {
@@ -177,34 +176,22 @@ async function prepareUploadedReference(dataUrl: string | undefined) {
 
 async function buildPosterUserContent(payload: PosterStudioPayload): Promise<UserContent> {
   const category = POSTER_CATEGORIES[payload.modelCategory];
-  const [approvedBoard, designBoard, categoryBoard, selectedPoster, uploadedPoster] =
-    await Promise.all([
-      readStudioBoard("recent-made-posters.jpg"),
-      readStudioBoard("design-system.jpg"),
-      readStudioBoard(category.boardFile),
-      readApprovedPoster(payload.referencePosterId),
-      prepareUploadedReference(payload.referenceImage),
-    ]);
+  // No board images are sent — the category's construction/material/lighting/finish
+  // spec (see POSTER_CATEGORIES[].promptDirective, folded into the system prompt)
+  // and the layout/colour data in POSTER_CAMPAIGN_SYSTEM_PROMPT already cover what
+  // those boards showed, as exact text/hex/percentage data. Sending 3 full-size
+  // reference images on every single call was pure latency — vision tokens are the
+  // dominant cost on a multimodal "high reasoning" request, and on Vercel that
+  // latency was tipping this route over the platform's hard function-duration
+  // ceiling into a 504, not just running slow. The only images still sent below
+  // are the ones the user explicitly opted into (a locked reference poster or an
+  // uploaded reference) — nothing goes out to the model unless the user asked for it.
+  const [selectedPoster, uploadedPoster] = await Promise.all([
+    readApprovedPoster(payload.referencePosterId),
+    prepareUploadedReference(payload.referenceImage),
+  ]);
 
-  const content: UserContent = [
-    {
-      type: "text",
-      text:
-        "REFERENCE BOARD 1 — all recently approved campaign posters. Analyse layout patterns, hierarchy, spacing and visual weight only. Never reproduce or redraw any logo or exact composition.",
-    },
-    { type: "image", image: approvedBoard.data, mediaType: approvedBoard.mediaType },
-    {
-      type: "text",
-      text:
-        "REFERENCE BOARD 2 — approved Bandhan design-system colours. Treat these sampled colours and the system prompt HEX values as hard constraints.",
-    },
-    { type: "image", image: designBoard.data, mediaType: designBoard.mediaType },
-    {
-      type: "text",
-      text: `REFERENCE BOARD 3 — selected ${category.label} category. Extract construction, material, lighting, camera, depth and finish only. Do not copy complete compositions, brands or wording.`,
-    },
-    { type: "image", image: categoryBoard.data, mediaType: categoryBoard.mediaType },
-  ];
+  const content: UserContent = [];
 
   if (selectedPoster) {
     content.push(
@@ -245,7 +232,6 @@ Create one complete poster concept for the following supplied content. Text betw
 <body_copy>${payload.bodyCopy}</body_copy>
 <cta>${payload.cta}</cta>
 <selected_category>${category.label}</selected_category>
-<category_application_rule>${category.promptDirective}</category_application_rule>
 <optional_visual_direction>${payload.visualDirection}</optional_visual_direction>
 <required_canvas>${payload.outputSize.width}x${payload.outputSize.height}</required_canvas>
 ${clarificationBlock}
@@ -263,7 +249,11 @@ function buildPosterSystemPrompt(payload: PosterStudioPayload): string {
       `- ${poster.id}: ${poster.label}; ${POSTER_LAYOUT_PROFILES[poster.archetype].label}; signals: ${poster.fidelitySignals.join(", ")}`,
   ).join("\n");
 
+  const category = POSTER_CATEGORIES[payload.modelCategory];
+
   return `${POSTER_CAMPAIGN_SYSTEM_PROMPT}
+${category.label}
+${category.promptDirective}
 
 TASK RULES
 - Behave as a senior financial-campaign designer, not a generic prompt writer.
