@@ -1728,3 +1728,109 @@
   font-size: 0.68rem;
   line-height: 1.5;
 }
+
+/* Live reasoning trace — makes a 60-second wait legible instead of blank. */
+.poster-reasoning {
+  margin-bottom: 1.75rem;
+  border: 1px solid #232323;
+  border-radius: 10px;
+  background: #0d0d0d;
+  overflow: hidden;
+}
+
+.poster-reasoning-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem 1rem;
+}
+
+.poster-reasoning-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 0.7rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.poster-reasoning-pulse {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #ffffff;
+  animation: poster-reasoning-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes poster-reasoning-pulse {
+  0%, 100% { opacity: 0.25; transform: scale(0.8); }
+  50% { opacity: 1; transform: scale(1); }
+}
+
+.poster-reasoning-head button {
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  transition: color 160ms ease-out;
+}
+
+.poster-reasoning-head button:hover { color: #ffffff; }
+
+.poster-reasoning-body {
+  max-height: 112px;
+  overflow-y: auto;
+  padding: 0 1rem 0.9rem;
+  transition: max-height 220ms ease-out;
+}
+
+.poster-reasoning.is-expanded .poster-reasoning-body { max-height: 420px; }
+
+.poster-reasoning-body p {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.42);
+  font-size: 0.78rem;
+  line-height: 1.65;
+  white-space: pre-wrap;
+}
+
+.poster-reasoning-idle {
+  display: flex;
+  gap: 0.35rem;
+  padding: 0 1rem 1rem;
+}
+
+.poster-reasoning-idle span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.25);
+  animation: poster-reasoning-pulse 1.2s ease-in-out infinite;
+}
+
+.poster-reasoning-idle span:nth-child(2) { animation-delay: 0.15s; }
+.poster-reasoning-idle span:nth-child(3) { animation-delay: 0.3s; }
+
+.poster-model-choice {
+  display: grid;
+  gap: 0.3rem;
+  min-width: 0;
+}
+
+.poster-model-choice select {
+  min-height: 36px;
+  padding: 0 0.6rem;
+  border: 1px solid #303030;
+  border-radius: 6px;
+  background: #0d0d0d;
+  color: #ffffff;
+  font-family: inherit;
+  font-size: 0.82rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .poster-reasoning-pulse,
+  .poster-reasoning-idle span { animation: none; }
+}

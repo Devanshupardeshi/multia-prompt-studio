@@ -6,6 +6,8 @@ import {
   POSTER_PROMPT_MODEL,
   POSTER_PROMPT_MODEL_LABEL,
 } from "@/lib/openai-poster";
+import { DEFAULT_PROMPT_MODEL } from "@/lib/chatgpt-models";
+import { streamingResponse } from "@/lib/stream-protocol";
 import { stringifyPosterGenerationPrompt } from "@/lib/poster-generation-prompt";
 import { APPROVED_POSTERS, POSTER_CATEGORIES } from "@/lib/poster-reference-system";
 import type {
@@ -163,6 +165,10 @@ function parsePayload(body: unknown): PosterStudioPayload | null {
     bandhanLogoVariant,
     clarificationAnswers,
     rejectedFigures: rejectedFigures?.length ? rejectedFigures : undefined,
+    promptModel:
+      typeof source.promptModel === "string" && source.promptModel.trim()
+        ? source.promptModel.trim().slice(0, 60)
+        : DEFAULT_PROMPT_MODEL,
   };
 }
 
@@ -252,48 +258,60 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  try {
-    const openai = createOpenAIOAuth(openaiCredentials(request));
-    const result = await generatePosterConcept(openai, payload);
-    if (result.status === "clarification") {
-      return NextResponse.json({ status: "clarification", questions: result.questions });
-    }
-    const { concept } = result;
-    const validationErrors = getPosterConceptValidationErrors(concept, {
-      topic: payload.topic,
-      expectedCanvas: payload.outputSize,
-    });
-    if (validationErrors.length > 0) {
-      return NextResponse.json(
-        {
-          error: `Poster generation was blocked by the canonical contract: ${validationErrors.join(" ")}`,
-        },
-        { status: 422 },
-      );
-    }
-    const json = stringifyPosterGenerationPrompt(concept, payload);
-    return NextResponse.json({ status: "complete", concept, json });
-  } catch (error) {
-    console.error(
-      `${POSTER_PROMPT_MODEL_LABEL} (${POSTER_PROMPT_MODEL}) poster API error:`,
-      error,
-    );
+  // Streamed: this call runs 30–90s, and a response that sends nothing for that
+  // long is what platforms kill mid-flight. Bytes now flow from the first moment,
+  // carrying the reasoning trace with them.
+  return streamingResponse(async (writer) => {
+    try {
+      const openai = createOpenAIOAuth(openaiCredentials(request));
+      const result = await generatePosterConcept(openai, payload, {
+        model: payload.promptModel,
+        onStatus: writer.status,
+        onReasoning: writer.reasoning,
+      });
 
-    if (isAuthenticationError(error)) {
-      return NextResponse.json(
-        { error: "Sign in with ChatGPT to use Poster Design Studio." },
-        { status: 401 },
-      );
-    }
+      if (result.status === "clarification") {
+        writer.result({ status: "clarification", questions: result.questions });
+        return;
+      }
 
-    const message = getErrorMessage(error);
-    return NextResponse.json(
-      {
-        error: /not supported when using Codex with a ChatGPT account/i.test(message)
-          ? "GPT-5.6 Sol is not enabled for this ChatGPT/Codex account. Poster Studio will not fall back to another model."
+      writer.status("Validating the production contract");
+      const { concept } = result;
+      const validationErrors = getPosterConceptValidationErrors(concept, {
+        topic: payload.topic,
+        expectedCanvas: payload.outputSize,
+      });
+      if (validationErrors.length > 0) {
+        writer.error(
+          `Poster generation was blocked by the canonical contract: ${validationErrors.join(" ")}`,
+          422,
+        );
+        return;
+      }
+
+      writer.result({
+        status: "complete",
+        concept,
+        json: stringifyPosterGenerationPrompt(concept, payload),
+      });
+    } catch (error) {
+      console.error(
+        `${POSTER_PROMPT_MODEL_LABEL} (${POSTER_PROMPT_MODEL}) poster API error:`,
+        error,
+      );
+
+      if (isAuthenticationError(error)) {
+        writer.error("Sign in with ChatGPT to use Poster Design Studio.", 401);
+        return;
+      }
+
+      const message = getErrorMessage(error);
+      writer.error(
+        /not supported when using Codex with a ChatGPT account/i.test(message)
+          ? `${payload.promptModel ?? POSTER_PROMPT_MODEL} is not enabled for this ChatGPT/Codex account. Poster Studio will not fall back to another model.`
           : message,
-      },
-      { status: 502 },
-    );
-  }
+        502,
+      );
+    }
+  });
 }

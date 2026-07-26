@@ -89,6 +89,8 @@ export interface PosterStudioPayload {
   clarificationAnswers?: Record<string, string>;
   /** Figure options already shown and rejected, so "show different options" returns new ones. */
   rejectedFigures?: string[];
+  /** Optional model override from discovery; defaults to gpt-5.6-sol. */
+  promptModel?: string;
 }
 
 export interface PercentBounds {

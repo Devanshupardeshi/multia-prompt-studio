@@ -3,11 +3,14 @@
 import { openaiAuthHeaders } from "@openai-oauth/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { readPngResponse } from "@/lib/png-response";
+import { readEventStream } from "@/lib/stream-protocol";
+import { DEFAULT_PROMPT_MODEL, type ChatGptModel } from "@/lib/chatgpt-models";
 import { prepareRefineImage } from "@/lib/poster-refine-client";
 import type { RefineRegion } from "@/components/prompt-studio/poster-refine-panel";
 import { Header } from "@/components/prompt-studio/header";
 import { PosterStudioClarification } from "@/components/prompt-studio/poster-studio-clarification";
 import { PosterStudioForm } from "@/components/prompt-studio/poster-studio-form";
+import { ReasoningTrace } from "@/components/prompt-studio/reasoning-trace";
 import {
   PosterStudioOutput,
   type PosterImageState,
@@ -60,6 +63,10 @@ export default function PosterDesignPage() {
   const [clarification, setClarification] = useState<PosterClarificationQuestion[] | null>(null);
   const [isRefining, setIsRefining] = useState(false);
   const [refineError, setRefineError] = useState<string | null>(null);
+  const [reasoning, setReasoning] = useState("");
+  const [progress, setProgress] = useState<{ message: string } | null>(null);
+  const [models, setModels] = useState<ChatGptModel[]>([]);
+  const [promptModel, setPromptModel] = useState(DEFAULT_PROMPT_MODEL);
   const conceptRequestId = useRef(0);
   const imageRequestId = useRef(0);
 
@@ -87,6 +94,28 @@ export default function PosterDesignPage() {
   useEffect(() => {
     const urls = artworkUrls;
     return () => urls.current.forEach((url) => URL.revokeObjectURL(url));
+  }, []);
+
+  // Ask the account what it can run. Purely additive: on any failure the list is
+  // just the default, which is exactly the behaviour before discovery existed.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const headers = await getAuthHeaders();
+        const response = await fetch("/api/chatgpt/models", { headers });
+        if (!response.ok) return;
+        const body = (await response.json()) as { models?: ChatGptModel[] };
+        if (!cancelled && Array.isArray(body.models) && body.models.length > 0) {
+          setModels(body.models);
+        }
+      } catch {
+        // Signed out, or discovery unavailable — the default model still works.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const runImage = useCallback(
@@ -173,6 +202,8 @@ export default function PosterDesignPage() {
       setError(null);
       setClarification(null);
       setImageState({ status: "idle" });
+      setReasoning("");
+      setProgress(null);
       // A new concept invalidates the old renders — they belong to a different prompt.
       clearArtworkUrls();
       setIsLoading(true);
@@ -197,10 +228,31 @@ export default function PosterDesignPage() {
         const response = await fetch("/api/generate-poster", {
           method: "POST",
           headers: { ...headers, "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
+          body: JSON.stringify({ ...payload, promptModel }),
         });
-        const result = (await response.json().catch(() => ({}))) as ConceptResponse;
+
+        // The concept route streams: status and reasoning arrive while the model
+        // works, and the finished contract comes last.
+        let result: ConceptResponse = {};
+        let streamError: string | null = null;
+
+        await readEventStream(response, (event) => {
+          if (conceptRequestId.current !== requestId) return;
+          if (event.type === "status") setProgress({ message: event.message });
+          else if (event.type === "reasoning") {
+            setReasoning((current) => (current + event.text).slice(-4000));
+          } else if (event.type === "result") result = event.data as ConceptResponse;
+          else if (event.type === "error") streamError = event.error;
+        });
+
         if (conceptRequestId.current !== requestId) return;
+        setProgress(null);
+
+        if (streamError) {
+          setError(streamError);
+          setIsLoading(false);
+          return;
+        }
 
         if (response.ok && result.status === "clarification") {
           const questions = parseClarificationQuestions(result.questions);
@@ -241,7 +293,7 @@ export default function PosterDesignPage() {
         if (conceptRequestId.current === requestId) setIsLoading(false);
       }
     },
-    [runImage],
+    [clearArtworkUrls, promptModel, runImage],
   );
 
   const regenerate = useCallback(() => {
@@ -397,7 +449,13 @@ export default function PosterDesignPage() {
       <div className="max-w-[1200px] mx-auto px-6"><div className="h-px bg-white/5" /></div>
 
       <div className="poster-standard-content">
-        <PosterStudioForm isLoading={isLoading} onGenerate={runConcept} />
+        <PosterStudioForm
+              isLoading={isLoading}
+              onGenerate={runConcept}
+              models={models}
+              promptModel={promptModel}
+              onPromptModelChange={setPromptModel}
+            />
       </div>
 
       {clarification && (
@@ -417,6 +475,12 @@ export default function PosterDesignPage() {
       <div className="max-w-[1200px] mx-auto px-6"><div className="h-px bg-white/5" /></div>
 
       <div id="poster-studio-output" className="poster-standard-output scroll-mt-24">
+        <ReasoningTrace
+          text={reasoning}
+          status={progress?.message ?? null}
+          isActive={isLoading}
+          idleLabel="Reading the brief"
+        />
         <PosterStudioOutput
           concept={concept}
           promptJson={promptJson}

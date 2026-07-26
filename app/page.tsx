@@ -3,7 +3,9 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { chatGptAuthHeaders, isMissingChatGptSession } from "@/lib/chatgpt-session";
 import { readPngResponse } from "@/lib/png-response";
+import { readEventStream } from "@/lib/stream-protocol";
 import { Header } from "@/components/prompt-studio/header";
+import { ReasoningTrace } from "@/components/prompt-studio/reasoning-trace";
 import { Hero } from "@/components/prompt-studio/hero";
 import { InputForm } from "@/components/prompt-studio/input-form";
 import { OutputDisplay } from "@/components/prompt-studio/output-display";
@@ -32,6 +34,9 @@ type ModeResult = {
   queuedUntil: number | null;
   queueMessage: string | null;
   image?: ImageRenderState;
+  /** Live reasoning trace and stage label, ChatGPT engine only. */
+  reasoning?: string;
+  progress?: string | null;
 };
 
 const SIGN_IN_TO_GENERATE =
@@ -64,6 +69,13 @@ export default function Home() {
       Object.values(imageUrls.current).forEach((url) => URL.revokeObjectURL(url));
     };
   }, []);
+
+  // Mirror of byMode for reads inside async stream handlers, which must not
+  // re-create on every state change.
+  const byModeRef = useRef<Record<string, ModeResult>>({});
+  useEffect(() => {
+    byModeRef.current = byMode;
+  }, [byMode]);
 
   const patchMode = useCallback((mode: string, patch: Partial<ModeResult>) => {
     setByMode((prev) => {
@@ -171,6 +183,8 @@ export default function Home() {
         queuedUntil: null,
         queueMessage: null,
         image: { status: "idle" },
+        reasoning: "",
+        progress: null,
       });
 
       const clearLoading = () => setLoadingMode((cur) => (cur === mode ? null : cur));
@@ -199,8 +213,38 @@ export default function Home() {
           body: JSON.stringify(payload),
         });
 
-        // Guard against non-JSON responses (e.g. an HTML error page from a proxy).
-        const result = await response.json().catch(() => ({}));
+        // The ChatGPT route streams status + reasoning while it works; the Gemini
+        // route still answers with one JSON body.
+        // Shape shared by both engines' responses.
+        type GenerateResponse = {
+          json?: unknown;
+          error?: string;
+          poolBusy?: boolean;
+          retryAfterMs?: number;
+          soonestRecoveryAt?: string;
+        };
+        let result: GenerateResponse = {};
+        if (viaChatGpt && response.ok) {
+          let streamError: string | null = null;
+          await readEventStream(response, (event) => {
+            if (event.type === "status") patchMode(mode, { progress: event.message });
+            else if (event.type === "reasoning") {
+              patchMode(mode, {
+                reasoning: ((byModeRef.current[mode]?.reasoning ?? "") + event.text).slice(-4000),
+              });
+            } else if (event.type === "result") result = event.data as GenerateResponse;
+            else if (event.type === "error") streamError = event.error;
+          });
+          patchMode(mode, { progress: null });
+          if (streamError) {
+            patchMode(mode, { error: streamError, queuedUntil: null, queueMessage: null });
+            clearLoading();
+            return;
+          }
+        } else {
+          // Guard against non-JSON responses (e.g. an HTML error page from a proxy).
+          result = await response.json().catch(() => ({}));
+        }
 
         if (response.ok && typeof result.json === "string") {
           patchMode(mode, { json: result.json, error: null, queuedUntil: null, queueMessage: null });
@@ -329,6 +373,18 @@ export default function Home() {
       <div className="max-w-[1200px] mx-auto px-6">
         <div className="h-px bg-white/5" />
       </div>
+
+      {/* Live reasoning, ChatGPT engine only — the Gemini path answers in one shot. */}
+      {(showLoading || cur?.reasoning) && cur?.lastEngine === "chatgpt-5.6-sol" && (
+        <div className="max-w-[1200px] mx-auto px-6 pt-6">
+          <ReasoningTrace
+            text={cur?.reasoning ?? ""}
+            status={cur?.progress ?? null}
+            isActive={showLoading}
+            idleLabel="Reading the brief"
+          />
+        </div>
+      )}
 
       <OutputDisplay
         json={cur?.json ?? null}

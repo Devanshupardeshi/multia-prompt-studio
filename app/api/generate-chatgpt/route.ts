@@ -10,6 +10,7 @@ import {
   OPENAI_PROMPT_MODEL,
   OPENAI_PROMPT_MODEL_LABEL,
 } from "@/lib/openai-prompt";
+import { streamingResponse } from "@/lib/stream-protocol";
 import { isImageMode, type GeneratePayload, type GenerationMode } from "@/lib/shared-types";
 
 // GPT-5.6 Sol runs with high reasoning effort and may take a repair retry, so this
@@ -64,28 +65,39 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: validationError }, { status: 400 });
   }
 
-  try {
-    // Must stay inside the try: openaiCredentials() throws synchronously when the
-    // request carries no session, and that has to surface as a 401, not a 500.
-    const openai = createOpenAIOAuth(openaiCredentials(request));
-    const result = await generatePromptWithOpenAI(openai, payload);
-    return NextResponse.json({ json: result });
-  } catch (error) {
-    console.error(
-      `${OPENAI_PROMPT_MODEL_LABEL} (${OPENAI_PROMPT_MODEL}) prompt API error:`,
-      error,
-    );
+  const promptModel =
+    typeof (body as { promptModel?: unknown }).promptModel === "string"
+      ? ((body as { promptModel: string }).promptModel.trim().slice(0, 60) || undefined)
+      : undefined;
 
-    if (isAuthenticationError(error)) {
-      return NextResponse.json(
-        { error: `Sign in with ChatGPT to generate a prompt with ${OPENAI_PROMPT_MODEL_LABEL}` },
-        { status: 401 },
+  // Streamed for the same reason as the poster route: high-reasoning calls run
+  // long, and a response that sends nothing for a minute gets killed in transit.
+  return streamingResponse(async (writer) => {
+    try {
+      // Must stay inside: openaiCredentials() throws synchronously when the request
+      // carries no session, and that has to surface as an error event, not a crash.
+      const openai = createOpenAIOAuth(openaiCredentials(request));
+      const result = await generatePromptWithOpenAI(openai, payload, {
+        model: promptModel,
+        onStatus: writer.status,
+        onReasoning: writer.reasoning,
+      });
+      writer.result({ json: result });
+    } catch (error) {
+      console.error(
+        `${OPENAI_PROMPT_MODEL_LABEL} (${OPENAI_PROMPT_MODEL}) prompt API error:`,
+        error,
       );
-    }
 
-    return NextResponse.json(
-      { error: describePromptModelFailure(error, OPENAI_PROMPT_MODEL_LABEL) },
-      { status: 502 },
-    );
-  }
+      if (isAuthenticationError(error)) {
+        writer.error(
+          `Sign in with ChatGPT to generate a prompt with ${OPENAI_PROMPT_MODEL_LABEL}`,
+          401,
+        );
+        return;
+      }
+
+      writer.error(describePromptModelFailure(error, OPENAI_PROMPT_MODEL_LABEL), 502);
+    }
+  });
 }

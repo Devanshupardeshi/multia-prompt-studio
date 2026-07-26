@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import type { ChatGptModel } from "@/lib/chatgpt-models";
 import {
   POSTER_BACKGROUND_COMBINATIONS,
   POSTER_CATEGORIES,
@@ -45,6 +46,10 @@ const LIGHTING_MOOD_CHOICES: Array<{ id: PosterLightingMood; label: string }> = 
 interface PosterStudioFormProps {
   isLoading: boolean;
   onGenerate: (payload: PosterStudioPayload) => void;
+  /** Models this account can run; a single entry means no choice to offer. */
+  models: ChatGptModel[];
+  promptModel: string;
+  onPromptModelChange: (model: string) => void;
 }
 
 const SIZE_PRESETS: Array<{ id: string; label: string; detail: string; size: PosterSize }> = [
@@ -65,7 +70,13 @@ function FieldLabel({ children, count }: { children: React.ReactNode; count?: st
   );
 }
 
-export function PosterStudioForm({ isLoading, onGenerate }: PosterStudioFormProps) {
+export function PosterStudioForm({
+  isLoading,
+  onGenerate,
+  models,
+  promptModel,
+  onPromptModelChange,
+}: PosterStudioFormProps) {
   const [headline, setHeadline] = useState("");
   const [subheading, setSubheading] = useState("");
   const [bodyCopy, setBodyCopy] = useState("");
@@ -403,7 +414,28 @@ export function PosterStudioForm({ isLoading, onGenerate }: PosterStudioFormProp
       </section>
 
       <div className="poster-dark-submit">
-        <div><strong>GPT-5.6 Sol</strong><span>High reasoning · no fallback · exact JSON contract</span></div>
+        <div className="poster-model-choice">
+          {models.length > 1 ? (
+            // Only worth a picker when the account actually has alternatives.
+            <label>
+              <span className="poster-dark-label"><span>Model</span></span>
+              <select
+                value={promptModel}
+                onChange={(event) => onPromptModelChange(event.target.value)}
+                disabled={isLoading}
+              >
+                {models.map((model) => (
+                  <option value={model.id} key={model.id}>
+                    {model.label}{model.isDefault ? " — recommended" : ""}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : (
+            <strong>{models[0]?.label ?? "GPT-5.6 Sol"}</strong>
+          )}
+          <span>High reasoning · no fallback · exact JSON contract</span>
+        </div>
         <button type="submit" disabled={!isValid || isLoading} className={`btn-multia btn-multia-filled ${!isValid || isLoading ? "opacity-30 cursor-not-allowed" : ""}`}>
           {isLoading ? "Directing poster…" : "Generate poster"}
         </button>

@@ -1,5 +1,7 @@
 import type { OpenAIOAuthProvider } from "@openai-oauth/ai-sdk";
-import { generateText, type UserContent } from "ai";
+// streamText for the long generations; generateText stays for enhance and style
+// extraction, which are short low-reasoning calls where streaming buys nothing.
+import { generateText, streamText, type UserContent } from "ai";
 import {
   buildResponseSchema,
   buildUserParts,
@@ -60,11 +62,19 @@ ${JSON.stringify(responseSchema, null, 2)}
 Do not include Markdown fences, an introduction, analysis, or any text outside the JSON object.`;
 }
 
+export interface PromptProgress {
+  onReasoning?: (text: string) => void;
+  onStatus?: (message: string) => void;
+  /** Model override from discovery; defaults to gpt-5.6-sol. */
+  model?: string;
+}
+
 async function callPromptModel(
   openai: OpenAIOAuthProvider,
   system: string,
   content: UserContent,
   repair?: { previousOutput: string; error: string },
+  progress: PromptProgress = {},
 ): Promise<string> {
   const messages = [
     { role: "user" as const, content },
@@ -81,8 +91,10 @@ async function callPromptModel(
       : []),
   ];
 
-  const result = await generateText({
-    model: openai(OPENAI_PROMPT_MODEL),
+  // Streamed so the reasoning trace can be shown while it happens, and so the
+  // response starts flowing immediately on a call that can run for a minute.
+  const result = streamText({
+    model: openai(progress.model || OPENAI_PROMPT_MODEL),
     system,
     messages,
     providerOptions: {
@@ -92,11 +104,28 @@ async function callPromptModel(
     },
   });
 
-  if (!result.text.trim()) {
+  let text = "";
+  let announcedWriting = false;
+
+  for await (const part of result.fullStream) {
+    if (part.type === "reasoning-delta") {
+      progress.onReasoning?.(part.text);
+    } else if (part.type === "text-delta") {
+      if (!announcedWriting) {
+        announcedWriting = true;
+        progress.onStatus?.(repair ? "Repairing the JSON prompt" : "Writing the JSON prompt");
+      }
+      text += part.text;
+    } else if (part.type === "error") {
+      throw part.error instanceof Error ? part.error : new Error(String(part.error));
+    }
+  }
+
+  if (!text.trim()) {
     throw new Error(`${OPENAI_PROMPT_MODEL_LABEL} returned no prompt content`);
   }
 
-  return result.text.trim();
+  return text.trim();
 }
 
 /**
@@ -107,6 +136,7 @@ async function callPromptModel(
 export async function generatePromptWithOpenAI(
   openai: OpenAIOAuthProvider,
   sourcePayload: GeneratePayload,
+  progress: PromptProgress = {},
 ): Promise<string> {
   // This branch always feeds GPT Image 2, so generate a GPT Image-compatible
   // prompt regardless of the target selected for the separate Gemini branch.
@@ -114,14 +144,18 @@ export async function generatePromptWithOpenAI(
   const system = buildOpenAISystemPrompt(payload);
   const content = geminiPartsToUserContent(buildUserParts(payload));
 
-  let text = await callPromptModel(openai, system, content);
+  progress.onStatus?.("Thinking through the prompt");
+  let text = await callPromptModel(openai, system, content, undefined, progress);
   let validation = validateGeneratedJson(text, payload);
   if (validation.ok && validation.value) return validation.value;
 
-  text = await callPromptModel(openai, system, content, {
-    previousOutput: text,
-    error: validation.error ?? "Unknown validation error",
-  });
+  text = await callPromptModel(
+    openai,
+    system,
+    content,
+    { previousOutput: text, error: validation.error ?? "Unknown validation error" },
+    progress,
+  );
   validation = validateGeneratedJson(text, payload);
   if (validation.ok && validation.value) return validation.value;
 

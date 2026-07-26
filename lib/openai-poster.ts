@@ -1,7 +1,7 @@
 import type { OpenAIOAuthProvider } from "@openai-oauth/ai-sdk";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
-import { generateText, type UserContent } from "ai";
+import { streamText, type UserContent } from "ai";
 import sharp from "sharp";
 import {
   formatArtDirection,
@@ -951,9 +951,25 @@ export function parsePosterConcept(text: string, payload: PosterStudioPayload): 
   return normalizePosterConcept(parsed, payload);
 }
 
-async function callPosterModel(openai: OpenAIOAuthProvider, system: string, content: UserContent) {
-  const result = await generateText({
-    model: openai(POSTER_PROMPT_MODEL),
+export interface PosterConceptProgress {
+  /** Called with each chunk of the model's reasoning trace. */
+  onReasoning?: (text: string) => void;
+  onStatus?: (message: string) => void;
+  /** Overrides the default model; discovery may offer others on this account. */
+  model?: string;
+}
+
+async function callPosterModel(
+  openai: OpenAIOAuthProvider,
+  system: string,
+  content: UserContent,
+  progress: PosterConceptProgress = {},
+) {
+  // Streamed rather than awaited whole: the reasoning trace is worth showing while
+  // it happens, and a stream that emits early keeps the request visibly alive
+  // instead of looking hung for a minute.
+  const result = streamText({
+    model: openai(progress.model || POSTER_PROMPT_MODEL),
     system,
     messages: [{ role: "user", content }],
     providerOptions: {
@@ -970,22 +986,43 @@ async function callPosterModel(openai: OpenAIOAuthProvider, system: string, cont
     },
   });
 
-  if (!result.text.trim()) {
+  let text = "";
+  let announcedWriting = false;
+
+  for await (const part of result.fullStream) {
+    if (part.type === "reasoning-delta") {
+      progress.onReasoning?.(part.text);
+    } else if (part.type === "text-delta") {
+      // The JSON body starting is the clearest signal that thinking is done.
+      if (!announcedWriting) {
+        announcedWriting = true;
+        progress.onStatus?.("Writing the production contract");
+      }
+      text += part.text;
+    } else if (part.type === "error") {
+      throw part.error instanceof Error ? part.error : new Error(String(part.error));
+    }
+  }
+
+  if (!text.trim()) {
     throw new Error(`${POSTER_PROMPT_MODEL_LABEL} returned no poster concept`);
   }
-  return result.text.trim();
+  return text.trim();
 }
 
 export async function generatePosterConcept(
   openai: OpenAIOAuthProvider,
   payload: PosterStudioPayload,
+  progress: PosterConceptProgress = {},
 ): Promise<PosterConceptResult> {
+  progress.onStatus?.("Preparing the campaign brief");
   const [system, content] = [
     buildPosterSystemPrompt(payload),
     await buildPosterUserContent(payload),
   ];
 
-  const text = await callPosterModel(openai, system, content);
+  progress.onStatus?.("Thinking through the concept");
+  const text = await callPosterModel(openai, system, content, progress);
 
   if (!payload.clarificationAnswers) {
     const questions = parseClarificationQuestions(text);
