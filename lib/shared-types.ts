@@ -55,6 +55,11 @@ export interface GeneratePayload {
   mockupCount?: number;
   mockupTypes?: string[];
   targetModel?: "nano-banana-pro" | "gpt-image";
+  /**
+   * Which ChatGPT model writes the prompt, when the ChatGPT engine is used.
+   * Ignored by the Gemini path, which is driven by the admin key pool instead.
+   */
+  promptModel?: string;
   styleDirectives?: { label: string; directive: string }[];
   // 3D Website mode fields
   brandName?: string;

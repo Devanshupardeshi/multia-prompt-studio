@@ -4,6 +4,7 @@ import { useState, useCallback, useRef, useEffect } from "react";
 import { chatGptAuthHeaders, isMissingChatGptSession } from "@/lib/chatgpt-session";
 import { readPngResponse } from "@/lib/png-response";
 import { readEventStream } from "@/lib/stream-protocol";
+import { useChatGptModels } from "@/lib/use-chatgpt-models";
 import { Header } from "@/components/prompt-studio/header";
 import { ReasoningTrace } from "@/components/prompt-studio/reasoning-trace";
 import { Hero } from "@/components/prompt-studio/hero";
@@ -47,6 +48,7 @@ export default function Home() {
   const [byMode, setByMode] = useState<Record<string, ModeResult>>({});
   const [loadingMode, setLoadingMode] = useState<string | null>(null);
   const { count: dailyPromptCount } = useDailyPromptCount();
+  const { models, promptModel, setPromptModel } = useChatGptModels();
 
   const retryTimer = useRef<number | null>(null);
   const runRef = useRef<(payload: GeneratePayload, engine: PromptEngine) => void>(() => {});
@@ -382,7 +384,14 @@ export default function Home() {
         <div className="h-px bg-white/5" />
       </div>
 
-      <InputForm onGenerate={handleGenerate} isLoading={showLoading} onModeChange={handleModeChange} />
+      <InputForm
+        onGenerate={handleGenerate}
+        isLoading={showLoading}
+        onModeChange={handleModeChange}
+        models={models}
+        promptModel={promptModel}
+        onPromptModelChange={setPromptModel}
+      />
 
       {/* Divider */}
       <div className="max-w-[1200px] mx-auto px-6">

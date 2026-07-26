@@ -52,6 +52,7 @@ const ASSET_STRATEGIES = [
 
 import Link from "next/link";
 import { chatGptAuthHeaders } from "@/lib/chatgpt-session";
+import type { ChatGptModel } from "@/lib/chatgpt-models";
 import { GenerationMode, GeneratePayload, isImageMode, isVideoMode, CustomStyle, PromptEngine } from "@/lib/shared-types";
 
 // Mode selector grouped by output type.
@@ -112,9 +113,20 @@ interface InputFormProps {
   onGenerate: (data: GeneratePayload, engine: PromptEngine) => void;
   isLoading: boolean;
   onModeChange?: (mode: GenerationMode) => void;
+  /** ChatGPT models this account can run; one entry means no choice to offer. */
+  models: ChatGptModel[];
+  promptModel: string;
+  onPromptModelChange: (model: string) => void;
 }
 
-export function InputForm({ onGenerate, isLoading, onModeChange }: InputFormProps) {
+export function InputForm({
+  onGenerate,
+  isLoading,
+  onModeChange,
+  models,
+  promptModel,
+  onPromptModelChange,
+}: InputFormProps) {
   const [mode, setMode] = useState<GenerationMode>("standard");
   const [description, setDescription] = useState("");
   const [selectedStyles, setSelectedStyles] = useState<string[]>(["photorealistic"]);
@@ -489,6 +501,7 @@ export function InputForm({ onGenerate, isLoading, onModeChange }: InputFormProp
       // The GPT-5.6 Sol path always renders through GPT Image 2, so its prompt has
       // to target that regardless of the toggle set for the Gemini path.
       targetModel: engine === "chatgpt-5.6-sol" ? "gpt-image" : targetModel,
+      promptModel: engine === "chatgpt-5.6-sol" ? promptModel : undefined,
       styleDirectives: styleDirectives.length > 0 ? styleDirectives : undefined,
       // 3D Website fields
       brandName: brandName.trim() || undefined,
@@ -1699,11 +1712,36 @@ export function InputForm({ onGenerate, isLoading, onModeChange }: InputFormProp
             )}
           </div>
 
+          {/* Only worth a picker when the account actually has alternatives. */}
+          {isImageMode(mode) && models.length > 1 && (
+            <div className="flex items-center gap-3 mt-4">
+              <label
+                htmlFor="chatgpt-model"
+                className="text-xs text-white/30 font-body uppercase tracking-[0.2em]"
+              >
+                ChatGPT Model
+              </label>
+              <select
+                id="chatgpt-model"
+                value={promptModel}
+                onChange={(e) => onPromptModelChange(e.target.value)}
+                disabled={isLoading}
+                className="input-multia px-3 py-2 text-sm"
+              >
+                {models.map((model) => (
+                  <option value={model.id} key={model.id}>
+                    {model.label}{model.isDefault ? " — recommended" : ""}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
           {isImageMode(mode) && (
             <p className="text-[11px] text-white/25 font-body mt-3 max-w-xl">
-              GPT-5.6 Sol runs with high reasoning through your own ChatGPT account, targets GPT
-              Image 2, and renders the image automatically once the prompt is ready. Sign-in is
-              required (top-right).
+              {models.length > 1 ? "The selected model" : "GPT-5.6 Sol"} runs with high reasoning
+              through your own ChatGPT account, targets GPT Image 2, and renders the image
+              automatically once the prompt is ready. Sign-in is required (top-right).
             </p>
           )}
 
