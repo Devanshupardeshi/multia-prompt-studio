@@ -226,18 +226,33 @@ export default function Home() {
         let result: GenerateResponse = {};
         if (viaChatGpt && response.ok) {
           let streamError: string | null = null;
+          let sawResult = false;
           await readEventStream(response, (event) => {
             if (event.type === "status") patchMode(mode, { progress: event.message });
             else if (event.type === "reasoning") {
               patchMode(mode, {
                 reasoning: ((byModeRef.current[mode]?.reasoning ?? "") + event.text).slice(-4000),
               });
-            } else if (event.type === "result") result = event.data as GenerateResponse;
-            else if (event.type === "error") streamError = event.error;
+            } else if (event.type === "result") {
+              sawResult = true;
+              result = event.data as GenerateResponse;
+            } else if (event.type === "error") streamError = event.error;
           });
           patchMode(mode, { progress: null });
           if (streamError) {
             patchMode(mode, { error: streamError, queuedUntil: null, queueMessage: null });
+            clearLoading();
+            return;
+          }
+          // Neither result nor error on a 2xx means the stream was cut off mid-flight,
+          // which is what a hosting time limit looks like from the client side.
+          if (!sawResult) {
+            patchMode(mode, {
+              error:
+                "The connection closed before the prompt finished. This usually means the request exceeded the hosting time limit — try again.",
+              queuedUntil: null,
+              queueMessage: null,
+            });
             clearLoading();
             return;
           }

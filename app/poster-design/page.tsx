@@ -231,18 +231,34 @@ export default function PosterDesignPage() {
           body: JSON.stringify({ ...payload, promptModel }),
         });
 
-        // The concept route streams: status and reasoning arrive while the model
-        // works, and the finished contract comes last.
         let result: ConceptResponse = {};
         let streamError: string | null = null;
+        let sawResult = false;
 
+        // Validation rejections short-circuit before the stream starts, so they come
+        // back as ordinary JSON. Only a 2xx is an event stream.
+        if (!response.ok) {
+          const body = (await response.json().catch(() => ({}))) as ConceptResponse;
+          if (conceptRequestId.current !== requestId) return;
+          setProgress(null);
+          setError(
+            errorMessage(body.error, `Poster concept generation failed (HTTP ${response.status}).`),
+          );
+          setIsLoading(false);
+          return;
+        }
+
+        // The concept route streams: status and reasoning arrive while the model
+        // works, and the finished contract comes last.
         await readEventStream(response, (event) => {
           if (conceptRequestId.current !== requestId) return;
           if (event.type === "status") setProgress({ message: event.message });
           else if (event.type === "reasoning") {
             setReasoning((current) => (current + event.text).slice(-4000));
-          } else if (event.type === "result") result = event.data as ConceptResponse;
-          else if (event.type === "error") streamError = event.error;
+          } else if (event.type === "result") {
+            sawResult = true;
+            result = event.data as ConceptResponse;
+          } else if (event.type === "error") streamError = event.error;
         });
 
         if (conceptRequestId.current !== requestId) return;
@@ -250,6 +266,17 @@ export default function PosterDesignPage() {
 
         if (streamError) {
           setError(streamError);
+          setIsLoading(false);
+          return;
+        }
+
+        // A 2xx that produced neither a result nor an error means the stream was cut
+        // off — almost always the platform killing a long request mid-flight. Saying
+        // "HTTP 200" here would be actively misleading.
+        if (!sawResult) {
+          setError(
+            "The connection closed before the poster concept finished. This usually means the request exceeded the hosting time limit — try again, or simplify the brief.",
+          );
           setIsLoading(false);
           return;
         }
@@ -285,7 +312,17 @@ export default function PosterDesignPage() {
           return;
         }
 
-        setError(errorMessage(result.error, `Poster concept generation failed (HTTP ${response.status}).`));
+        // A result arrived but neither branch accepted it. Say which part was wrong
+        // instead of printing a status code that was 200.
+        console.error("Poster concept was rejected by the client:", result);
+        setError(
+          errorMessage(
+            result.error,
+            result.status === "clarification"
+              ? "The clarifying questions came back in an unexpected shape. Try again."
+              : "The poster concept came back incomplete — the production contract or its JSON was missing or failed validation. Try again.",
+          ),
+        );
       } catch (requestError) {
         if (conceptRequestId.current !== requestId) return;
         setError(requestError instanceof Error ? requestError.message : "Poster concept generation failed.");
