@@ -54,6 +54,29 @@ export function toModelList(ids: string[]): ChatGptModel[] {
 }
 
 /**
+ * Codex's model catalogue is NOT an OpenAI-shaped `/v1/models` response. It lives at
+ * `/models?client_version=…` — the query parameter is required, the array is
+ * `models` (not `data`), and each entry is keyed by `slug` (not `id`), with
+ * snake_case metadata. All of that is mirrored from @openai-oauth/core's own
+ * fetchCodexModelCatalog, which is unfortunately not exported from the package root.
+ */
+const CODEX_CLIENT_VERSION = "0.144.1";
+
+interface CodexModelEntry {
+  slug?: unknown;
+  visibility?: unknown;
+  supported_in_api?: unknown;
+}
+
+/** Same rule the library uses: usable via the API and meant to be listed. */
+function isPublicModel(entry: CodexModelEntry): boolean {
+  const visibility = typeof entry.visibility === "string" ? entry.visibility : undefined;
+  return (
+    entry.supported_in_api !== false && (visibility === undefined || visibility === "list")
+  );
+}
+
+/**
  * Asks the account which models it can use. Returns the default-only list on any
  * failure: discovery is a convenience, never a prerequisite for generating.
  */
@@ -61,15 +84,21 @@ export async function discoverChatGptModels(
   headers: Record<string, string>,
 ): Promise<ChatGptModel[]> {
   try {
-    const response = await fetch(`${DEFAULT_CODEX_BASE_URL}/models`, { headers });
+    const url = `${DEFAULT_CODEX_BASE_URL}/models?client_version=${encodeURIComponent(
+      CODEX_CLIENT_VERSION,
+    )}`;
+    const response = await fetch(url, { headers });
     if (!response.ok) return toModelList([]);
 
-    const body = (await response.json()) as { data?: Array<{ id?: unknown }> };
-    const ids = Array.isArray(body.data)
-      ? body.data.map((entry) => entry?.id).filter((id): id is string => typeof id === "string")
+    const body = (await response.json()) as { models?: CodexModelEntry[] };
+    const slugs = Array.isArray(body.models)
+      ? body.models
+          .filter(isPublicModel)
+          .map((entry) => entry.slug)
+          .filter((slug): slug is string => typeof slug === "string")
       : [];
 
-    return toModelList(ids);
+    return toModelList(slugs);
   } catch {
     return toModelList([]);
   }

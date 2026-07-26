@@ -20,7 +20,7 @@ export async function GET(request: Request) {
     const authorization = request.headers.get("authorization");
     const accountId = request.headers.get("chatgpt-account-id");
     if (!authorization || !accountId) {
-      return NextResponse.json({ models: toModelList([]) });
+      return NextResponse.json({ models: toModelList([]), discovered: false });
     }
 
     const models = await discoverChatGptModels({
@@ -28,7 +28,16 @@ export async function GET(request: Request) {
       "chatgpt-account-id": accountId,
     });
 
-    return NextResponse.json({ models });
+    // `discovered` tells the caller whether the catalogue actually came back or the
+    // default-only list was synthesised — otherwise a silent failure is invisible.
+    const discovered = models.length > 1;
+    if (!discovered) {
+      console.warn(
+        "Codex model discovery returned no alternatives; falling back to the default model.",
+      );
+    }
+
+    return NextResponse.json({ models, discovered });
   } catch (error) {
     if (isAuthenticationError(error)) {
       return NextResponse.json({ error: "Not signed in with ChatGPT" }, { status: 401 });

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import {
   DEFAULT_PROMPT_MODEL,
+  discoverChatGptModels,
   labelForModel,
   toModelList,
 } from "../../lib/chatgpt-models";
@@ -58,6 +59,67 @@ describe("model discovery never breaks generation", () => {
     assert.equal(labelForModel("gpt-5.6-sol"), "GPT-5.6 Sol");
     assert.equal(labelForModel("gpt-5.6-terra"), "GPT-5.6 Terra");
     assert.match(labelForModel("some-future-model"), /Some Future Model/);
+  });
+});
+
+describe("Codex catalogue parsing matches the real response shape", () => {
+  // The catalogue is not OpenAI-shaped: the array is `models` (not `data`), entries
+  // are keyed by `slug` (not `id`), and `client_version` is a required query param.
+  // Getting any of these wrong makes discovery silently return only the default.
+  const CATALOGUE = {
+    models: [
+      { slug: "gpt-5.6-sol", visibility: "list", supported_in_api: true },
+      { slug: "gpt-5.6-terra", visibility: "list", supported_in_api: true },
+      { slug: "gpt-5.6-internal", visibility: "hidden", supported_in_api: true },
+      { slug: "gpt-5.6-noapi", visibility: "list", supported_in_api: false },
+      { id: "wrong-key-shape" },
+    ],
+  };
+
+  async function discoverFrom(body: unknown, url: { value?: string } = {}) {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = (async (input: RequestInfo | URL) => {
+      url.value = String(input);
+      return new Response(JSON.stringify(body), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    }) as typeof fetch;
+    try {
+      return await discoverChatGptModels({ authorization: "Bearer x" });
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  }
+
+  test("the request carries the required client_version", async () => {
+    const url: { value?: string } = {};
+    await discoverFrom(CATALOGUE, url);
+    assert.match(url.value ?? "", /\/models\?client_version=/);
+  });
+
+  test("public models are read from `models[].slug`", async () => {
+    const ids = (await discoverFrom(CATALOGUE)).map((model) => model.id);
+    assert.ok(ids.includes("gpt-5.6-sol"));
+    assert.ok(ids.includes("gpt-5.6-terra"), "a second real model must surface");
+    assert.ok(ids.length > 1, "discovery must produce alternatives, or the picker hides");
+  });
+
+  test("hidden and non-API models are excluded", async () => {
+    const ids = (await discoverFrom(CATALOGUE)).map((model) => model.id);
+    assert.ok(!ids.includes("gpt-5.6-internal"), "visibility!=list must be dropped");
+    assert.ok(!ids.includes("gpt-5.6-noapi"), "supported_in_api=false must be dropped");
+  });
+
+  test("an OpenAI-shaped body yields only the default, proving the shape matters", async () => {
+    const ids = (await discoverFrom({ data: [{ id: "gpt-5.6-terra" }] })).map((m) => m.id);
+    assert.deepEqual(ids, [DEFAULT_PROMPT_MODEL]);
+  });
+
+  test("a malformed body degrades to the default instead of throwing", async () => {
+    assert.deepEqual((await discoverFrom({ nope: true })).map((m) => m.id), [
+      DEFAULT_PROMPT_MODEL,
+    ]);
   });
 });
 

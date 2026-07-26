@@ -96,23 +96,40 @@ export default function PosterDesignPage() {
     return () => urls.current.forEach((url) => URL.revokeObjectURL(url));
   }, []);
 
-  // Ask the account what it can run. Purely additive: on any failure the list is
-  // just the default, which is exactly the behaviour before discovery existed.
+  // Ask the account what it can run. Purely additive: on any failure the list stays
+  // the default, which is exactly the behaviour before discovery existed.
+  //
+  // Retried with backoff rather than attempted once: the OAuth session is read
+  // asynchronously out of IndexedDB, so on first paint there is usually no session
+  // yet, and the user may also sign in seconds after the page loads. A single
+  // mount-time attempt silently missed both.
   useEffect(() => {
     let cancelled = false;
+    const delays = [0, 1000, 2000, 4000, 8000, 16000];
+
     (async () => {
-      try {
-        const headers = await getAuthHeaders();
-        const response = await fetch("/api/chatgpt/models", { headers });
-        if (!response.ok) return;
-        const body = (await response.json()) as { models?: ChatGptModel[] };
-        if (!cancelled && Array.isArray(body.models) && body.models.length > 0) {
+      for (const delay of delays) {
+        if (cancelled) return;
+        if (delay) await new Promise((resolve) => setTimeout(resolve, delay));
+        if (cancelled) return;
+
+        try {
+          const headers = await getAuthHeaders();
+          const response = await fetch("/api/chatgpt/models", { headers });
+          if (!response.ok) continue;
+
+          const body = (await response.json()) as { models?: ChatGptModel[] };
+          if (cancelled || !Array.isArray(body.models) || body.models.length === 0) continue;
+
           setModels(body.models);
+          // More than the default means discovery genuinely worked; stop retrying.
+          if (body.models.length > 1) return;
+        } catch {
+          // Not signed in yet, or discovery unreachable — try again shortly.
         }
-      } catch {
-        // Signed out, or discovery unavailable — the default model still works.
       }
     })();
+
     return () => {
       cancelled = true;
     };
