@@ -930,30 +930,21 @@ export function parsePosterConcept(text: string, payload: PosterStudioPayload): 
   return normalizePosterConcept(parsed, payload);
 }
 
-async function callPosterModel(
-  openai: OpenAIOAuthProvider,
-  system: string,
-  content: UserContent,
-  repair?: { previous: string; error: string },
-) {
+async function callPosterModel(openai: OpenAIOAuthProvider, system: string, content: UserContent) {
   const result = await generateText({
     model: openai(POSTER_PROMPT_MODEL),
     system,
-    messages: [
-      { role: "user", content },
-      ...(repair
-        ? [
-            { role: "assistant" as const, content: repair.previous },
-            {
-              role: "user" as const,
-              content: `The JSON failed validation: ${repair.error}. Regenerate the complete object from scratch, preserving all supplied content. Return raw JSON only.`,
-            },
-          ]
-        : []),
-    ],
+    messages: [{ role: "user", content }],
     providerOptions: {
+      // "high" reasoning effort adds tens of seconds of internal "thinking" time
+      // largely independent of prompt size — on a platform with a hard per-request
+      // duration ceiling (e.g. Vercel Hobby's 60s), that alone can exceed the
+      // budget before the model ever starts writing the JSON. "medium" is the
+      // biggest lever left after trimming the request payload; the category specs
+      // are now fully spelled out in the system prompt, which reduces how much
+      // reasoning the model needs to satisfy them anyway.
       openai: {
-        reasoningEffort: "high",
+        reasoningEffort: "medium",
       },
     },
   });
@@ -973,7 +964,7 @@ export async function generatePosterConcept(
     await buildPosterUserContent(payload),
   ];
 
-  let text = await callPosterModel(openai, system, content);
+  const text = await callPosterModel(openai, system, content);
 
   if (!payload.clarificationAnswers) {
     const questions = parseClarificationQuestions(text);
@@ -982,13 +973,13 @@ export async function generatePosterConcept(
     }
   }
 
-  try {
-    return { status: "complete", concept: parsePosterConcept(text, payload) };
-  } catch (error) {
-    text = await callPosterModel(openai, system, content, {
-      previous: text,
-      error: error instanceof Error ? error.message : "Unknown schema error",
-    });
-    return { status: "complete", concept: parsePosterConcept(text, payload) };
-  }
+  // No same-request repair retry: on a platform with a hard per-request duration
+  // ceiling, a second sequential model call can only ever make a timeout MORE
+  // likely, never less — it just adds a second "high-latency reasoning call" on
+  // top of one that may already be close to the limit. A validation failure now
+  // surfaces immediately as a real, fast error instead of silently doubling the
+  // request's runtime; the user's existing "Try Again" starts a fresh request
+  // with a fresh duration budget, which is a more reliable retry than one nested
+  // inside the same invocation.
+  return { status: "complete", concept: parsePosterConcept(text, payload) };
 }
