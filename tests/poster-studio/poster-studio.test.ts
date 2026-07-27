@@ -799,3 +799,62 @@ describe("the heavy specs are attached only when the poster involves them", () =
   });
 
 });
+
+// "The model returned invalid JSON" was unactionable: it could not be told apart
+// from a timeout, a refusal, a markdown fence, or a model that simply wrote an
+// essay — and a model other than the default does the last two routinely.
+describe("a non-JSON concept response is diagnosed, not just rejected", () => {
+  const payload = LARGE_MIDCAP_DETERMINISTIC_FIXTURE;
+  const valid = () => JSON.stringify(JSON.parse(
+    stringifyPosterGenerationPrompt(getPosterOutputSchema(payload), payload),
+  ));
+
+  test("prose wrapped around a valid contract is parsed, not rejected", () => {
+    const wrapped = `Here is the production concept you asked for:
+
+${valid()}
+
+Let me know if you want a different hero.`;
+    assert.doesNotThrow(() => parsePosterConcept(wrapped, payload));
+  });
+
+  test("a markdown fence is still stripped", () => {
+    assert.doesNotThrow(() =>
+      parsePosterConcept(["```json", valid(), "```"].join("\n"), payload),
+    );
+  });
+
+  test("braces inside string values do not truncate the object", () => {
+    // A naive lastIndexOf("}") cuts the contract short here.
+    const contract = JSON.parse(valid());
+    contract.art_direction.financial_semantics.investor_question =
+      'Where does my {money} go? He said "{it depends}" and \ shrugged';
+    assert.doesNotThrow(() => parsePosterConcept(JSON.stringify(contract), payload));
+  });
+
+  test("a truncated response says so, and names the model that ran", () => {
+    const cut = valid().slice(0, 4_000);
+    assert.throws(
+      () => parsePosterConcept(cut, payload, "GPT-5.6 Terra"),
+      /GPT-5\.6 Terra was cut off .*unbalanced braces/,
+    );
+  });
+
+  test("prose with no JSON at all says that, and suggests the tuned model", () => {
+    assert.throws(
+      () => parsePosterConcept("I can't help with that request.", payload, "GPT-5.6 Terra"),
+      /replied with prose instead of the JSON contract[\s\S]*GPT-5\.6 Sol/,
+    );
+  });
+
+  test("an empty response is named as empty", () => {
+    assert.throws(() => parsePosterConcept("   ", payload), /returned an empty response/);
+  });
+
+  test("malformed-but-balanced JSON is distinguished from truncation", () => {
+    assert.throws(
+      () => parsePosterConcept('{"schema_version": "v6",, }', payload),
+      /returned malformed JSON/,
+    );
+  });
+});

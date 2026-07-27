@@ -3,6 +3,7 @@ import { describe, test } from "node:test";
 import {
   AVOID_GLOBALLY,
   formatArtDirection,
+  CONCEPT_SPEC_BRIEFS,
   INDIAN_CURRENCY_SPEC,
   formatTopicFigureGuidance,
   getTopicFigureGuidance,
@@ -552,13 +553,26 @@ describe("all currency is Indian, specified exactly", () => {
     assert.match(INDIAN_CURRENCY_SPEC, /Everything pictorial .* is required in full detail/);
   });
 
-  test("it reaches both the concept brief and the render prompt", () => {
+  test("the concept brief carries the condensed rules, not the full 11KB of spec", () => {
+    // The concept model writes the contract; it does not draw. The full specs live
+    // in the render prompt, so sending them here only slowed the high-reasoning
+    // call down — which is what got a response cut off mid-JSON.
     const rendered = formatTopicFigureGuidance(getTopicFigureGuidance(brief("sip basics")));
-    assert.match(rendered, /CURRENCY SPECIFICATION/);
-    assert.ok(rendered.includes(INDIAN_CURRENCY_SPEC), "the concept brief must carry the full spec");
+    assert.match(rendered, /NON-NEGOTIABLE MATERIAL RULES/);
+    assert.ok(rendered.includes(CONCEPT_SPEC_BRIEFS));
+    assert.ok(
+      !rendered.includes(INDIAN_CURRENCY_SPEC),
+      "the full currency spec belongs to the render prompt, not the concept call",
+    );
 
-    // The concept's master prompt is model-authored, so the render prompt has to
-    // restate the spec itself rather than trust it to survive.
-    assert.match(AVOID_GLOBALLY.join(" "), /CURRENCY SPECIFICATION, which is absolute/);
+    // The condensed form must still state each rule, or the concept can design
+    // something the renderer then has to refuse.
+    assert.match(CONCEPT_SPEC_BRIEFS, /all currency is Indian rupees/i);
+    assert.match(CONCEPT_SPEC_BRIEFS, /anatomically exact/i);
+    assert.match(CONCEPT_SPEC_BRIEFS, /HERO is free to be its real colour/);
+    assert.ok(
+      CONCEPT_SPEC_BRIEFS.length < INDIAN_CURRENCY_SPEC.length,
+      "the condensed form must actually be shorter",
+    );
   });
 });

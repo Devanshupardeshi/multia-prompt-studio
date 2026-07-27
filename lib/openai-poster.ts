@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { streamText, type UserContent } from "ai";
 import sharp from "sharp";
+import { labelForModel } from "@/lib/chatgpt-models";
 import {
   formatArtDirection,
   formatTopicFigureGuidance,
@@ -33,6 +34,11 @@ import {
 
 export const POSTER_PROMPT_MODEL = "gpt-5.6-sol";
 export const POSTER_PROMPT_MODEL_LABEL = "GPT-5.6 Sol";
+
+/** Names the model that actually ran, so an error message is not misleading. */
+function labelForPosterModel(model: string | undefined): string {
+  return model && model !== POSTER_PROMPT_MODEL ? labelForModel(model) : POSTER_PROMPT_MODEL_LABEL;
+}
 
 const DATA_IMAGE_PATTERN = /^data:([A-Za-z0-9.+/-]+);base64,([\s\S]+)$/;
 const APPROVED_COLOURS = new Set(
@@ -255,6 +261,66 @@ function stripMarkdownFence(text: string): string {
     .replace(/^```(?:json)?\s*/i, "")
     .replace(/\s*```$/, "")
     .trim();
+}
+
+/**
+ * Pulls the JSON object out of a model response.
+ *
+ * Fence-stripping alone is not enough. Models other than the default routinely wrap
+ * the contract in a sentence ("Here is the production concept:") or add a closing
+ * note after it, and either one makes JSON.parse fail on an otherwise perfect
+ * contract. So the outermost balanced {...} span is extracted instead of trusting
+ * the whole response to be JSON.
+ *
+ * Brace counting is string-aware: the contract is full of prose values containing
+ * braces and escaped quotes, and a naive lastIndexOf("}") truncates it.
+ */
+function extractJsonObject(text: string): string | null {
+  const cleaned = stripMarkdownFence(text);
+  const start = cleaned.indexOf("{");
+  if (start === -1) return null;
+
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+
+  for (let i = start; i < cleaned.length; i += 1) {
+    const char = cleaned[i];
+    if (inString) {
+      if (escaped) escaped = false;
+      else if (char === "\\") escaped = true;
+      else if (char === '"') inString = false;
+      continue;
+    }
+    if (char === '"') inString = true;
+    else if (char === "{") depth += 1;
+    else if (char === "}") {
+      depth -= 1;
+      if (depth === 0) return cleaned.slice(start, i + 1);
+    }
+  }
+  // Ran out of input with braces still open: the response was cut off.
+  return null;
+}
+
+/**
+ * Says what actually went wrong, because "invalid JSON" is unactionable — it cannot
+ * be told apart from a timeout, a refusal, or a model that simply wrote an essay.
+ */
+function describeJsonFailure(text: string, model: string): string {
+  const cleaned = stripMarkdownFence(text);
+  const preview = cleaned.slice(0, 180).replace(/\s+/g, " ");
+
+  if (!cleaned) {
+    return `${model} returned an empty response. Try again.`;
+  }
+  if (!cleaned.includes("{")) {
+    return `${model} replied with prose instead of the JSON contract: "${preview}…". Try again, or switch to ${POSTER_PROMPT_MODEL_LABEL}, which is tuned for this contract.`;
+  }
+  if (extractJsonObject(text) === null) {
+    return `${model} was cut off before finishing the JSON contract (${cleaned.length} characters, unbalanced braces). This is an output-length limit, not a bad brief — try again, or switch to ${POSTER_PROMPT_MODEL_LABEL}.`;
+  }
+  return `${model} returned malformed JSON: "${preview}…". Try again.`;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -808,7 +874,9 @@ export function parseClarificationQuestions(
 ): PosterClarificationQuestion[] | null {
   let parsed: unknown;
   try {
-    parsed = JSON.parse(stripMarkdownFence(text));
+    const candidate = extractJsonObject(text);
+    if (candidate === null) return null;
+    parsed = JSON.parse(candidate);
   } catch {
     return null;
   }
@@ -839,12 +907,21 @@ export function parseClarificationQuestions(
   return questions.length > 0 ? questions.slice(0, 3) : null;
 }
 
-export function parsePosterConcept(text: string, payload: PosterStudioPayload): PosterConcept {
+export function parsePosterConcept(
+  text: string,
+  payload: PosterStudioPayload,
+  model = POSTER_PROMPT_MODEL_LABEL,
+): PosterConcept {
+  const candidate = extractJsonObject(text);
+  if (candidate === null) {
+    throw new Error(describeJsonFailure(text, model));
+  }
+
   let parsed: unknown;
   try {
-    parsed = JSON.parse(stripMarkdownFence(text));
+    parsed = JSON.parse(candidate);
   } catch {
-    throw new Error("The model returned invalid JSON");
+    throw new Error(describeJsonFailure(text, model));
   }
   if (payload.clarificationAnswers && isRecord(parsed) && parsed.needs_clarification === true) {
     throw new Error(
@@ -887,6 +964,11 @@ async function callPosterModel(
         reasoningEffort: "medium",
       },
     },
+    // The contract is ~18KB of JSON, roughly 6k tokens, and reasoning tokens count
+    // against the same budget. Left at the provider default, a model other than the
+    // default one gets cut off mid-object and the response arrives as unparseable
+    // JSON — which is indistinguishable from a bad brief without this set.
+    maxOutputTokens: 32_000,
   });
 
   let text = "";
@@ -942,5 +1024,8 @@ export async function generatePosterConcept(
   // request's runtime; the user's existing "Try Again" starts a fresh request
   // with a fresh duration budget, which is a more reliable retry than one nested
   // inside the same invocation.
-  return { status: "complete", concept: parsePosterConcept(text, payload) };
+  return {
+    status: "complete",
+    concept: parsePosterConcept(text, payload, labelForPosterModel(progress.model)),
+  };
 }

@@ -65,6 +65,21 @@ export const INDIAN_CURRENCY_SPEC = [
 ].join("\n");
 
 /**
+ * Condensed forms of the three specs, for the CONCEPT call.
+ *
+ * The full specs are ~11KB together. They belong in the render prompt, where they
+ * govern actual pixels. Sending them to the concept model too made its already-slow
+ * high-reasoning call ~11KB heavier for no gain: that model does not draw anything,
+ * it writes the contract, and the render prompt restates the full specs itself. All
+ * it needs is enough to avoid designing something the renderer must then refuse.
+ */
+export const CONCEPT_SPEC_BRIEFS = [
+  "MONEY: all currency is Indian rupees, never any foreign note, coin or symbol. Notes are the real Mahatma Gandhi New Series denominations in their real colours (₹500 stone grey, ₹200 saffron, ₹100 lavender, ₹50 cyan-blue, ₹20 greenish yellow, ₹10 chocolate brown); coins are the real metals (cool steel ₹1/₹2, warm brass ₹5, two-tone bimetallic ₹10, twelve-sided ₹20) with the Ashoka lion capital and the ₹ symbol. Describe them as real, worn, physically detailed objects — never a blank gold disc or a plain coloured rectangle.",
+  "PEOPLE: only include a person if the concept genuinely needs one. If it does, they are a real Indian person, photographically real and anatomically exact — correct hands above all — never a glossy avatar, cartoon character or Western businessman. If a hand cannot be justified, leave it out.",
+  "COLOUR: the background field, type and logo zones use the approved palette only. The HERO is free to be its real colour — brass, terracotta, clay, paper stock, a note's true denomination hue, a real skin tone — and must not be repainted into a brand hue. Keep it tonally coherent with the approved background.",
+].join("\n");
+
+/**
  * Which colours are brand-locked and which are the figure's own.
  *
  * The campaign palette exists to make the canvas recognisable as MF Corner, and
@@ -671,15 +686,11 @@ export function formatTopicFigureGuidance(guidance: TopicFigureGuidance): string
     // Always sent, not gated on the topic: notes and coins turn up as a secondary
     // element in almost every finance poster even when the hero is something else,
     // and that is exactly where a stray dollar bill slips in unnoticed.
-    "CURRENCY SPECIFICATION — absolute, and it applies to any money anywhere in the image, hero or incidental:",
-    INDIAN_CURRENCY_SPEC,
-    "",
-    // Also unconditional: a hand holding the hero is one of the most common
-    // compositions in this campaign, and a bad hand ruins an otherwise good render.
-    "HUMAN ELEMENT SPECIFICATION — absolute, and it applies to any person, face, hand or body part anywhere in the image:",
-    HUMAN_ELEMENT_SPEC,
-    "",
-    HERO_COLOUR_FREEDOM,
+    // Condensed on purpose. The full currency, human and colour specs live in the
+    // render prompt, which is where they govern pixels; sending all ~11KB here made
+    // the slow high-reasoning concept call heavier without changing what it writes.
+    "NON-NEGOTIABLE MATERIAL RULES — the renderer enforces these in full, so do not design against them:",
+    CONCEPT_SPEC_BRIEFS,
     "",
     "WORKED EXAMPLES — these show the level of concreteness required. Adapt or replace them; do not copy one verbatim unless it is genuinely the best fit for this headline:",
     ...guidance.figures.map((figure, index) => `${index + 1}. ${figure}`),
