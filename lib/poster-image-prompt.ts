@@ -1,3 +1,4 @@
+import { INDIAN_CURRENCY_SPEC } from "./poster-figure-vocabulary";
 import type { PercentBounds, PosterModelCategory } from "./poster-types";
 
 const MAX_NEGATIVE_PROMPT_CHARS = 2_200;
@@ -396,12 +397,15 @@ NON-NEGOTIABLE COMPOSITION RULES:
 - Respect every numerical logo-safe area, copy-safe area and hero bound in the contract. Keep reserved regions quiet and empty for the editable overlay.
 - Render exactly one topic-relevant financial metaphor. Keep its silhouette fully inside composition.hero_bounds_percent and out of headline, supporting-copy, CTA and logo zones.
 - Treat financial_semantics as a construction contract. Every visible component must match one declared visual mapping and communicate the declared relationship.
-- Treat hero_execution_contract as a subject lock whenever subject_locked is true. Render every required part and reject every forbidden substitution.
+- Treat hero_execution_contract as the build spec for the hero the concept chose. Render every required part and reject every forbidden substitution.
 - If the concept uses a balance, both loads must rest on real trays connected through one credible beam and fulcrum.
 - Preserve every enabled copy-safe area, especially the body-copy information panel. Never enlarge the hero into it.
 - The background established above is mandatory and non-negotiable. Re-check before finishing that the canvas is filled with the approved deep field and is not white, pale or empty.
 - Keep the hero simple and immediately recognisable — one clear object built from a small number of parts (a gullak with coins at its slot, a taraju holding two coin stacks, a steel thali with filled katoris), not an elaborate multi-object scene. If a viewer cannot identify the hero object and its financial meaning within one second at thumbnail size, it is too complicated.
 - Generate no text, letters, words, numerals, pseudo-text, dial labels, scale markings, logos, brand marks, watermarks, signatures or interface elements.
+
+CURRENCY — ABSOLUTE, and it governs any money in the frame, hero or incidental:
+${INDIAN_CURRENCY_SPEC}
 
 NEGATIVE PROMPT:
 ${compactNegativePrompt}`;
@@ -436,6 +440,16 @@ function buildNegativePrompt(
     "cluttered hero with more than one competing subject",
     "ornate multi-part scene",
     "unrecognisable abstract hero",
+    // Money is the most common secondary element in these posters, and American
+    // money is what an image model reaches for unless told otherwise.
+    "US dollar bills",
+    "green banknotes",
+    "dollar sign",
+    "euro or pound symbol",
+    "foreign or non-Indian currency",
+    "blank unmarked gold coins",
+    "fantasy or invented currency",
+    "garbled numerals on banknotes",
     ...getCategorySpecificNegatives(input.modelCategory),
   ];
   const supplied = input.negativePrompt

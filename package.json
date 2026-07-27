@@ -7,7 +7,7 @@
     "dev": "next dev",
     "lint": "eslint .",
     "start": "next start",
-    "test": "tsx --test tests/poster-studio/poster-studio.test.ts tests/poster-studio/figure-vocabulary.test.ts tests/poster-studio/refine.test.ts tests/chatgpt/user-content.test.ts tests/chatgpt/streaming-and-models.test.ts tests/image-color-correction.test.ts tests/feedback.test.ts"
+    "test": "tsx --test tests/poster-studio/poster-studio.test.ts tests/poster-studio/figure-vocabulary.test.ts tests/poster-studio/refine.test.ts tests/chatgpt/user-content.test.ts tests/chatgpt/streaming-and-models.test.ts tests/image-color-correction.test.ts tests/feedback.test.ts tests/studio-refine.test.ts"
   },
   "dependencies": {
     "@openai-oauth/ai-sdk": "^2.0.0",

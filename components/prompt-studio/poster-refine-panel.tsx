@@ -16,6 +16,10 @@ interface PosterRefinePanelProps {
   artwork: string;
   isBusy: boolean;
   error: string | null;
+  /** Defaults to the Poster Studio's copy; the Prompt Studio passes per-mode text. */
+  heading?: string;
+  hint?: string;
+  quickEdits?: string[];
   onSubmit: (
     instruction: string,
     region: RefineRegion | null,
@@ -23,22 +27,36 @@ interface PosterRefinePanelProps {
   ) => void;
 }
 
-
-const QUICK_EDITS = [
+const POSTER_QUICK_EDITS = [
   "Make the hero object smaller and give it more breathing room",
   "Deepen the background and reduce the texture behind the hero",
   "Increase the contrast between the hero and the background",
 ];
 
+const POSTER_HINT =
+  "Say only what should change — the brief, palette and reserved zones carry over automatically. Drag a box to point at an area, and attach a reference if the change is easier to show than to describe.";
+
 const MIN_REGION = 0.02;
 
 /**
  * Follow-up editing on a finished render. The designer says only what should
- * change; the brief, palette and reserved zones are re-attached by the caller, so
- * nothing has to be restated. Optionally they drag a box over the artwork to limit
- * the change to one area, which becomes the edit mask.
+ * change; the invariants are re-attached server-side, so nothing has to be
+ * restated. Optionally they drag a box over the artwork to limit the change to one
+ * area, which travels as a described region (the OAuth transport rejects masks).
+ *
+ * Shared by the Poster Studio and the Prompt Studio's image modes — only the copy
+ * and the starter edits differ, since what must be preserved is decided server-side
+ * from the mode.
  */
-export function PosterRefinePanel({ artwork, isBusy, error, onSubmit }: PosterRefinePanelProps) {
+export function PosterRefinePanel({
+  artwork,
+  isBusy,
+  error,
+  heading = "Change something about this artwork",
+  hint = POSTER_HINT,
+  quickEdits = POSTER_QUICK_EDITS,
+  onSubmit,
+}: PosterRefinePanelProps) {
   const [instruction, setInstruction] = useState("");
   const [region, setRegion] = useState<RefineRegion | null>(null);
   const [drag, setDrag] = useState<{ x: number; y: number } | null>(null);
@@ -108,12 +126,10 @@ export function PosterRefinePanel({ artwork, isBusy, error, onSubmit }: PosterRe
       <div className="poster-block-heading">
         <div>
           <span>Follow-up</span>
-          <h2>Change something about this artwork</h2>
+          <h2>{heading}</h2>
         </div>
         <p>
-Say only what should change &mdash; the brief, palette and reserved zones carry over
-          automatically. Drag a box to point at an area, and attach a reference if the
-          change is easier to show than to describe.
+{hint}
         </p>
       </div>
 
@@ -128,7 +144,7 @@ Say only what should change &mdash; the brief, palette and reserved zones carry 
           role="presentation"
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={artwork} alt="Generated poster artwork" draggable={false} />
+          <img src={artwork} alt="The render being refined" draggable={false} />
           {region && (
             <span
               className="poster-refine-region"
@@ -156,12 +172,12 @@ Say only what should change &mdash; the brief, palette and reserved zones carry 
               maxLength={MAX_REFINE_INSTRUCTION_CHARS}
               rows={4}
               className="input-multia poster-dark-input w-full px-4 py-3.5 text-[15px] resize-y"
-              placeholder="e.g. The hero is too large — scale it down and lower it slightly"
+              placeholder="e.g. Make the background darker and keep everything else exactly as it is"
             />
           </label>
 
           <div className="poster-refine-quick">
-            {QUICK_EDITS.map((quick) => (
+            {quickEdits.map((quick) => (
               <button
                 type="button"
                 key={quick}

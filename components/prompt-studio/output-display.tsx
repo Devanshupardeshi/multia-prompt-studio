@@ -3,6 +3,8 @@
 import { useState, useCallback, useEffect } from "react";
 
 import { GenerationMode, ImageRenderState, isImageMode, isVideoMode } from "@/lib/shared-types";
+import { getStudioRefineCopy } from "@/lib/studio-refine";
+import { PosterRefinePanel, type RefineRegion } from "@/components/prompt-studio/poster-refine-panel";
 
 interface OutputDisplayProps {
   json: string | null;
@@ -16,6 +18,14 @@ interface OutputDisplayProps {
   /** GPT Image 2 render state — only ever leaves "idle" on the GPT-5.6 Sol path. */
   image?: ImageRenderState;
   onRetryImage?: () => void;
+  /** Follow-up editing on a finished render. Omitted, the panel is not shown. */
+  onRefineImage?: (
+    instruction: string,
+    region: RefineRegion | null,
+    reference: string | null,
+  ) => void;
+  isRefining?: boolean;
+  refineError?: string | null;
 }
 
 // Live countdown shown while the request is queued waiting for a free key in the pool.
@@ -98,7 +108,11 @@ export function OutputDisplay({
   queueMessage,
   image = { status: "idle" },
   onRetryImage,
+  onRefineImage,
+  isRefining,
+  refineError,
 }: OutputDisplayProps) {
+  const refineCopy = getStudioRefineCopy(mode ?? "standard");
   const [copied, setCopied] = useState(false);
   const [activeLayer, setActiveLayer] = useState(0);
 
@@ -438,6 +452,25 @@ export function OutputDisplay({
                     )}
                   </div>
                 </div>
+              </div>
+            )}
+
+            {/* Follow-up editing, same panel the Poster Studio uses. What must be
+                preserved is decided server-side from the mode, so a face swap keeps
+                its face and a mockup keeps its logo without the user asking. */}
+            {image.status === "success" && onRefineImage && (
+              <div className="mt-6">
+                <PosterRefinePanel
+                  artwork={image.image}
+                  isBusy={Boolean(isRefining)}
+                  error={refineError ?? null}
+                  heading={mode === "face_swap" ? "Change something about this swap"
+                    : mode === "mockup" ? "Change something about this mockup"
+                    : "Change something about this image"}
+                  hint={refineCopy.hint}
+                  quickEdits={refineCopy.quickEdits}
+                  onSubmit={onRefineImage}
+                />
               </div>
             )}
           </div>

@@ -157,22 +157,6 @@ const ALL_APPROVED_COLOURS = [
   ...DESIGN_SYSTEM.secondary,
 ];
 
-function isLargeMidcapPayload(payload: PosterStudioPayload) {
-  const brief = [
-    payload.topic,
-    payload.headline,
-    payload.subheading,
-    payload.bodyCopy,
-    payload.visualDirection,
-  ]
-    .join(" ")
-    .toLowerCase();
-  return (
-    /\b(large|large-cap|large cap|largecap)\b/.test(brief) &&
-    /\b(mid|mid-cap|mid cap|midcap)\b/.test(brief)
-  );
-}
-
 function categoryRenderingStandard(payload: PosterStudioPayload) {
   if (payload.modelCategory === "mixed-media") {
     return "Premium editorial photomontage: one recognisable real-world hero rendered as a predominantly black-and-white or strongly desaturated photographic cutout with authentic surface detail, tactile layered paper/card colour accents, restrained halftone or newsprint texture, precise collage edges, coherent photographic lighting and one grounded contact shadow. If a person is required, use a realistic monochrome editorial photograph with natural anatomy, pose, clothing and proportions—never a glossy 3D avatar, cartoon or synthetic character. Apply approved brand colour selectively; do not colourise the whole photograph. It must not look like a fully CGI miniature, architecture visualisation or 3D diorama.";
@@ -204,7 +188,6 @@ export function buildPosterGenerationPrompt(
       `Poster generation is blocked by the canonical contract: ${validationErrors.join(" ")}`,
     );
   }
-  const largeMidcapSubjectLocked = isLargeMidcapPayload(payload);
   const profile = getPosterLayoutProfile(
     concept.layoutArchetype,
     payload.bodyCopy.length,
@@ -305,48 +288,21 @@ export function buildPosterGenerationPrompt(
         rejection_test:
           "Reject and redesign the hero if any visible component lacks a declared financial meaning, if the relationship is not physically legible, or if the object could illustrate an unrelated topic unchanged.",
       },
-      hero_execution_contract: largeMidcapSubjectLocked
-        ? {
-            subject_locked: true,
-            one_sentence_read:
-              "One premium precision portfolio balance holding one substantial large-cap weight against several smaller mid-cap weights on a single level beam.",
-            required_parts: [
-              "one low shared base",
-              "one mechanically credible central fulcrum",
-              "one continuous perfectly level beam",
-              "two real shallow trays connected to that beam",
-              "one broad low Prussian-blue calibrated weight resting fully on the left tray",
-              "three to five smaller orange/gold calibrated weights resting fully on the right tray",
-            ],
-            forbidden_substitutions: [
-              "buildings or houses",
-              "city blocks or skyline",
-              "bridge or separate platforms",
-              "classical columns or architecture",
-              "construction or infrastructure scene",
-              "staircase, bar chart or upward arrow",
-              "coin piles",
-              "two unrelated subjects",
-            ],
-            thumbnail_test:
-              "At small social-media preview size, the silhouette must immediately read as one connected balance instrument; if it reads as architecture, two piles or a diorama, reject and rebuild it.",
-            category_fidelity: categoryRenderingStandard(payload),
-          }
-        : {
-            subject_locked: false,
-            one_sentence_read: concept.financialNarrative.heroMetaphor,
-            required_parts: concept.financialNarrative.visualMappings.map(
-              (mapping) => mapping.element,
-            ),
-            forbidden_substitutions: [
-              "unmapped decorative objects",
-              "generic finance dashboard",
-              "unrelated architecture or miniature scene",
-            ],
-            thumbnail_test:
-              "At small social-media preview size, the hero silhouette and its relationship must remain recognisable and relevant to the supplied topic.",
-            category_fidelity: categoryRenderingStandard(payload),
-          },
+      hero_execution_contract: {
+        subject_locked: false,
+        one_sentence_read: concept.financialNarrative.heroMetaphor,
+        required_parts: concept.financialNarrative.visualMappings.map(
+          (mapping) => mapping.element,
+        ),
+        forbidden_substitutions: [
+          "unmapped decorative objects",
+          "generic finance dashboard",
+          "unrelated architecture or miniature scene",
+        ],
+        thumbnail_test:
+          "At small social-media preview size, the hero silhouette and its relationship must remain recognisable and relevant to the supplied topic.",
+        category_fidelity: categoryRenderingStandard(payload),
+      },
       category_construction: POSTER_CATEGORIES[payload.modelCategory].promptDirective,
       background: concept.placementGuidance.backgroundDetails,
       background_system: {

@@ -3,6 +3,7 @@ import { describe, test } from "node:test";
 import {
   AVOID_GLOBALLY,
   formatArtDirection,
+  INDIAN_CURRENCY_SPEC,
   formatTopicFigureGuidance,
   getTopicFigureGuidance,
   TOPIC_FIGURE_PATTERNS,
@@ -405,5 +406,159 @@ describe("the assembled subject brief is usable", () => {
     assert.match(globals, /Wall Street|charging bull/i);
     assert.match(globals, /deities|devotional/i);
     assert.match(globals, /Aadhaar|PAN/);
+  });
+});
+
+// The designer's own visual direction used to travel only in the brief body, where it
+// lost every argument against a numbered worked example — so every poster came back
+// with the same taraju and steel-thali-with-katoris heroes regardless of what was
+// typed into the field.
+describe("the designer's visual direction outranks the examples", () => {
+  test("it appears in the subject brief, marked binding, above the examples", () => {
+    const rendered = formatTopicFigureGuidance(
+      getTopicFigureGuidance(
+        brief("why diversification matters", {
+          visualDirection: "No thali, no katoris. Use a bank passbook.",
+        }),
+      ),
+    );
+
+    assert.match(rendered, /DESIGNER'S VISUAL DIRECTION — BINDING/);
+    assert.match(rendered, /No thali, no katoris\. Use a bank passbook\./);
+    assert.ok(
+      rendered.indexOf("DESIGNER'S VISUAL DIRECTION") < rendered.indexOf("WORKED EXAMPLES"),
+      "the binding direction must be stated before the examples it overrides",
+    );
+  });
+
+  test("no such section exists when the field is left blank", () => {
+    const rendered = formatTopicFigureGuidance(getTopicFigureGuidance(brief("sip basics")));
+    assert.doesNotMatch(rendered, /VISUAL DIRECTION/);
+  });
+
+  test("it is carried through to the figure-options question", () => {
+    const prompt = buildPosterSystemPrompt(
+      brief("sip basics", { visualDirection: "Lean on the passbook, not vessels." }),
+    );
+    assert.match(prompt, /Lean on the passbook, not vessels\./);
+    assert.match(prompt, /binding on this question/);
+  });
+});
+
+describe("no topic gets a hard-locked subject", () => {
+  test("an unrelated brief is told not to default to a weighing metaphor", () => {
+    const prompt = buildPosterSystemPrompt(brief("how SIP builds wealth over 10 years"));
+    assert.match(prompt, /No subject is pre-locked, for any topic/);
+    assert.doesNotMatch(prompt, /subject is LOCKED/);
+  });
+
+  test("a large-cap vs mid-cap brief is no longer locked either", () => {
+    const prompt = buildPosterSystemPrompt(
+      brief("large cap vs mid cap: how to split your portfolio"),
+    );
+    assert.doesNotMatch(prompt, /subject is LOCKED/);
+    assert.doesNotMatch(prompt, /precision portfolio balance/);
+    // The figure question is what makes it correctable, so it must always run.
+    assert.match(prompt, /MANDATORY HERO-FIGURE QUESTION/);
+  });
+
+  test("every brief still gets the figure question, whatever the visual direction says", () => {
+    const prompt = buildPosterSystemPrompt(
+      brief("what an index really measures", {
+        visualDirection: "Avoid the usual large cap / mid cap balance cliché.",
+      }),
+    );
+    assert.match(prompt, /No subject is pre-locked, for any topic/);
+    assert.match(prompt, /MANDATORY HERO-FIGURE QUESTION/);
+  });
+});
+
+describe("the unmatched-topic fallback does not always name the same props", () => {
+  test("the leading prop varies across briefs", () => {
+    // Rotation is a hash, so any single pair may collide; what matters is that the
+    // fallback is not the one fixed list that made gullak/taraju/thali the house style.
+    const leads = new Set(
+      [
+        "understanding expense ratio",
+        "what is an exit load",
+        "how NAV is calculated",
+        "what is a folio number",
+        "reading a fund factsheet",
+        "what does AUM mean",
+      ].map((topic) => getTopicFigureGuidance(brief(topic)).figures[0]),
+    );
+    assert.ok(leads.size > 1, `expected varied fallback props, got ${leads.size}`);
+  });
+});
+
+// Image models default to American money — green notes, a $ sign, a blank gold
+// disc — because that is what dominates their training data. For a CNBC × Bandhan
+// campaign that is a credibility failure, not a style slip, so the spec is asserted
+// structurally rather than left to prompt review.
+describe("all currency is Indian, specified exactly", () => {
+  test("every circulating denomination is named with its real colour and motif", () => {
+    const pairs: Array<[string, RegExp]> = [
+      ["₹10", /chocolate brown/i],
+      ["₹20", /greenish yellow/i],
+      ["₹50", /cyan-blue/i],
+      ["₹100", /lavender/i],
+      ["₹200", /saffron yellow/i],
+      ["₹500", /stone grey/i],
+    ];
+    for (const [note, colour] of pairs) {
+      const line = INDIAN_CURRENCY_SPEC.split("\n").find((l) => l.startsWith(`- ${note}:`));
+      assert.ok(line, `${note} is not specified`);
+      assert.match(line!, colour, `${note} is missing its real colour`);
+    }
+    for (const motif of [/Konark/, /Ellora/, /Hampi/, /Rani ki Vav/, /Sanchi/, /Red Fort/]) {
+      assert.match(INDIAN_CURRENCY_SPEC, motif);
+    }
+  });
+
+  test("coin metals are specified, since 'a coin' renders as a generic gold token", () => {
+    assert.match(INDIAN_CURRENCY_SPEC, /₹1:.*stainless steel/);
+    assert.match(INDIAN_CURRENCY_SPEC, /₹5:.*nickel-brass/);
+    assert.match(INDIAN_CURRENCY_SPEC, /₹10:.*bimetallic/);
+    assert.match(INDIAN_CURRENCY_SPEC, /₹20:.*(dodecagonal|twelve-sided)/);
+    assert.match(INDIAN_CURRENCY_SPEC, /Lion Capital of Ashoka/);
+  });
+
+  test("real texture and engraved figures are demanded, not just colour", () => {
+    assert.match(INDIAN_CURRENCY_SPEC, /PHYSICAL FIDELITY/);
+    assert.match(INDIAN_CURRENCY_SPEC, /intaglio/i);
+    assert.match(INDIAN_CURRENCY_SPEC, /cotton-rag/i);
+    assert.match(INDIAN_CURRENCY_SPEC, /security thread/i);
+    assert.match(INDIAN_CURRENCY_SPEC, /guilloche/i);
+    assert.match(INDIAN_CURRENCY_SPEC, /struck relief/i);
+    assert.match(INDIAN_CURRENCY_SPEC, /tarnish/i);
+  });
+
+  test("style may simplify the material but never the identity", () => {
+    assert.match(INDIAN_CURRENCY_SPEC, /MATERIAL TREATMENT FOLLOWS THE STYLE CATEGORY/);
+    assert.match(INDIAN_CURRENCY_SPEC, /Simplify the execution, never the identity/);
+  });
+
+  test("foreign money and stand-in tokens are ruled out explicitly", () => {
+    for (const banned of [/dollars/i, /euros/i, /green-toned banknotes/i, /\$, €, £/, /blank unmarked gold/i, /flat vector or emoji-style/i, /₹2000/, /pre-2016/]) {
+      assert.match(INDIAN_CURRENCY_SPEC, banned);
+    }
+  });
+
+  test("the typography carve-out keeps the no-generated-text rule intact", () => {
+    // Without this the spec and the poster's no-text rule contradict each other,
+    // and the model resolves the conflict by inventing garbled numerals.
+    assert.match(INDIAN_CURRENCY_SPEC, /do not attempt legible denomination numerals/i);
+    assert.match(INDIAN_CURRENCY_SPEC, /never invent garbled pseudo-numerals/i);
+    assert.match(INDIAN_CURRENCY_SPEC, /Everything pictorial .* is required in full detail/);
+  });
+
+  test("it reaches both the concept brief and the render prompt", () => {
+    const rendered = formatTopicFigureGuidance(getTopicFigureGuidance(brief("sip basics")));
+    assert.match(rendered, /CURRENCY SPECIFICATION/);
+    assert.ok(rendered.includes(INDIAN_CURRENCY_SPEC), "the concept brief must carry the full spec");
+
+    // The concept's master prompt is model-authored, so the render prompt has to
+    // restate the spec itself rather than trust it to survive.
+    assert.match(AVOID_GLOBALLY.join(" "), /CURRENCY SPECIFICATION, which is absolute/);
   });
 });

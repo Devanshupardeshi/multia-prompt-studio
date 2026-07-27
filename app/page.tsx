@@ -3,6 +3,8 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { chatGptAuthHeaders, isMissingChatGptSession } from "@/lib/chatgpt-session";
 import { readPngResponse } from "@/lib/png-response";
+import { prepareRefineImage } from "@/lib/poster-refine-client";
+import type { RefineRegion } from "@/components/prompt-studio/poster-refine-panel";
 import { readEventStream } from "@/lib/stream-protocol";
 import { useChatGptModels } from "@/lib/use-chatgpt-models";
 import { useFeedback } from "@/lib/use-feedback";
@@ -39,6 +41,9 @@ type ModeResult = {
   /** Live reasoning trace and stage label, ChatGPT engine only. */
   reasoning?: string;
   progress?: string | null;
+  /** Follow-up refinement of the rendered image. */
+  isRefining?: boolean;
+  refineError?: string | null;
 };
 
 const SIGN_IN_TO_GENERATE =
@@ -172,6 +177,105 @@ export default function Home() {
       }
     },
     [feedback, patchMode, replaceImageUrl]
+  );
+
+  /**
+   * Follow-up editing on a rendered image: the user says only what should change,
+   * optionally marks an area and attaches a reference. What must be PRESERVED is
+   * decided server-side from the mode — the face in a swap, the logo in a mockup —
+   * so nothing has to be restated and an edit cannot quietly break the thing that
+   * made the render correct.
+   */
+  const runRefineImage = useCallback(
+    async (
+      mode: GenerationMode,
+      instruction: string,
+      region: RefineRegion | null,
+      reference: string | null,
+    ) => {
+      const current = byModeRef.current[mode]?.image;
+      if (!current || current.status !== "success") return;
+
+      const requestId = (imageRequestId.current[mode] ?? 0) + 1;
+      imageRequestId.current[mode] = requestId;
+      const isStale = () => imageRequestId.current[mode] !== requestId;
+
+      patchMode(mode, { isRefining: true, refineError: null });
+
+      const fail = (message: string) =>
+        patchMode(mode, { isRefining: false, refineError: message });
+
+      let authHeaders: Record<string, string>;
+      try {
+        authHeaders = await chatGptAuthHeaders();
+      } catch (authError) {
+        if (isStale()) return;
+        fail(
+          isMissingChatGptSession(authError)
+            ? "Sign in with ChatGPT (top-right) to refine this image."
+            : authError instanceof Error
+              ? authError.message
+              : "Could not read the ChatGPT session.",
+        );
+        return;
+      }
+
+      try {
+        // The artwork is downscaled before upload — a 4K PNG would exceed the
+        // request-body limit on its own, and the render comes back full size anyway.
+        const response = await fetch("/api/refine-image", {
+          method: "POST",
+          headers: { ...authHeaders, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            mode,
+            instruction,
+            region,
+            reference: reference ?? undefined,
+            image: await prepareRefineImage(current.image),
+            canvas: { width: current.width, height: current.height },
+          }),
+        });
+
+        if (isStale()) return;
+
+        if (response.ok && response.headers.get("Content-Type")?.startsWith("image/")) {
+          const decoded = await readPngResponse(response);
+          if (isStale()) {
+            URL.revokeObjectURL(decoded.image);
+            return;
+          }
+          replaceImageUrl(mode, decoded.image);
+          patchMode(mode, {
+            isRefining: false,
+            refineError: null,
+            image: {
+              status: "success",
+              image: decoded.image,
+              width: decoded.width,
+              height: decoded.height,
+              sourceWidth: decoded.sourceWidth,
+              sourceHeight: decoded.sourceHeight,
+              upscaled: decoded.upscaled,
+              quality: decoded.quality,
+            },
+          });
+          return;
+        }
+
+        const result = await response.json().catch(() => ({}));
+        const message =
+          result.error ||
+          (response.status === 401
+            ? "Sign in with ChatGPT (top-right) to refine this image."
+            : `Refinement failed (HTTP ${response.status}).`);
+        feedback.reportError("refine", message, { mode });
+        fail(message);
+      } catch (err) {
+        if (isStale()) return;
+        fail(err instanceof Error ? err.message : "Refinement failed.");
+      }
+    },
+    [feedback, patchMode, replaceImageUrl],
   );
 
   const runGenerate = useCallback(
@@ -423,6 +527,14 @@ export default function Home() {
         mode={currentMode}
         queuedUntil={showLoading ? cur?.queuedUntil ?? null : null}
         queueMessage={showLoading ? cur?.queueMessage ?? null : null}
+        onRefineImage={
+          isImageMode(currentMode)
+            ? (instruction, region, reference) =>
+                void runRefineImage(currentMode, instruction, region, reference)
+            : undefined
+        }
+        isRefining={cur?.isRefining}
+        refineError={cur?.refineError ?? null}
         hasImage={
           !!(
             (li?.referenceImages && li.referenceImages.length > 0) ||

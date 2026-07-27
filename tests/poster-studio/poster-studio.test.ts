@@ -2,8 +2,7 @@ import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import {
   assertModelCanvasMatchesRequested,
-  buildLargeMidcapMasterPrompt,
-  getLargeMidcapCategoryExecution,
+  buildPosterSystemPrompt,
   normalizePosterConcept,
   parseClarificationQuestions,
   parsePosterConcept,
@@ -327,31 +326,25 @@ describe("structured prompt compaction and category isolation", () => {
     );
   });
 
-  test("Large & Midcap category prompts are genuinely distinct and do not leak Mixed Media", () => {
-    const prompts = new Map<PosterModelCategory, string>();
-    for (const category of CATEGORIES) {
-      const payload = withCategory(
-        LARGE_MIDCAP_DETERMINISTIC_FIXTURE,
-        category,
-      );
-      const concept = getPosterOutputSchema(payload);
-      const prompt = buildLargeMidcapMasterPrompt(
-        payload,
-        concept,
-        concept.financialNarrative,
-        concept.selectedColourCombination.background,
-        concept.selectedColourCombination.accents,
-      );
-      prompts.set(category, prompt);
-      assert.match(prompt, new RegExp(getLargeMidcapCategoryExecution(category).slice(0, 28)));
-      if (category !== "mixed-media") {
-        assert.doesNotMatch(prompt, /mixed media/i);
-      }
+  test("no topic gets a hard-locked subject, not even large-vs-midcap", () => {
+    // A locked subject used to override whatever figure the designer picked, and
+    // skipped the clarification round so it could not be corrected. Every brief now
+    // goes through the same figure question.
+    for (const topic of [
+      "large cap vs mid cap: how to split your portfolio",
+      "why diversification matters",
+      "how SIP builds wealth",
+    ]) {
+      const prompt = buildPosterSystemPrompt({
+        ...LARGE_MIDCAP_DETERMINISTIC_FIXTURE,
+        topic,
+        headline: topic,
+      });
+      assert.match(prompt, /No subject is pre-locked, for any topic/);
+      assert.match(prompt, /MANDATORY HERO-FIGURE QUESTION/);
+      assert.doesNotMatch(prompt, /subject is LOCKED/);
+      assert.doesNotMatch(prompt, /No figure clarification is needed/);
     }
-    assert.equal(new Set(prompts.values()).size, 3);
-    assert.match(prompts.get("mixed-media")!, /photographic cutout/i);
-    assert.match(prompts.get("glassmorphism-3d")!, /controlled refraction/i);
-    assert.match(prompts.get("illustrative")!, /simplified graphic forms/i);
   });
 });
 

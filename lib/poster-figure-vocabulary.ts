@@ -18,10 +18,56 @@ import type { PosterStudioPayload } from "./poster-types";
  * not from Western abstractions or invented mechanisms.
  */
 
+/**
+ * Exact specification for any money that appears in a render.
+ *
+ * Image models default hard to American money — green banknotes, a $ sign, a
+ * blank gold disc — because that is what dominates their training data. For a
+ * CNBC × Bandhan campaign that is not a style slip, it is a credibility failure:
+ * an Indian viewer clocks a dollar bill instantly. So the denominations are named
+ * with their real colours and reverse motifs rather than left to "rupees, please",
+ * and the coin metals are specified, because "a coin" renders as a generic gold
+ * token every time.
+ */
+export const INDIAN_CURRENCY_SPEC = [
+  "ALL MONEY IS INDIAN. Every note, coin, symbol and price in the image is Indian rupees. No other currency may appear anywhere, in any form, at any size.",
+  "",
+  "BANKNOTES — Mahatma Gandhi New Series, current circulating notes only. Each denomination has its own unmistakable base colour, and notes get physically larger as the value rises:",
+  "- ₹10: chocolate brown, Konark Sun Temple wheel on the reverse. The smallest note.",
+  "- ₹20: greenish yellow, Ellora Caves on the reverse.",
+  "- ₹50: fluorescent cyan-blue, the stone chariot at Hampi on the reverse.",
+  "- ₹100: soft lavender / mauve, Rani ki Vav stepwell on the reverse.",
+  "- ₹200: bright saffron yellow, the Sanchi Stupa on the reverse.",
+  "- ₹500: stone grey, the Red Fort with the Indian tricolour on the reverse. The largest circulating note.",
+  "Every note's front carries the same elements: a right-facing Mahatma Gandhi portrait, the Ashoka Pillar lion capital to its lower right, the denomination in both Devanagari and Western numerals, the Reserve Bank of India seal and the Governor's signature, a colour-shifting security thread, and raised intaglio print. The reverse carries the motif above plus a language panel and the year.",
+  "Notes are printed on cotton-rag paper, not glossy stock: matte, slightly fibrous, holding soft creases and worn corners rather than sitting perfectly flat like plastic.",
+  "",
+  "COINS — the current series, and the metal matters as much as the shape:",
+  "- ₹1: ferritic stainless steel, cool neutral silver-grey, small and thin, ~22 mm.",
+  "- ₹2: ferritic stainless steel, same cool silver-grey, ~25 mm.",
+  "- ₹5: nickel-brass, distinctly WARM golden-brass — noticeably yellower than the ₹1 and ₹2, ~23 mm, thicker in the hand.",
+  "- ₹10: bimetallic — a warm nickel-brass centre disc set inside a cool silver stainless-steel outer ring, ~27 mm. The two-tone ring is its signature.",
+  "- ₹20: bimetallic and twelve-sided (dodecagonal), warm centre in a pale outer ring, ~27 mm.",
+  "Every coin's obverse shows the Lion Capital of Ashoka above the Devanagari legend 'सत्यमेव जयते'. Every reverse shows the ₹ symbol beside the value in numerals. Struck relief, milled or plain edges, and real circulated wear — softened high points, faint scratches, warmer tarnish in the recesses — never a mirror-polished blank disc.",
+  "",
+  "THE RUPEE SYMBOL ₹: the Devanagari letter 'र' with two horizontal strokes across its top. When it appears as a dimensional object it is die-struck, embossed, cast or cut — with real thickness, bevelled edges and its own contact shadow — never a flat pasted glyph.",
+  "",
+  "PHYSICAL FIDELITY — the money must be the real object, not a symbol of money. Reproduce the actual engraved figures and the actual surface, at a level of detail where a viewer who handles this currency daily recognises the specific denomination without being told:",
+  "- Notes: the engraved right-facing Mahatma Gandhi portrait built from real intaglio line-work, the correct reverse monument rendered as recognisable architecture rather than a vague shape, the raised ink you can feel across the portrait and the denomination block, cotton-rag paper with visible fibre and a faint mottled grain, the embedded colour-shifting security thread, the Gandhi watermark in the clear window, the see-through register mark, the guilloche rosettes and fine engine-turned line patterns across the field, and honest use: soft central fold, slightly furred edges, a rounded or bent corner, minor surface grime in the creases. Ink sits matte and slightly absorbed into the paper — never glossy, never printed on card, never crisp like freshly cut plastic.",
+  "- Coins: struck relief with genuine depth — the Ashoka lion capital's manes and the abacus reading as modelled form, the ₹ symbol and numeral standing proud of the field with sharp die edges and their own tiny cast shadows, the raised rim, and the edge treatment (reeded on some, plain on others). Then real circulation: high points softened and burnished, faint hairline scratches across the field, darker tarnish settled into the recesses and around the lettering, and on bimetallic ₹10 and ₹20 a visible seam where the warm inner disc meets the cool outer ring, each metal holding its own reflectance. Never a smooth mirror-polished token.",
+  "- Stacks and fans behave physically: coins in a stack sit slightly off-axis with visible edge reeding and dark contact lines between them; a fan or bundle of notes shows the paper's thickness, springs slightly rather than lying dead flat, and casts soft shadows between the leaves. A banded bundle is held by a real paper or rubber band that compresses the notes.",
+  "",
+  "MATERIAL TREATMENT FOLLOWS THE STYLE CATEGORY, IDENTITY DOES NOT. If the selected style is clay, paper or illustration, the money is built in that material — but it is still the correct denomination, still its correct colour, and still carries its correct motif and relief, pressed into clay or cut from card. Simplify the execution, never the identity. A stylised note that could be any country's money has failed.",
+  "",
+  "ONE EXCEPTION — TYPOGRAPHY, NOT IMAGERY. The poster's no-generated-text rule still applies to the printed WORDING: do not attempt legible denomination numerals, the fifteen-language panel, the Governor's signature or the year. Render those as accurate texture and structure at a scale, angle or depth of field where they read as fine print rather than as words, and never invent garbled pseudo-numerals or fake script. Everything pictorial — the portrait, the monument, the lion capital, the ₹ symbol, the guilloche — is required in full detail, because that is what makes the note real.",
+  "",
+  "NEVER RENDER: dollars, cents, euros, pounds, yen, dirhams or any foreign note or coin; a $, €, £ or ¢ sign anywhere; green-toned banknotes of any kind; blank unmarked gold or silver discs standing in for coins; a flat vector or emoji-style coin or note; a plain coloured rectangle standing in for a banknote; the withdrawn ₹2000 magenta note; the demonetised pre-2016 ₹500 and ₹1000 notes; invented denominations, fantasy currency or scrambled pseudo-numerals on a note face; money mixed from two different countries in one image.",
+].join("\n");
+
 /** Culturally-legible Indian money props, grouped by where they come from in daily life. */
 export const INDIAN_FINANCIAL_PROPS = {
   currency:
-    "Indian banknotes with their real tonal identities (₹500 stone grey, ₹200 bright yellow, ₹100 lavender, ₹50 fluorescent blue, ₹10 chocolate brown), Indian coins bearing the Ashoka Lion Capital and Devanagari numerals, the ₹ rupee symbol as an embossed or die-struck form",
+    "Indian banknotes in their real denomination colours (₹500 stone grey, ₹200 saffron yellow, ₹100 lavender, ₹50 cyan-blue, ₹20 greenish yellow, ₹10 chocolate brown), Indian coins in their real metals (cool steel ₹1 and ₹2, warm brass ₹5, two-tone bimetallic ₹10 and twelve-sided ₹20) bearing the Ashoka Lion Capital and Devanagari numerals, the ₹ rupee symbol as a die-struck or embossed form — see the CURRENCY SPECIFICATION for exact detail",
   householdSavings:
     "a gullak (clay or steel coin bank, the first savings vessel in most Indian homes), an earthen matka, a steel tijori or almirah safe, a locked steel cash box",
   shopAndMeasure:
@@ -52,7 +98,8 @@ export const AVOID_GLOBALLY = [
   // model will reach for when asked for an "Indian mutual fund poster".
   "the generic Indian mutual-fund template look — flat vector clip-art, smiling cartoon families or businessmen, tiny icon sets, a tablet or phone showing a rising chart, confetti and starbursts. This campaign is premium editorial work, not a PosterMyWall or stock-template layout",
   "the Western cartoon piggy bank (use a gullak instead)",
-  "dollar signs, dollar bills, euro symbols or any non-Indian currency",
+  "dollar signs, dollar bills, green banknotes, euro or pound symbols, or any non-Indian currency — see the CURRENCY SPECIFICATION, which is absolute",
+  "blank unmarked gold or silver discs used as stand-in coins — an Indian coin is identifiable by its metal, its Ashoka lion capital and its ₹ numeral",
   "the Wall Street charging bull, Western skyscraper skylines or glass-tower financial districts",
   "men in Western business suits shaking hands",
   "religious deities or devotional iconography (Lakshmi, Ganesha) — inappropriate for a regulated fund campaign",
@@ -338,6 +385,8 @@ export interface TopicFigureGuidance {
   indexNote: string | null;
   /** Rotation offset so the same topic does not always lead with the same example. */
   rotation: number;
+  /** The designer's own visual direction, when they wrote one. Outranks the examples. */
+  visualDirection: string | null;
 }
 
 /**
@@ -367,6 +416,20 @@ function rotate<T>(items: T[], offset: number): T[] {
  * mechanism, so an unmatched topic degrades to "pick a real object" instead of
  * "invent an apparatus".
  */
+/** Named objects offered when no topic pattern matches. Rotated per brief. */
+const FALLBACK_PROP_EXAMPLES = [
+  "a gullak",
+  "a bank passbook",
+  "graduated brass paili measures",
+  "an earthen matka",
+  "a bound sheaf of currency notes",
+  "gold bangles",
+  "a bahi-khata ledger",
+  "a steel tiffin stack",
+  "a jute bora sack",
+  "a spike-file of bills",
+];
+
 export function getTopicFigureGuidance(payload: PosterStudioPayload): TopicFigureGuidance {
   const brief = [
     payload.topic,
@@ -386,6 +449,7 @@ export function getTopicFigureGuidance(payload: PosterStudioPayload): TopicFigur
     : null;
 
   const rotation = briefRotation(payload);
+  const visualDirection = payload.visualDirection.trim() || null;
 
   const matched = TOPIC_FIGURE_PATTERNS.find((pattern) => pattern.match.test(brief));
   if (matched) {
@@ -398,6 +462,7 @@ export function getTopicFigureGuidance(payload: PosterStudioPayload): TopicFigur
       avoid: matched.avoid,
       indexNote,
       rotation,
+      visualDirection,
     };
   }
 
@@ -406,7 +471,10 @@ export function getTopicFigureGuidance(payload: PosterStudioPayload): TopicFigur
     matchedId: null,
     concept: `Make the specific financial idea in "${topic}" visible through ONE everyday Indian money object, chosen because its real physical structure explains that idea.`,
     figures: [
-      `A single recognisable Indian money object whose natural structure carries the idea in "${topic}" — for example a gullak, a taraju, a steel thali with katoris, graduated brass paili measures, a bank passbook, a bahi-khata ledger, gold bangles, an earthen matka or a bound sheaf of currency notes`,
+      // Rotated too: an unmatched topic used to always open with "a gullak, a taraju,
+      // a steel thali with katoris", which is exactly how those three became the
+      // house style for every brief that fell through to this fallback.
+      `A single recognisable Indian money object whose natural structure carries the idea in "${topic}" — for example ${rotate(FALLBACK_PROP_EXAMPLES, rotation).join(", ")}`,
       "Where the idea is a comparison, show the same kind of object at two clearly different scales or two clearly different fill levels rather than two unrelated objects",
       "Where the idea is repetition over time, show one vessel plus an evenly spaced run of identical coins or notes",
     ],
@@ -417,6 +485,7 @@ export function getTopicFigureGuidance(payload: PosterStudioPayload): TopicFigur
     ],
     indexNote,
     rotation,
+    visualDirection,
   };
 }
 
@@ -497,11 +566,26 @@ export function formatTopicFigureGuidance(guidance: TopicFigureGuidance): string
   return [
     `FINANCIAL IDEA TO MAKE VISIBLE: ${guidance.concept}`,
     ...(guidance.indexNote ? ["", `INDEX FACTS: ${guidance.indexNote}`] : []),
+    // Placed above the examples and stated as binding. The designer's own direction
+    // was previously only in the brief body, where it lost every argument against a
+    // numbered worked example and the figure came back generic anyway.
+    ...(guidance.visualDirection
+      ? [
+          "",
+          `DESIGNER'S VISUAL DIRECTION — BINDING. This outranks every worked example and the vocabulary below. Follow it for the subject, and if it names, rules out or describes an object, obey that exactly; only fall back to the examples for whatever it leaves open:\n${guidance.visualDirection}`,
+        ]
+      : []),
     "",
     "INVENT THE SUBJECT FOR THIS SPECIFIC BRIEF. Choose the object because its real physical structure explains THIS headline — not because it appears in a list. Two posters on the same topic should not use the same object. If an example below already fits perfectly, use it; otherwise reach past the examples into the wider vocabulary, or combine two props into one credible object.",
     "",
     "INDIAN MONEY VOCABULARY — the range available to you, not a checklist:",
     ...vocabulary,
+    "",
+    // Always sent, not gated on the topic: notes and coins turn up as a secondary
+    // element in almost every finance poster even when the hero is something else,
+    // and that is exactly where a stray dollar bill slips in unnoticed.
+    "CURRENCY SPECIFICATION — absolute, and it applies to any money anywhere in the image, hero or incidental:",
+    INDIAN_CURRENCY_SPEC,
     "",
     "WORKED EXAMPLES — these show the level of concreteness required. Adapt or replace them; do not copy one verbatim unless it is genuinely the best fit for this headline:",
     ...guidance.figures.map((figure, index) => `${index + 1}. ${figure}`),

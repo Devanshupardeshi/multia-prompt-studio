@@ -12,6 +12,7 @@ import {
   type PosterRefineRegion,
 } from "@/lib/poster-refine";
 import type { PercentBounds } from "@/lib/poster-types";
+import { buildStudioRefinePrompt, isStudioRefineMode } from "@/lib/studio-refine";
 
 export const maxDuration = 300;
 export const runtime = "nodejs";
@@ -66,6 +67,16 @@ function parseInvariants(value: unknown): PosterRefineInvariants | null {
     palette,
     reserved,
   };
+}
+
+function parseCanvas(value: unknown): { width: number; height: number } | null {
+  if (!value || typeof value !== "object") return null;
+  const source = value as Record<string, unknown>;
+  const width = Number(source.width);
+  const height = Number(source.height);
+  if (!Number.isInteger(width) || !Number.isInteger(height)) return null;
+  if (width < 512 || height < 512 || width > 4096 || height > 4096) return null;
+  return { width, height };
 }
 
 function parseRegion(value: unknown): PosterRefineRegion | null {
@@ -145,17 +156,44 @@ export async function POST(request: Request) {
   // transport rejects `mask`, so sending one fails the whole request.
   const region = parseRegion(source.region);
 
-  const invariants = parseInvariants(source.invariants);
-  if (!invariants) {
-    return NextResponse.json({ error: "Poster invariants are required." }, { status: 400 });
-  }
+  // Two callers, one model call. The Poster Studio sends full campaign invariants
+  // (palette, reserved logo zones); the Prompt Studio's image modes send a mode
+  // whose locks are looked up server-side, so a face swap cannot lose its face.
+  let prompt: string;
+  let canvas: { width: number; height: number };
 
-  const prompt = buildPosterRefinePrompt({
-    instruction,
-    invariants,
-    region,
-    hasReference: Boolean(reference),
-  });
+  if (source.invariants !== undefined) {
+    const invariants = parseInvariants(source.invariants);
+    if (!invariants) {
+      return NextResponse.json({ error: "Poster invariants are required." }, { status: 400 });
+    }
+    canvas = invariants.canvas;
+    prompt = buildPosterRefinePrompt({
+      instruction,
+      invariants,
+      region,
+      hasReference: Boolean(reference),
+    });
+  } else {
+    if (!isStudioRefineMode(source.mode)) {
+      return NextResponse.json(
+        { error: "Refinement is available for standard, face swap and mockup images." },
+        { status: 400 },
+      );
+    }
+    const parsedCanvas = parseCanvas(source.canvas);
+    if (!parsedCanvas) {
+      return NextResponse.json({ error: "A valid canvas size is required." }, { status: 400 });
+    }
+    canvas = parsedCanvas;
+    prompt = buildStudioRefinePrompt({
+      instruction,
+      mode: source.mode,
+      canvas,
+      region,
+      hasReference: Boolean(reference),
+    });
+  }
 
   try {
     const openai = createOpenAIOAuth(openaiCredentials(request));
@@ -170,14 +208,14 @@ export async function POST(request: Request) {
           ? [new Uint8Array(artwork), new Uint8Array(reference)]
           : [new Uint8Array(artwork)],
       },
-      size: getModelSize(invariants.canvas.width, invariants.canvas.height),
+      size: getModelSize(canvas.width, canvas.height),
       providerOptions: { openai: { quality: "high" } },
     });
 
     const decoded = Buffer.from(result.image.base64, "base64");
     const metadata = await sharp(decoded).metadata();
     const png = await sharp(decoded)
-      .resize(invariants.canvas.width, invariants.canvas.height, {
+      .resize(canvas.width, canvas.height, {
         fit: "fill",
         kernel: sharp.kernel.lanczos3,
         withoutEnlargement: false,
@@ -186,13 +224,13 @@ export async function POST(request: Request) {
       .toBuffer();
 
     return pngStreamResponse(png, {
-      width: invariants.canvas.width,
-      height: invariants.canvas.height,
+      width: canvas.width,
+      height: canvas.height,
       sourceWidth: metadata.width ?? 0,
       sourceHeight: metadata.height ?? 0,
       native: false,
       resampled: true,
-      upscaled: (metadata.width ?? 0) < invariants.canvas.width,
+      upscaled: (metadata.width ?? 0) < canvas.width,
       quality: "high",
       extra: {
         renderer: "gpt-image-2-refinement",
@@ -201,11 +239,11 @@ export async function POST(request: Request) {
       },
     });
   } catch (error) {
-    console.error("Poster refinement error:", error);
+    console.error("Refinement error:", error);
 
     if (isAuthenticationError(error)) {
       return NextResponse.json(
-        { error: "Sign in with ChatGPT to refine the artwork." },
+        { error: "Sign in with ChatGPT to refine the image." },
         { status: 401 },
       );
     }

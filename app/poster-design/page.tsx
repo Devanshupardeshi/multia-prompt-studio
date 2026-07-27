@@ -362,7 +362,7 @@ export default function PosterDesignPage() {
         ]);
         const headers = await getAuthHeaders();
 
-        const response = await fetch("/api/refine-poster-image", {
+        const response = await fetch("/api/refine-image", {
           method: "POST",
           headers: { ...headers, "Content-Type": "application/json" },
           body: JSON.stringify({

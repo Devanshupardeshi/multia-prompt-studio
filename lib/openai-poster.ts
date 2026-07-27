@@ -58,22 +58,6 @@ function approvedBackgroundColour(value: unknown, fallback: string) {
   return APPROVED_BACKGROUND_COLOURS.has(candidate) ? candidate : fallback;
 }
 
-function isLargeMidcapBrief(payload: PosterStudioPayload) {
-  const brief = [
-    payload.topic,
-    payload.headline,
-    payload.subheading,
-    payload.bodyCopy,
-    payload.visualDirection,
-  ]
-    .join(" ")
-    .toLowerCase();
-  return (
-    /\b(large|large-cap|large cap|largecap)\b/.test(brief) &&
-    /\b(mid|mid-cap|mid cap|midcap)\b/.test(brief)
-  );
-}
-
 function formatPercentBounds(
   label: string,
   bounds: PosterConcept["logoSafeAreas"][number]["boundsPercent"],
@@ -90,58 +74,6 @@ function findConceptLayer(
       layer.name.toLowerCase().includes(name.toLowerCase()),
     ) ?? concept.editablePosterLayoutSpecification.layers[0]
   );
-}
-
-export function getLargeMidcapCategoryExecution(
-  category: PosterStudioPayload["modelCategory"],
-) {
-  switch (category) {
-    case "mixed-media":
-      return "CATEGORY EXECUTION — MIXED MEDIA ONLY: construct the taraju's brass beam, pans and pivot as a high-detail black-and-white or strongly desaturated photographic cutout with authentic worn-brass texture. Apply colour only to the tactile layered paper/card coin stacks — Prussian blue on the single large-cap stack and orange/gold on the smaller mid-cap stacks. Use restrained halftone/newsprint texture, precise collage edges and shallow analogue depth. Do not create a fully CGI miniature or colourise the entire photograph.";
-    case "glassmorphism-3d":
-      return "CATEGORY EXECUTION — PREMIUM 3D / GLASSMORPHISM ONLY: render the taraju as a physically based product object — warm anisotropic brass on the beam and pans, struck-metal relief on the coins, restrained translucent glass or acrylic detail with controlled refraction, soft product lighting and credible contact shadows. Keep the coin stacks opaque enough to read immediately. Do not use torn paper, photographic cutouts, halftone collage or newsprint texture.";
-    case "illustrative":
-      return "CATEGORY EXECUTION — DIMENSIONAL EDITORIAL ILLUSTRATIVE ONLY: author the taraju from simplified graphic forms with matte or softly dimensional surfaces, reduced detail and a deliberate silhouette — but keep the beam, the two hanging pans, the seated pivot and the milled coin rims clearly identifiable. Do not use photographic cutouts, torn-paper collage, transparent glass product rendering or glossy CGI spectacle.";
-    case "soft-clay":
-      return "CATEGORY EXECUTION — SOFT CLAY ONLY: model the taraju in matte hand-shaped polymer clay with visible thumbprints and tool marks, softly rounded beam and pans, and clay coin stacks with gently pressed edges. One broad soft light, one soft contact shadow, zero gloss. Do not use photographic cutouts, glass, polished metal or paper layers.";
-    case "isometric-diorama":
-      return "CATEGORY EXECUTION — ISOMETRIC MINIATURE DIORAMA ONLY: present the taraju as a precise miniature model on a thin minimal base, seen in true isometric or a clean 45-degree top-down three-quarter view, physically based matte and satin surfaces with ambient occlusion at every contact point. Keep the beam, both pans and the coin stacks readable from that single angle. Do not use a ground-level photographic angle, torn paper, clay or glossy glass.";
-    case "layered-paper":
-      return "CATEGORY EXECUTION — LAYERED PAPERCRAFT ONLY: build the taraju from stacked planes of matte cut card — base, upright, beam, each pan and each coin stack as separate layers with visible paper fibre, crisp cut edges and short soft shadows between them. Depth comes only from the stacking. Do not use photographic cutouts, glass, polished metal, clay or blur.";
-  }
-}
-
-export function buildLargeMidcapMasterPrompt(
-  payload: PosterStudioPayload,
-  fallback: PosterConcept,
-  financialNarrative: PosterConcept["financialNarrative"],
-  background: string,
-  accents: string[],
-) {
-  const heroBounds = findConceptLayer(fallback, "hero illustration").boundsPercent;
-  const copyBounds = [
-    formatPercentBounds(
-      "headline-safe area",
-      findConceptLayer(fallback, "headline").boundsPercent,
-    ),
-    formatPercentBounds(
-      "subheading-safe area",
-      findConceptLayer(fallback, "subheading").boundsPercent,
-    ),
-    formatPercentBounds(
-      "body-copy-safe area",
-      findConceptLayer(fallback, "body copy").boundsPercent,
-    ),
-    formatPercentBounds(
-      "CTA-safe area",
-      findConceptLayer(fallback, "CTA").boundsPercent,
-    ),
-  ].join("; ");
-  const logoBounds = fallback.logoSafeAreas
-    .map((area) => formatPercentBounds(`${area.logo} logo-safe area`, area.boundsPercent))
-    .join("; ");
-
-  return `Create background and hero artwork only for a premium CNBC × Bandhan Mutual Fund MF Corner poster at exactly ${payload.outputSize.width} × ${payload.outputSize.height} pixels, ${getAspectRatio(payload.outputSize.width, payload.outputSize.height)} aspect ratio. SUBJECT LOCK — this overrides every conflicting hero suggestion: render one centred taraju, the two-pan brass balance found in any Indian kirana shop, inside ${formatPercentBounds("hero bounds", heroBounds)}. It is one connected object with a grounded wooden or brass base, one seated central pivot, one continuous level beam and two real shallow brass pans hanging from it. The left pan carries one broad, heavy stack of large Prussian-blue-toned coins; the right pan carries a group of three to five smaller orange/gold coin stacks. Every stack rests fully on its pan; neither side floats; no extra subject competes with the balance. The left stack means large-cap scale and relative stability; the smaller grouped stacks mean mid-cap breadth and growth potential; the level beam means a deliberate portfolio mix. Do not turn either side into buildings, houses, a skyline, city blocks, a bridge, columns, a construction scene, infrastructure, a staircase, a bar chart or labeled objects, and do not render it as a laboratory scale, a precision instrument or an engineered mechanism. At thumbnail size the silhouette must immediately read as one shopkeeper's balance holding coins, not two separate piles on plinths. ${getLargeMidcapCategoryExecution(payload.modelCategory)} Use a frontal three-quarter product camera at approximately 75–85 mm with minimal perspective distortion. Light from upper-left with a soft frontal fill, restrained rim separation and one broad grounded contact shadow beneath the shared base. Use only approved colours: dominant ${background}; accents ${accents.join(", ") || DESIGN_SYSTEM.primary.orangeStart}; small highlights may use #FEFEFE. Background: a deep ${background} editorial field with subtle tonal depth, one soft light pool behind the balance and one very faint two-density market-cap distribution texture confined behind the hero; no generic chart, candlestick grid, dashboard or fake data. Keep all reserved regions completely quiet and empty: ${logoBounds}; ${copyBounds}. Financial guardrail: ${financialNarrative.guardrail} Generate no text, letters, words, numerals, pseudo-text, logos, trademarks, watermarks, signatures, labels, scale markings or interface elements.`;
 }
 
 async function prepareImageBuffer(source: Buffer): Promise<{
@@ -283,7 +215,7 @@ TASK RULES
 - Bounds are percentages from 0 to 100. Follow the chosen approved layout profile; the application will enforce those exact non-overlapping zones.
 - Complete financialNarrative before choosing an object. State the investor question, one hero metaphor, at least two explicit visual-to-financial mappings, the relationship between those elements and the factual guardrail.
 - Reject any metaphor that contains anonymous shapes, floating pieces, decorative objects or physically unsupported parts. A scale is valid only when both loads visibly encode the named financial categories and make credible contact with trays, beam and fulcrum.
-- For Large & Midcap, the subject is LOCKED to one precision portfolio balance: one broad low Prussian-blue calibrated weight on the left tray, three to five smaller orange/gold calibrated weights on the right tray, and one level beam on one credible fulcrum. Do not propose a bridge, buildings, city blocks, skyline, columns, construction, infrastructure, separate platforms or a miniature scene.
+- No subject is pre-locked, for any topic. Choose the object from the SUBJECT section above on its merits for this headline. Do not default to a two-pan balance, a taraju or any weighing metaphor unless the topic is genuinely about comparing or balancing two named things — and even then it is one candidate among several, not the answer.
 - Design the background as a supporting layer: approved tonal depth, one controlled light pool and at most one topic-relevant low-opacity financial texture. Never default to generic rising candlesticks, dashboard grids or unrelated market decoration.
 - The masterImageGenerationPrompt must describe background + illustration only. It must reserve empty zones for every text block and all three logos, include exact canvas and aspect ratio, approved colour HEX values, precise object placement, camera, material, lighting and shadow instructions, and explicitly forbid generated text/logos.
 - The masterImageGenerationPrompt must restate every financialNarrative visual mapping so the image model knows what each visible component means.
@@ -297,10 +229,12 @@ ${referenceIndex}
 ${
   payload.clarificationAnswers
     ? "\nCLARIFICATION ALREADY ANSWERED — the user's answers are in <clarification_answers> below the brief. Use the chosen hero figure (and any other answers) directly and return the complete production concept now. Returning a clarifying-question object again is not permitted at this stage."
-    : isLargeMidcapBrief(payload)
-      ? "\nNo figure clarification is needed here: the Large & Midcap subject is LOCKED to the precision portfolio balance already specified above. Proceed directly to the complete production concept — do not ask the user to choose a figure for this topic."
-      : `\nMANDATORY HERO-FIGURE QUESTION — ask this before writing the concept, every time:
-Before generating the production concept, you must first propose exactly 3 distinct, concrete hero-figure options for "${payload.topic}" and let the user choose one. Each option is a short (roughly 6-14 word) concrete description of a physically credible object or mechanism and what it financially represents — not a vague theme, not a colour or style choice, not yes/no. The three options must be meaningfully different metaphors from each other, not three variations of the same idea.
+    : `\nMANDATORY HERO-FIGURE QUESTION — ask this before writing the concept, every time:
+Before generating the production concept, you must first propose exactly 3 distinct, concrete hero-figure options for "${payload.topic}" and let the user choose one. Each option is a short (roughly 6-14 word) concrete description of a physically credible object or mechanism and what it financially represents — not a vague theme, not a colour or style choice, not yes/no. The three options must be meaningfully different metaphors from each other, not three variations of the same idea.${
+              payload.visualDirection.trim()
+                ? " All three options must satisfy the DESIGNER'S VISUAL DIRECTION above — it is binding on this question, so do not offer an option it rules out."
+                : ""
+            }
 To ask, return ONLY this JSON object and nothing else — do not generate the production concept yet on this pass: {"needs_clarification": true, "questions": [{"question": "Which figure should represent this topic?", "options": ["option A", "option B", "option C"]}]}. You may add up to 2 more short clarifying questions in the same array only if something else about the brief is genuinely ambiguous, but the hero-figure question above is always required on this first pass.${
           payload.rejectedFigures?.length
             ? `\n\nALREADY REJECTED — the user has seen these options and asked for different ones. Do not repeat them, and do not offer a near-variation of any of them; change the underlying object, not just the wording:\n${payload.rejectedFigures.map((figure) => `- ${figure}`).join("\n")}\nReach further into the everyday Indian money vocabulary for genuinely different objects this time.`
@@ -627,21 +561,16 @@ export function normalizePosterConcept(
     },
   );
 
-  const largeMidcapSubjectLocked = isLargeMidcapBrief(payload);
   const requiredChecks = [
     ...fallback.finalQualityControlChecklist,
     "Headline, subheading, body copy and CTA match the supplied wording exactly",
     "All text remains legible at social-media viewing size",
     "No hero object or background detail enters any copy-safe zone",
     "Generated background and hero remain separate from editable typography and logos",
-    ...(largeMidcapSubjectLocked
-      ? [
-          "At thumbnail size, the hero reads as one connected precision balance",
-          "Large-cap and mid-cap loads rest visibly on real trays connected to one level beam",
-          "No buildings, cityscape, bridge, columns, construction or infrastructure imagery",
-          "The selected illustration category is visually recognisable and not replaced by generic CGI",
-        ]
-      : []),
+    "At thumbnail size the hero reads as one connected, nameable object",
+    "Every visible component carries one of the stated financial meanings",
+    "No buildings, cityscape, bridge, columns, construction or infrastructure imagery",
+    "The selected illustration category is visually recognisable and not replaced by generic CGI",
   ];
   const finalQualityControlChecklist = Array.from(
     new Set([
@@ -650,12 +579,10 @@ export function normalizePosterConcept(
     ]),
   );
 
-  const financialNarrative = largeMidcapSubjectLocked
-    ? fallback.financialNarrative
-    : normalizeFinancialNarrative(
-        rawFinancialNarrative,
-        fallback.financialNarrative,
-      );
+  const financialNarrative = normalizeFinancialNarrative(
+    rawFinancialNarrative,
+    fallback.financialNarrative,
+  );
   const financialMappings = financialNarrative.visualMappings
     .map(
       (mapping) =>
@@ -720,15 +647,7 @@ export function normalizePosterConcept(
         rawColours.accents,
         fallback.selectedColourCombination.accents,
       );
-  const baseMasterPrompt = largeMidcapSubjectLocked
-    ? buildLargeMidcapMasterPrompt(
-        payload,
-        fallback,
-        financialNarrative,
-        normalizedBackground,
-        normalizedAccents,
-      )
-    : stringValue(source.masterImageGenerationPrompt, defaultMasterPrompt);
+  const baseMasterPrompt = stringValue(source.masterImageGenerationPrompt, defaultMasterPrompt);
   const normalizedMasterPrompt = [
     baseMasterPrompt,
     `Financial construction contract: ${financialMappings}. Show this relationship: ${financialNarrative.relationship}. Factual guardrail: ${financialNarrative.guardrail}. Reject any visible component that lacks one of these meanings or has no credible physical support, contact, containment or sequence.`,
@@ -754,40 +673,26 @@ export function normalizePosterConcept(
     "infrastructure diorama",
     "two unrelated subjects on separate plinths",
   ].join(", ");
-  const normalizedCentralVisual = largeMidcapSubjectLocked
-    ? `Subject lock: one centred premium precision portfolio balance, fully contained in the hero bounds. Use one low shared base, one credible central fulcrum, one continuous level beam and two shallow trays. The left tray carries one broad low Prussian-blue calibrated weight; the right tray carries three to five smaller orange/gold calibrated weights. Every load rests fully on its tray. No buildings, miniature city, bridge, columns, separate platforms or secondary scene. At thumbnail size the silhouette must read immediately as one balance instrument.`
-    : [
-        stringValue(
-          rawPlacement.centralVisual,
-          fallback.placementGuidance.centralVisual,
-        ),
-        `Mandatory financial logic: ${financialNarrative.heroMetaphor}`,
-        `Every visible part must implement these mappings: ${financialMappings}.`,
-        `Physical relationship: ${financialNarrative.relationship}`,
-      ].join(" ");
-  const normalizedBackgroundDetails = largeMidcapSubjectLocked
-    ? `Use a deep ${normalizedBackground} editorial field with restrained tonal depth, one soft light pool behind the single balance instrument and at most one very faint two-density market-cap distribution texture confined behind the hero. Keep every logo and copy-safe area quiet. No generic rising chart, candlesticks, dashboard grid, fake data, architecture or decorative market clutter.`
-    : [
-        stringValue(
-          rawPlacement.backgroundDetails,
-          fallback.placementGuidance.backgroundDetails,
-        ),
-        "Use one approved tonal depth treatment, one coherent light pool and at most one low-opacity financial texture that directly supports the topic. Fade all detail away from logo and copy-safe areas; no generic rising charts, dashboards or random market decoration.",
-      ].join(" ");
+  const normalizedCentralVisual = [
+    stringValue(rawPlacement.centralVisual, fallback.placementGuidance.centralVisual),
+    `Mandatory financial logic: ${financialNarrative.heroMetaphor}`,
+    `Every visible part must implement these mappings: ${financialMappings}.`,
+    `Physical relationship: ${financialNarrative.relationship}`,
+  ].join(" ");
+  const normalizedBackgroundDetails = [
+    stringValue(rawPlacement.backgroundDetails, fallback.placementGuidance.backgroundDetails),
+    "Use one approved tonal depth treatment, one coherent light pool and at most one low-opacity financial texture that directly supports the topic. Fade all detail away from logo and copy-safe areas; no generic rising charts, dashboards or random market decoration.",
+  ].join(" ");
   const normalizedBodyPlacement = payload.bodyCopy
     ? `${stringValue(rawPlacement.bodyCopy, fallback.placementGuidance.bodyCopy)} Use the complete lower information-panel bounds above the CTA, preserve every supplied word, and reduce the hero before reducing body-copy legibility.`
     : fallback.placementGuidance.bodyCopy;
 
   const concept: PosterConcept = {
-    conceptTitle: largeMidcapSubjectLocked
-      ? "Calibrated Portfolio Balance"
-      : stringValue(source.conceptTitle, payload.topic),
-    conceptExplanation: largeMidcapSubjectLocked
-      ? "A single precision balance makes the portfolio decision immediately legible: one substantial blue calibrated weight represents established large-cap scale, while several smaller orange/gold calibrated weights represent the breadth and growth potential of mid caps. A level shared beam communicates considered allocation without promising an outcome."
-      : stringValue(
-          source.conceptExplanation,
-          `An original campaign concept built around ${payload.topic}, with one dominant financial metaphor and protected editorial space.`,
-        ),
+    conceptTitle: stringValue(source.conceptTitle, payload.topic),
+    conceptExplanation: stringValue(
+      source.conceptExplanation,
+      `An original campaign concept built around ${payload.topic}, with one dominant financial metaphor and protected editorial space.`,
+    ),
     financialNarrative,
     layoutArchetype,
     recommendedLayoutDirection: stringValue(
@@ -855,9 +760,7 @@ export function normalizePosterConcept(
         POSTER_CATEGORIES[payload.modelCategory].label,
       ),
       application: stringValue(
-        largeMidcapSubjectLocked
-          ? `${POSTER_CATEGORIES[payload.modelCategory].promptDirective} Apply this finish to the single locked precision-balance subject; do not substitute architecture or a miniature scene.`
-          : rawCategory.application,
+        rawCategory.application,
         fallback.selected3DModelReferenceCategory.application,
       ),
     },
