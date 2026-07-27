@@ -11,9 +11,11 @@ import {
   buildPosterGenerationPrompt,
   stringifyPosterGenerationPrompt,
 } from "../../lib/poster-generation-prompt";
+import { getCategoryHumanExecution } from "../../lib/poster-figure-vocabulary";
 import {
   buildPosterImagePrompt,
   compactRendererContract,
+  detectElements,
   MAX_PROVIDER_PROMPT_CHARS,
   PosterImagePromptValidationError,
 } from "../../lib/poster-image-prompt";
@@ -719,4 +721,81 @@ describe("logo variant selection", () => {
     const bandhan = findLogo(concept, "Bandhan");
     assert.match(bandhan!.logo!.assetPath, /variant=light-bg/);
   });
+});
+
+// The render prompt carries the currency, human-element and colour-authority specs
+// verbatim on top of the compacted contract. Those are several kilobytes each, so
+// the budget is asserted for every style rather than assumed — an overflow throws
+// AFTER the concept call has already been paid for.
+describe("the render prompt fits the provider budget in every style", () => {
+  for (const category of CATEGORIES) {
+    test(`${category} stays inside the ${MAX_PROVIDER_PROMPT_CHARS}-char limit`, () => {
+      const { input } = imagePromptInput(
+        withCategory(LARGE_MIDCAP_DETERMINISTIC_FIXTURE, category),
+      );
+      const result = buildPosterImagePrompt(input);
+      assert.ok(
+        result.finalLength <= MAX_PROVIDER_PROMPT_CHARS,
+        `${category} produced ${result.finalLength} chars`,
+      );
+      // The compactor is designed to fill whatever the wrapper leaves, so the
+      // length alone proves little. What matters is that the specs did not squeeze
+      // out the contract fields the render depends on — buildPosterImagePrompt
+      // throws if they are missing, and these must survive verbatim.
+      assert.match(result.text, /hero_bounds_percent/);
+      assert.match(result.text, /logo_safe_areas/);
+      assert.match(result.text, /visual_mappings/);
+      assert.ok(
+        result.contractLength > 6_000,
+        `${category} compacted the contract to ${result.contractLength} chars`,
+      );
+    });
+
+    test(`${category} attaches its human execution rule when a person is involved`, () => {
+      const execution = getCategoryHumanExecution(category);
+      assert.ok(execution.length > 0, `${category} has no human execution rule`);
+
+      const payload = withCategory(LARGE_MIDCAP_DETERMINISTIC_FIXTURE, category);
+      const concept = getPosterOutputSchema(payload);
+      // Appended to the raw contract text, which is what detectElements reads.
+      concept.placementGuidance.centralVisual +=
+        " A shopkeeper's hand rests on the hero.";
+      const rawContract = stringifyPosterGenerationPrompt(concept, payload);
+      assert.ok(detectElements(rawContract).human, "fixture must mention a person");
+      const text = buildPosterImagePrompt({
+        rawContract,
+        negativePrompt: "",
+        modelCategory: category,
+        categoryDirective: POSTER_CATEGORIES[category].promptDirective,
+        width: payload.outputSize.width,
+        height: payload.outputSize.height,
+      }).text;
+
+      assert.match(text, /HUMAN ELEMENT — ABSOLUTE/);
+      assert.ok(text.includes(execution), `${category} lost its human execution rule`);
+      // The ternary picked the full block, so the short form must be gone.
+      assert.doesNotMatch(text, /no person is required here/);
+    });
+
+  }
+});
+
+// The heavy specs share the provider budget with the production contract, so a
+// poster of a banyan tree must not spend 8KB on currency and anatomy rules it
+// cannot use — that budget belongs to the financial mappings and layout bounds.
+describe("the heavy specs are attached only when the poster involves them", () => {
+  test("money is detected from the contract text", () => {
+    for (const text of ["a stack of coins", "one ₹500 note", "cash in a gullak", "the DENOMINATION block"]) {
+      assert.equal(detectElements(text).money, true, text);
+    }
+    assert.equal(detectElements("a banyan sapling in an earthen pot").money, false);
+  });
+
+  test("people are detected from the contract text", () => {
+    for (const text of ["a shopkeeper's hand", "one investor holding it", "a woman's palm", "her fingers"]) {
+      assert.equal(detectElements(text).human, true, text);
+    }
+    assert.equal(detectElements("a taraju on a wooden base").human, false);
+  });
+
 });

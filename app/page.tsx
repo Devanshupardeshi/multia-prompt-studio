@@ -44,7 +44,11 @@ type ModeResult = {
   /** Follow-up refinement of the rendered image. */
   isRefining?: boolean;
   refineError?: string | null;
+  /** Every render for this prompt, oldest first, so a refinement is comparable. */
+  renders?: SuccessfulImageRender[];
 };
+
+type SuccessfulImageRender = Extract<ImageRenderState, { status: "success" }>;
 
 const SIGN_IN_TO_GENERATE =
   "Sign in with ChatGPT (top-right) to generate a prompt with GPT-5.6 Sol.";
@@ -59,22 +63,41 @@ export default function Home() {
   const retryTimer = useRef<number | null>(null);
   const runRef = useRef<(payload: GeneratePayload, engine: PromptEngine) => void>(() => {});
 
-  // One counter per mode so a newer run invalidates an in-flight render, and the
-  // object URLs so replacing artwork doesn't leak several MB each time.
+  // One counter per mode so a newer run invalidates an in-flight render.
   const imageRequestId = useRef<Record<string, number>>({});
-  const imageUrls = useRef<Record<string, string>>({});
 
-  const replaceImageUrl = useCallback((mode: string, next: string | null) => {
-    const previous = imageUrls.current[mode];
-    if (previous && previous !== next) URL.revokeObjectURL(previous);
-    if (next) imageUrls.current[mode] = next;
-    else delete imageUrls.current[mode];
+  /**
+   * The last few renders per mode, so refining does not destroy what you had.
+   *
+   * Each is a multi-megabyte object URL, so the history is capped and the evicted
+   * URL is revoked explicitly — but the render currently on screen and its recent
+   * predecessors stay alive and directly comparable, the same way the Poster
+   * Studio keeps its rolls.
+   */
+  const MAX_RENDERS = 4;
+  const imageUrls = useRef<Record<string, string[]>>({});
+
+  const trackImageUrl = useCallback((mode: string, next: string) => {
+    const kept = [...(imageUrls.current[mode] ?? []), next];
+    while (kept.length > MAX_RENDERS) {
+      const evicted = kept.shift();
+      if (evicted) URL.revokeObjectURL(evicted);
+    }
+    imageUrls.current[mode] = kept;
+  }, []);
+
+  /** Drops every render for a mode — used when a fresh generation starts. */
+  const clearImageUrls = useCallback((mode: string) => {
+    (imageUrls.current[mode] ?? []).forEach((url) => URL.revokeObjectURL(url));
+    delete imageUrls.current[mode];
   }, []);
 
   useEffect(() => {
     return () => {
       if (retryTimer.current) window.clearTimeout(retryTimer.current);
-      Object.values(imageUrls.current).forEach((url) => URL.revokeObjectURL(url));
+      Object.values(imageUrls.current)
+        .flat()
+        .forEach((url) => URL.revokeObjectURL(url));
     };
   }, []);
 
@@ -139,18 +162,22 @@ export default function Home() {
             URL.revokeObjectURL(decoded.image);
             return;
           }
-          replaceImageUrl(mode, decoded.image);
+          trackImageUrl(mode, decoded.image);
+          const rendered: SuccessfulImageRender = {
+            status: "success",
+            image: decoded.image,
+            width: decoded.width,
+            height: decoded.height,
+            sourceWidth: decoded.sourceWidth,
+            sourceHeight: decoded.sourceHeight,
+            upscaled: decoded.upscaled,
+            quality: decoded.quality,
+          };
+          // Appended, so "Re-render" builds a comparable set instead of throwing
+          // the previous roll away. A brand-new prompt clears the list first.
           patchMode(mode, {
-            image: {
-              status: "success",
-              image: decoded.image,
-              width: decoded.width,
-              height: decoded.height,
-              sourceWidth: decoded.sourceWidth,
-              sourceHeight: decoded.sourceHeight,
-              upscaled: decoded.upscaled,
-              quality: decoded.quality,
-            },
+            image: rendered,
+            renders: [...(byModeRef.current[mode]?.renders ?? []), rendered].slice(-MAX_RENDERS),
           });
           feedback.askForRating(decoded.image, {
             artwork: decoded.image,
@@ -176,7 +203,7 @@ export default function Home() {
         });
       }
     },
-    [feedback, patchMode, replaceImageUrl]
+    [feedback, patchMode, trackImageUrl]
   );
 
   /**
@@ -244,20 +271,24 @@ export default function Home() {
             URL.revokeObjectURL(decoded.image);
             return;
           }
-          replaceImageUrl(mode, decoded.image);
+          trackImageUrl(mode, decoded.image);
+          const refined: SuccessfulImageRender = {
+            status: "success",
+            image: decoded.image,
+            width: decoded.width,
+            height: decoded.height,
+            sourceWidth: decoded.sourceWidth,
+            sourceHeight: decoded.sourceHeight,
+            upscaled: decoded.upscaled,
+            quality: decoded.quality,
+          };
+          // Appended, not replaced: the previous version stays selectable, so a
+          // refinement that made things worse is one click to undo.
           patchMode(mode, {
             isRefining: false,
             refineError: null,
-            image: {
-              status: "success",
-              image: decoded.image,
-              width: decoded.width,
-              height: decoded.height,
-              sourceWidth: decoded.sourceWidth,
-              sourceHeight: decoded.sourceHeight,
-              upscaled: decoded.upscaled,
-              quality: decoded.quality,
-            },
+            image: refined,
+            renders: [...(byModeRef.current[mode]?.renders ?? []), refined].slice(-MAX_RENDERS),
           });
           return;
         }
@@ -275,7 +306,7 @@ export default function Home() {
         fail(err instanceof Error ? err.message : "Refinement failed.");
       }
     },
-    [feedback, patchMode, replaceImageUrl],
+    [feedback, patchMode, trackImageUrl],
   );
 
   const runGenerate = useCallback(
@@ -285,7 +316,7 @@ export default function Home() {
       setLoadingMode(mode);
       // A new run invalidates whatever render the previous one kicked off.
       imageRequestId.current[mode] = (imageRequestId.current[mode] ?? 0) + 1;
-      replaceImageUrl(mode, null);
+      clearImageUrls(mode);
       patchMode(mode, {
         json: null,
         error: null,
@@ -294,8 +325,11 @@ export default function Home() {
         queuedUntil: null,
         queueMessage: null,
         image: { status: "idle" },
+        renders: [],
         reasoning: "",
         progress: null,
+        isRefining: false,
+        refineError: null,
       });
 
       const clearLoading = () => setLoadingMode((cur) => (cur === mode ? null : cur));
@@ -442,7 +476,7 @@ export default function Home() {
         clearLoading();
       }
     },
-    [patchMode, replaceImageUrl, runGenerateImage]
+    [clearImageUrls, patchMode, runGenerateImage]
   );
 
   useEffect(() => {
@@ -527,6 +561,11 @@ export default function Home() {
         mode={currentMode}
         queuedUntil={showLoading ? cur?.queuedUntil ?? null : null}
         queueMessage={showLoading ? cur?.queueMessage ?? null : null}
+        renders={cur?.renders ?? []}
+        onSelectRender={(index) => {
+          const chosen = cur?.renders?.[index];
+          if (chosen) patchMode(currentMode, { image: chosen });
+        }}
         onRefineImage={
           isImageMode(currentMode)
             ? (instruction, region, reference) =>

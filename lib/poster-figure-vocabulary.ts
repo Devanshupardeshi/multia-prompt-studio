@@ -64,6 +64,93 @@ export const INDIAN_CURRENCY_SPEC = [
   "NEVER RENDER: dollars, cents, euros, pounds, yen, dirhams or any foreign note or coin; a $, €, £ or ¢ sign anywhere; green-toned banknotes of any kind; blank unmarked gold or silver discs standing in for coins; a flat vector or emoji-style coin or note; a plain coloured rectangle standing in for a banknote; the withdrawn ₹2000 magenta note; the demonetised pre-2016 ₹500 and ₹1000 notes; invented denominations, fantasy currency or scrambled pseudo-numerals on a note face; money mixed from two different countries in one image.",
 ].join("\n");
 
+/**
+ * Which colours are brand-locked and which are the figure's own.
+ *
+ * The campaign palette exists to make the canvas recognisable as MF Corner, and
+ * that job is done by the background field, the type and the logo zones. Applying
+ * it to the hero as well was actively breaking things: a ₹100 note is lavender and
+ * a ₹500 is stone grey, neither of which is a brand hue, and real Indian skin tones
+ * are not in the palette at all. Forced onto the palette, a "real" note became a
+ * Prussian-blue rectangle and a real person became a blue-tinted mannequin.
+ *
+ * So: the canvas stays locked, the figure is free to be the colour it actually is.
+ */
+export const HERO_COLOUR_FREEDOM = [
+  "COLOUR AUTHORITY — two separate rules, do not mix them up.",
+  "",
+  "BRAND-LOCKED, no exceptions: the dominant background field and its gradient or vignette, the editable text colours, and everything inside the logo and copy-safe zones. These come from the approved palette only, and the background is always one of the rich primary hue families — never white, pale or a light neutral.",
+  "",
+  "THE HERO FIGURE IS FREE. The subject uses whatever colours its material and the selected style genuinely call for, whether or not those colours are in the brand palette. Real brass is warm yellow; real terracotta is orange-brown; real clay is putty or earth; real card stock is whatever the paper is; a ₹100 note is lavender and a ₹500 is stone grey; skin is a real Indian skin tone; a banyan's leaves are green. Render the true colour of the thing. A hero repainted into a brand hue reads as a plastic prop and defeats the realism this campaign depends on.",
+  "",
+  "WHAT STILL DISCIPLINES THE FIGURE — coherence, not the palette:",
+  "- It must sit believably in the approved background: shared light direction and colour temperature, the background's hue reflected softly in shadows and on facing surfaces, and enough tonal separation from the field that the silhouette reads at thumbnail size.",
+  "- Restraint over range. One or two dominant material colours plus their natural variation, not a rainbow. Saturation stays editorial, not candy.",
+  "- Brand accents are still welcome as a deliberate touch on the hero — a rim light in an approved accent, a small painted tab, a coloured base — they are simply no longer mandatory across the whole object.",
+  "- The style category still governs treatment. If the chosen style is deliberately desaturated or deliberately flat, that wins: this rule frees the figure from the BRAND palette, not from its own style.",
+].join("\n");
+
+/**
+ * How a person renders when one appears in a poster.
+ *
+ * Two failures to prevent, and they are different problems. The first is the
+ * uncanny one: image models produce glossy doll faces, plastic airbrushed skin and
+ * six-fingered hands, and a single bad hand destroys the credibility of an
+ * otherwise premium render. The second is cultural: left alone, the default face
+ * is a Western one in a Western suit, which is wrong for this audience.
+ *
+ * Note the framing — this is the standard for a person who is already in the
+ * concept, not an invitation to add one. AVOID_GLOBALLY still rules out the
+ * smiling stock-photo family this campaign must never look like.
+ */
+export const HUMAN_ELEMENT_SPEC = [
+  "IF A PERSON, A FACE, A HAND OR ANY PART OF A BODY APPEARS, IT MUST BE PHOTOGRAPHICALLY REAL. Not a character, not an avatar, not a mascot. A real person, of the kind who actually watches this show.",
+  "",
+  "ANATOMY IS NON-NEGOTIABLE, in every style:",
+  "- Hands are the single most common failure and the most damaging. Exactly five fingers per hand, correct relative lengths, three joints per finger and two on the thumb, nails with real nail beds and cuticles, tendons and knuckle creases visible, a plausible wrist angle, and a real grip — fingers wrapping an object with contact pressure and slight skin deformation where they press. If a hand cannot be rendered exactly, crop it out of frame or occlude it behind the hero rather than faking it.",
+  "- Faces: correct eye spacing and matching iris size, both eyes focused on the same point, natural asymmetry between the two halves, real eyelid folds and lash lines, ears with correct helix and lobe structure, teeth of even count and natural shade if visible, and lips with real texture rather than a smooth painted shape.",
+  "- Skin: visible pores, fine lines, small blemishes, faint hair, uneven tone across cheeks and neck, and genuine subsurface scattering where light passes through the ear rim, nostril or finger edge. Never airbrushed plastic, never wax, never a uniform matte fill.",
+  "- Bodies: real proportion and weight, a spine and limbs under actual gravity, clothing that drapes with real fabric weight and creases where the body bends, and a pose a person could actually hold.",
+  "- Expression: a natural, settled micro-expression — never a wide rictus stock-photo grin, never a dead neutral stare.",
+  "",
+  "THE PERSON IS INDIAN, and specifically so rather than generically 'ethnic':",
+  "- The genuine range of Indian skin tones, from fair wheatish through to deep brown, with warm undertones and natural variation across the face — not one flattened mid-brown.",
+  "- Black or very dark brown hair with real Indian hair texture — straight, wavy or coiled, with weight and individual strands at the hairline, not a moulded helmet.",
+  "- Clothing appropriate to the person and the setting: a cotton or silk saree with real pleat structure, a salwar kameez with dupatta, a kurta, a formal shirt with a soft collar, a dhoti — chosen for who this person is, not a Western business suit by default.",
+  "- Real, specific age: a shopkeeper's weathered hands read completely differently from a first-time investor's, and that difference should be visible and deliberate.",
+  "",
+  "STYLE GOVERNS THE MATERIAL, NEVER THE ANATOMY. In clay, paper, illustration or diorama the person is built from that material — but the hand still has five correctly jointed fingers, the face still has correct feature placement, the body still obeys gravity, and the person is still visibly Indian. Simplify the surface, never the structure. A clay figure with a malformed hand is still a malformed hand.",
+  "",
+  "NEVER RENDER: a glossy 3D avatar, Pixar or Disney-style character, videogame model, mannequin or wax figure; plastic, rubbery or airbrushed skin; malformed, extra, missing, fused or bent-backwards fingers; mismatched or misaligned eyes; a smiling Western businessman or a stock-photo family; a generic Western default face where the brief calls for an Indian one; a floating disembodied hand with no forearm or credible source; more than one person unless the concept explicitly requires them.",
+].join("\n");
+
+/**
+ * How each style renders a person, given the shared anatomy rules above.
+ *
+ * Without this, a style category and "make the human realistic" contradict each
+ * other and the model picks one — usually by dropping a photoreal head onto a clay
+ * body. Each entry says which layer stays real and which follows the material.
+ */
+const CATEGORY_HUMAN_EXECUTION: Record<string, string> = {
+  "mixed-media":
+    "This style's person is a real photograph. Use a genuine editorial photograph of an Indian person or their hands, converted to black-and-white or heavily desaturated grayscale to match the rest of the collage, with the print's own grain and halftone. Full photographic skin detail — pores, hair, creases, subsurface light — survives the desaturation. Cut edges may be torn or scissored, but the anatomy inside the cutout is untouched photography. Never a rendered figure, never a colourised face.",
+  "glassmorphism-3d":
+    "This style's person is a physically based render at photoreal fidelity: real subsurface scattering through the ear rim and finger edges, individual hair strands with correct sheen, fabric with woven micro-detail and real drape, soft product lighting and true contact shadows where skin meets object. The surrounding props may carry translucent glass or acrylic detail; the SKIN NEVER DOES — skin is opaque, matte-to-satin and human. A glass or crystalline person is the exact failure this rule exists to prevent.",
+  illustrative:
+    "This style's person is reduced to simplified dimensional form with matte surfaces and a deliberate silhouette — but the reduction is in surface detail only. Feature placement, hand structure, proportion and posture stay anatomically exact, and the face keeps enough real modelling to read as a specific Indian person rather than a symbol. Simplify texture; never simplify structure into a cartoon or an icon of a person.",
+  "soft-clay":
+    "This style's person is modelled in matte polymer clay with visible thumbprints, tool marks and softly rounded edges. The clay may be a warm neutral or a naturalistic skin tone, but the sculpt must be an accurate one: correct facial proportion, a hand with five properly jointed fingers, clothing whose folds follow real fabric behaviour, and hair sculpted with real directional flow. Think a master stop-motion armature, not a child's plasticine figure — Aardman precision, not a lump with a smile.",
+  "isometric-diorama":
+    "This style's person is a precise scale miniature seen in true isometric or a clean 45-degree three-quarter view — a museum-quality architectural or railway figure, not a toy. At that reduced size the silhouette, posture and clothing must still read unmistakably as a specific Indian person, and hands stay correctly formed even when small. Physically based matte and satin surfaces with ambient occlusion at every contact point. Never a faceless grey scale-model dummy or a chunky game-piece figure.",
+  "layered-paper":
+    "This style's person is constructed from stacked planes of matte cut card, with visible paper fibre, crisp cut edges and short soft shadows between the layers. Depth comes only from the stacking, so the layer breakdown must follow real anatomy — separate planes for brow, cheek, jaw, each finger and each fold of cloth — so the assembled figure reads as a real Indian person in paper relief. Never a flat pictogram, silhouette or paper-doll cut-out.",
+};
+
+/** Style-specific instruction for rendering a person, on top of HUMAN_ELEMENT_SPEC. */
+export function getCategoryHumanExecution(category: string): string {
+  return CATEGORY_HUMAN_EXECUTION[category] ?? "";
+}
+
 /** Culturally-legible Indian money props, grouped by where they come from in daily life. */
 export const INDIAN_FINANCIAL_PROPS = {
   currency:
@@ -586,6 +673,13 @@ export function formatTopicFigureGuidance(guidance: TopicFigureGuidance): string
     // and that is exactly where a stray dollar bill slips in unnoticed.
     "CURRENCY SPECIFICATION — absolute, and it applies to any money anywhere in the image, hero or incidental:",
     INDIAN_CURRENCY_SPEC,
+    "",
+    // Also unconditional: a hand holding the hero is one of the most common
+    // compositions in this campaign, and a bad hand ruins an otherwise good render.
+    "HUMAN ELEMENT SPECIFICATION — absolute, and it applies to any person, face, hand or body part anywhere in the image:",
+    HUMAN_ELEMENT_SPEC,
+    "",
+    HERO_COLOUR_FREEDOM,
     "",
     "WORKED EXAMPLES — these show the level of concreteness required. Adapt or replace them; do not copy one verbatim unless it is genuinely the best fit for this headline:",
     ...guidance.figures.map((figure, index) => `${index + 1}. ${figure}`),

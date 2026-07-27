@@ -1,4 +1,9 @@
-import { INDIAN_CURRENCY_SPEC } from "./poster-figure-vocabulary";
+import {
+  getCategoryHumanExecution,
+  HERO_COLOUR_FREEDOM,
+  HUMAN_ELEMENT_SPEC,
+  INDIAN_CURRENCY_SPEC,
+} from "./poster-figure-vocabulary";
 import type { PercentBounds, PosterModelCategory } from "./poster-types";
 
 const MAX_NEGATIVE_PROMPT_CHARS = 2_200;
@@ -366,10 +371,60 @@ function getCategorySpecificNegatives(category: PosterModelCategory) {
   ];
 }
 
+/**
+ * Which of the heavy specs this particular poster actually needs.
+ *
+ * The currency and human specs are several kilobytes each, and the provider budget
+ * is shared with the production contract — sending both unconditionally compacted
+ * the contract from 18KB down to 12KB, i.e. it started dropping the financial
+ * mappings and layout data that make the poster correct. A banyan tree needs
+ * neither spec, so each is included only when the concept actually involves it.
+ *
+ * The concept-authoring prompt is a separate, much roomier request and always
+ * carries both, so the model knows the rules when it writes the concept.
+ */
+const MONEY_WORDS =
+  /\b(coins?|notes?|banknotes?|currency|rupees?|cash|money|monetary|denominations?|paisa|tender|gullak)\b/;
+// "man" and "arm" are deliberately absent: once case is folded they match inside
+// "many" and "armature", and a false positive here costs 4KB of contract detail.
+const HUMAN_WORDS =
+  /\b(hands?|fingers?|thumb|palm|wrist|forearm|persons?|people|faces?|investors?|shopkeepers?|family|families|woman|women|child|children|human|portrait of)\b/;
+
+export function detectElements(rawContract: string) {
+  const text = rawContract.toLowerCase();
+  return {
+    money: MONEY_WORDS.test(text) || text.includes("₹"),
+    human: HUMAN_WORDS.test(text),
+  };
+}
+
+
+type PosterElements = ReturnType<typeof detectElements>;
+
+const MONEY_BLOCK = `CURRENCY — ABSOLUTE, and it governs any money in the frame, hero or incidental:
+${INDIAN_CURRENCY_SPEC}
+`;
+
+// Short form when the concept does not involve that element: the rule still holds
+// if the model adds one, but it costs 200 characters instead of 4,000.
+const MONEY_BRIEF = `CURRENCY: if any money appears at all, it is Indian rupees only — correct denomination colours and real coin metals, never a dollar, a green note or a blank gold disc.
+`;
+
+const HUMAN_BRIEF = `HUMAN ELEMENT: no person is required here. If a hand or face does appear it must be photographically real and anatomically exact — five correctly jointed fingers, a real Indian skin tone — never a glossy avatar or a malformed hand.
+`;
+
+function humanBlock(category: PosterModelCategory) {
+  return `HUMAN ELEMENT — ABSOLUTE, and it governs any person, face, hand or body part in the frame:
+${HUMAN_ELEMENT_SPEC}
+${getCategoryHumanExecution(category)}
+`;
+}
+
 function composePrompt(
   input: PosterImagePromptInput,
   compactContract: string,
   compactNegativePrompt: string,
+  elements: PosterElements,
 ) {
   // Ordering follows OpenAI's guidance for the gpt-image family: scene/background
   // first, then subject, then details, then constraints. The background rule used to
@@ -404,8 +459,9 @@ NON-NEGOTIABLE COMPOSITION RULES:
 - Keep the hero simple and immediately recognisable — one clear object built from a small number of parts (a gullak with coins at its slot, a taraju holding two coin stacks, a steel thali with filled katoris), not an elaborate multi-object scene. If a viewer cannot identify the hero object and its financial meaning within one second at thumbnail size, it is too complicated.
 - Generate no text, letters, words, numerals, pseudo-text, dial labels, scale markings, logos, brand marks, watermarks, signatures or interface elements.
 
-CURRENCY — ABSOLUTE, and it governs any money in the frame, hero or incidental:
-${INDIAN_CURRENCY_SPEC}
+${elements.money ? MONEY_BLOCK : MONEY_BRIEF}
+${elements.human ? humanBlock(input.modelCategory) : HUMAN_BRIEF}
+${HERO_COLOUR_FREEDOM}
 
 NEGATIVE PROMPT:
 ${compactNegativePrompt}`;
@@ -414,6 +470,7 @@ ${compactNegativePrompt}`;
 function buildNegativePrompt(
   input: PosterImagePromptInput,
   compactContract: string,
+  elements: PosterElements,
 ) {
   const required = [
     "cropped or oversized hero",
@@ -450,6 +507,21 @@ function buildNegativePrompt(
     "blank unmarked gold coins",
     "fantasy or invented currency",
     "garbled numerals on banknotes",
+    // Hands are the most damaging single failure in an otherwise premium render.
+    "hero repainted into a flat brand colour",
+    "malformed hands",
+    "extra or missing fingers",
+    "fused or bent-backwards fingers",
+    "six-fingered hand",
+    "plastic or rubbery skin",
+    "airbrushed waxy face",
+    "glossy 3D avatar",
+    "Pixar-style character",
+    "mannequin or wax figure",
+    "mismatched or misaligned eyes",
+    "Western businessman in a suit",
+    "smiling stock-photo family",
+    "floating disembodied hand",
     ...getCategorySpecificNegatives(input.modelCategory),
   ];
   const supplied = input.negativePrompt
@@ -462,7 +534,7 @@ function buildNegativePrompt(
     const next = [...accepted, candidate].join(", ");
     if (
       next.length <= MAX_NEGATIVE_PROMPT_CHARS &&
-      composePrompt(input, compactContract, next).length <=
+      composePrompt(input, compactContract, next, elements).length <=
         MAX_PROVIDER_PROMPT_CHARS
     ) {
       accepted.push(candidate);
@@ -474,15 +546,16 @@ function buildNegativePrompt(
 export function buildPosterImagePrompt(
   input: PosterImagePromptInput,
 ): PosterImagePromptResult {
-  const wrapperLength = composePrompt(input, "", "").length;
+  const elements = detectElements(input.rawContract);
+  const wrapperLength = composePrompt(input, "", "", elements).length;
   const contractBudget = MAX_PROVIDER_PROMPT_CHARS - wrapperLength;
   const compactContract = compactRendererContract(
     input.rawContract,
     input,
     contractBudget,
   );
-  const compactNegativePrompt = buildNegativePrompt(input, compactContract);
-  const text = composePrompt(input, compactContract, compactNegativePrompt);
+  const compactNegativePrompt = buildNegativePrompt(input, compactContract, elements);
+  const text = composePrompt(input, compactContract, compactNegativePrompt, elements);
 
   if (text.length > MAX_PROVIDER_PROMPT_CHARS) {
     throw new PosterImagePromptValidationError(

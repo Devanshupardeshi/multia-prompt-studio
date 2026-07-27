@@ -26,6 +26,9 @@ interface OutputDisplayProps {
   ) => void;
   isRefining?: boolean;
   refineError?: string | null;
+  /** Every render for this prompt, oldest first. Shown as a selectable strip. */
+  renders?: Array<Extract<ImageRenderState, { status: "success" }>>;
+  onSelectRender?: (index: number) => void;
 }
 
 // Live countdown shown while the request is queued waiting for a free key in the pool.
@@ -111,6 +114,8 @@ export function OutputDisplay({
   onRefineImage,
   isRefining,
   refineError,
+  renders = [],
+  onSelectRender,
 }: OutputDisplayProps) {
   const refineCopy = getStudioRefineCopy(mode ?? "standard");
   const [copied, setCopied] = useState(false);
@@ -451,6 +456,37 @@ export function OutputDisplay({
                       </button>
                     )}
                   </div>
+                </div>
+              </div>
+            )}
+
+            {/* Refining replaces what is on screen, so every version for this
+                prompt stays here and stays selectable — a refinement that made
+                things worse is one click to undo. */}
+            {renders.length > 1 && onSelectRender && (
+              <div className="poster-render-history mt-4">
+                <span>
+                  This prompt, {renders.length} version{renders.length > 1 ? "s" : ""}
+                </span>
+                <div className="poster-render-strip">
+                  {renders.map((render, index) => {
+                    const isActive =
+                      image.status === "success" && image.image === render.image;
+                    return (
+                      <button
+                        type="button"
+                        key={render.image}
+                        aria-pressed={isActive}
+                        aria-label={`Show version ${index + 1} of ${renders.length}`}
+                        className={isActive ? "is-active" : ""}
+                        onClick={() => onSelectRender(index)}
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={render.image} alt="" />
+                        <small>{index + 1}</small>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             )}

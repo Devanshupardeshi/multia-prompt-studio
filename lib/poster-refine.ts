@@ -103,7 +103,7 @@ WHAT MUST NOT CHANGE (unless the instruction explicitly asks for it):
 - The overall composition, the hero object and its meaning, and the visual style, material and lighting treatment of the existing artwork.
 - Canvas ${invariants.canvas.width} x ${invariants.canvas.height}, same aspect ratio.
 - The background stays a rich deep field in ${invariants.background}, never white, pale or empty.
-- Approved colours only: ${invariants.palette.join(", ")}.
+- The background field and any type colour stay on the approved palette: ${invariants.palette.join(", ")}. The hero keeps its own real material colours.
 - These regions stay quiet and completely empty for the editable overlay: ${reserved}.
 - Generate no text, letters, words, numerals, pseudo-text, logos, brand marks, watermarks or signatures anywhere in the image.
 
