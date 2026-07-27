@@ -2,6 +2,7 @@
 
 import { useCallback, useRef, useState } from "react";
 import type { FeedbackSource } from "./feedback";
+import { downscaleImage } from "./image-downscale-client";
 
 /**
  * Client side of the feedback loop.
@@ -25,6 +26,23 @@ export interface FeedbackContext {
 /** Longest edge of the stored thumbnail. The admin view shows it ~96px wide. */
 const THUMBNAIL_MAX_EDGE = 768;
 
+/**
+ * Downscales the artwork to a small data URL.
+ *
+ * A 3840×2160 PNG is 5–20 MB, and ~1.37× that again as base64 — well past the
+ * 4.5 MB request-body ceiling on Vercel, so the whole rating used to vanish with
+ * a 413 that nothing surfaced. The admin panel renders a 96px thumbnail and the
+ * real dimensions travel separately, so a 768px WebP is all that needs storing.
+ */
+async function toThumbnailDataUrl(source: string): Promise<string | null> {
+  try {
+    return await downscaleImage(source, { maxEdge: THUMBNAIL_MAX_EDGE, quality: 0.85 });
+  } catch (error) {
+    console.warn("Could not build a feedback thumbnail; sending the rating alone:", error);
+    return null;
+  }
+}
+
 async function postFeedback(body: Record<string, unknown>) {
   try {
     const response = await fetch("/api/feedback", {
@@ -44,37 +62,6 @@ async function postFeedback(body: Record<string, unknown>) {
     }
   } catch (error) {
     console.warn("Feedback could not be sent:", error);
-  }
-}
-
-/**
- * Downscales the artwork to a small data URL.
- *
- * A 3840×2160 PNG is 5–20 MB, and ~1.37× that again as base64 — well past the
- * 4.5 MB request-body ceiling on Vercel, so the whole rating used to vanish with
- * a 413 that nothing surfaced. The admin panel renders a 96px thumbnail and the
- * real dimensions travel separately, so a 768px WebP is all that needs storing.
- */
-async function toThumbnailDataUrl(source: string): Promise<string | null> {
-  try {
-    const bitmap = await createImageBitmap(await (await fetch(source)).blob());
-    const scale = Math.min(1, THUMBNAIL_MAX_EDGE / Math.max(bitmap.width, bitmap.height));
-    const canvas = document.createElement("canvas");
-    canvas.width = Math.max(1, Math.round(bitmap.width * scale));
-    canvas.height = Math.max(1, Math.round(bitmap.height * scale));
-
-    const context = canvas.getContext("2d");
-    if (!context) return null;
-    context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-    bitmap.close();
-
-    // Safari below 14 has no canvas WebP encoder and silently returns a PNG,
-    // which the bucket also accepts — so either answer is usable.
-    const encoded = canvas.toDataURL("image/webp", 0.85);
-    return encoded.startsWith("data:image/webp") ? encoded : canvas.toDataURL("image/jpeg", 0.85);
-  } catch (error) {
-    console.warn("Could not build a feedback thumbnail; sending the rating alone:", error);
-    return null;
   }
 }
 

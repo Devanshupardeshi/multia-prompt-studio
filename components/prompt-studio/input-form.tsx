@@ -52,6 +52,7 @@ const ASSET_STRATEGIES = [
 
 import Link from "next/link";
 import { chatGptAuthHeaders } from "@/lib/chatgpt-session";
+import { fileToUploadDataUrl } from "@/lib/image-downscale-client";
 import type { ChatGptModel } from "@/lib/chatgpt-models";
 import { GenerationMode, GeneratePayload, isImageMode, isVideoMode, CustomStyle, PromptEngine } from "@/lib/shared-types";
 
@@ -158,40 +159,41 @@ export function InputForm({
     });
   };
 
-  const handleStyleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleStyleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onloadend = async () => {
-      const base64 = reader.result as string;
-      setIsExtractingStyle(true);
-      setStyleError(null);
-      try {
-        // ChatGPT-only feature: forward the user's OAuth session.
-        const authHeaders = await chatGptAuthHeaders();
-        const res = await fetch("/api/extract-style", {
-          method: "POST",
-          headers: { ...authHeaders, "Content-Type": "application/json" },
-          body: JSON.stringify({ image: base64 }),
-        });
-        const data = await res.json().catch(() => ({}));
-        if (!res.ok) throw new Error(data.error || "Failed to extract style");
-        const newStyle: CustomStyle = {
-          id: `custom-${Date.now()}`,
-          label: data.name,
-          directive: data.directive,
-          thumbnail: base64,
-        };
-        persistCustomStyles((prev) => [...prev, newStyle]);
-        setSelectedStyles((prev) => [...prev, newStyle.id]);
-      } catch (err) {
-        setStyleError(err instanceof Error ? err.message : "Failed to extract style");
-      } finally {
-        setIsExtractingStyle(false);
-      }
-    };
-    reader.readAsDataURL(file);
     e.target.value = "";
+    if (!file) return;
+
+    setIsExtractingStyle(true);
+    setStyleError(null);
+    try {
+      // Downscaled first: the thumbnail is also persisted to localStorage, which
+      // a full-resolution data URL would fill on its own.
+      const base64 = await fileToUploadDataUrl(file);
+
+      // ChatGPT-only feature: forward the user's OAuth session.
+      const authHeaders = await chatGptAuthHeaders();
+      const res = await fetch("/api/extract-style", {
+        method: "POST",
+        headers: { ...authHeaders, "Content-Type": "application/json" },
+        body: JSON.stringify({ image: base64 }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Failed to extract style");
+
+      const newStyle: CustomStyle = {
+        id: `custom-${Date.now()}`,
+        label: data.name,
+        directive: data.directive,
+        thumbnail: base64,
+      };
+      persistCustomStyles((prev) => [...prev, newStyle]);
+      setSelectedStyles((prev) => [...prev, newStyle.id]);
+    } catch (err) {
+      setStyleError(err instanceof Error ? err.message : "Failed to extract style");
+    } finally {
+      setIsExtractingStyle(false);
+    }
   };
 
   const removeCustomStyle = (id: string) => {
@@ -364,38 +366,44 @@ export function InputForm({
 
   const [isEnhancing, setIsEnhancing] = useState(false);
   const [enhanceError, setEnhanceError] = useState<string | null>(null);
+  const [uploadError, setUploadError] = useState<string | null>(null);
 
-  // File handling helpers
-  const handleSingleImageUpload = (e: React.ChangeEvent<HTMLInputElement>, setter: React.Dispatch<React.SetStateAction<string | null>>) => {
+  // File handling helpers.
+  //
+  // Every picked image is downscaled before it enters state. An untouched phone
+  // photo or logo export is routinely 4-12 MB, and base64 adds ~37% on top, so
+  // one or two of them used to fail the whole request with "attached images are
+  // too large" before the model ever saw the brief. These are references, not
+  // output — 1536px is more than the model can use.
+  const handleSingleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, setter: React.Dispatch<React.SetStateAction<string | null>>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setter(reader.result as string);
-      };
-      reader.readAsDataURL(file);
+    e.target.value = '';
+    if (!file) return;
+    try {
+      setter(await fileToUploadDataUrl(file));
+    } catch (err) {
+      setUploadError(err instanceof Error ? err.message : "That image could not be read.");
     }
   };
 
   const maxReferenceImages = 2;
 
-  const handleMultipleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleMultipleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
+    e.target.value = '';
     if (files.length === 0) return;
     const remainingSlots = maxReferenceImages - referenceImages.length;
-    const filesToAdd = files.slice(0, remainingSlots);
 
-    filesToAdd.forEach((file) => {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setReferenceImages((prev) => {
-          if (prev.length >= maxReferenceImages) return prev;
-          return [...prev, reader.result as string];
-        });
-      };
-      reader.readAsDataURL(file);
-    });
-    e.target.value = '';
+    for (const file of files.slice(0, remainingSlots)) {
+      try {
+        const dataUrl = await fileToUploadDataUrl(file);
+        setReferenceImages((prev) =>
+          prev.length >= maxReferenceImages ? prev : [...prev, dataUrl]
+        );
+      } catch (err) {
+        setUploadError(err instanceof Error ? err.message : "That image could not be read.");
+      }
+    }
   };
 
   const removeReferenceImage = (indexToRemove: number) => {
@@ -1689,6 +1697,8 @@ export function InputForm({
               ))}
             </div>
           </div>}
+
+          {uploadError && <p className="text-xs text-red-400 font-body">{uploadError}</p>}
 
           {/* Generate buttons — Gemini always, GPT-5.6 Sol for image modes only
               (it is the one engine that can also render the image afterwards). */}

@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import type { ChatGptModel } from "@/lib/chatgpt-models";
+import { fileToUploadDataUrl } from "@/lib/image-downscale-client";
 import {
   POSTER_BACKGROUND_COMBINATIONS,
   POSTER_CATEGORIES,
@@ -111,21 +112,22 @@ export function PosterStudioForm({
     outputSize.height <= 4096;
   const isValid = headline.trim().length > 0 && topic.trim().length > 0 && validSize;
 
-  const handleUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     event.target.value = "";
     if (!file) return;
-    if (file.size > 12 * 1024 * 1024) {
-      setUploadError("Reference poster must be smaller than 12 MB.");
-      return;
-    }
-    const reader = new FileReader();
-    reader.onload = () => {
-      setReferenceImage(reader.result as string);
+
+    // Downscaled rather than size-checked: the old 12 MB ceiling let through
+    // files that could never fit the 4.5 MB request body once base64-encoded,
+    // so a large reference failed the whole generation. This is a style
+    // reference, not output, so the long-edge cap costs nothing.
+    try {
+      setReferenceImage(await fileToUploadDataUrl(file));
       setReferenceImageName(file.name);
       setUploadError("");
-    };
-    reader.readAsDataURL(file);
+    } catch (error) {
+      setUploadError(error instanceof Error ? error.message : "That image could not be read.");
+    }
   };
 
   const submit = (event: React.FormEvent) => {

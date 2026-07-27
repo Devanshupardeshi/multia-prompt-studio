@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
+import { fileToUploadDataUrl } from "@/lib/image-downscale-client";
 import { MAX_REFINE_INSTRUCTION_CHARS } from "@/lib/poster-refine";
 
 export interface RefineRegion {
@@ -22,7 +23,6 @@ interface PosterRefinePanelProps {
   ) => void;
 }
 
-const MAX_REFERENCE_BYTES = 12 * 1024 * 1024;
 
 const QUICK_EDITS = [
   "Make the hero object smaller and give it more breathing room",
@@ -85,21 +85,20 @@ export function PosterRefinePanel({ artwork, isBusy, error, onSubmit }: PosterRe
     );
   };
 
-  const handleReference = (event: React.ChangeEvent<HTMLInputElement>) => {
+  // Downscaled on pick rather than size-checked, so a big file is accepted
+  // instead of rejected — prepareRefineImage caps it again before upload anyway.
+  const handleReference = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     event.target.value = "";
     if (!file) return;
-    if (file.size > MAX_REFERENCE_BYTES) {
-      setUploadError("Reference image must be smaller than 12 MB.");
-      return;
-    }
-    const reader = new FileReader();
-    reader.onload = () => {
-      setReference(reader.result as string);
+
+    try {
+      setReference(await fileToUploadDataUrl(file));
       setReferenceName(file.name);
       setUploadError("");
-    };
-    reader.readAsDataURL(file);
+    } catch (error) {
+      setUploadError(error instanceof Error ? error.message : "That image could not be read.");
+    }
   };
 
   const canSubmit = instruction.trim().length > 0 && !isBusy;
