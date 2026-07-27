@@ -1,12 +1,13 @@
 import { createOpenAIOAuth } from "@openai-oauth/ai-sdk";
 import { openaiCredentials } from "@openai-oauth/react/server";
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import {
   generatePosterConcept,
   POSTER_PROMPT_MODEL,
   POSTER_PROMPT_MODEL_LABEL,
 } from "@/lib/openai-poster";
 import { DEFAULT_PROMPT_MODEL } from "@/lib/chatgpt-models";
+import { incrementDailyPromptCount } from "@/lib/prompt-count-server";
 import { streamingResponse } from "@/lib/stream-protocol";
 import { stringifyPosterGenerationPrompt } from "@/lib/poster-generation-prompt";
 import { APPROVED_POSTERS, POSTER_CATEGORIES } from "@/lib/poster-reference-system";
@@ -288,6 +289,11 @@ export async function POST(request: NextRequest) {
         );
         return;
       }
+
+      // Counted on the same daily counter as the Prompt Studio, so the Today
+      // figure covers every successful generation regardless of which studio made
+      // it. after() keeps the write off the response path.
+      after(() => incrementDailyPromptCount());
 
       writer.result({
         status: "complete",

@@ -12,8 +12,9 @@ import {
   type SanitizedKey,
   type UsageEvent,
 } from "@/lib/api-keys-types";
+import type { FeedbackRowWithImage, FeedbackSummary } from "@/lib/feedback";
 
-type Tab = "keys" | "analytics" | "errors" | "settings" | "setup";
+type Tab = "keys" | "analytics" | "errors" | "feedback" | "settings" | "setup";
 
 // What the settings API returns to the browser — raw OpenRouter key is masked.
 type AdminSettings = Omit<AppSettings, "openrouter_api_key" | "bedrock_api_key"> & {
@@ -120,6 +121,9 @@ export function Dashboard() {
   const [events, setEvents] = useState<UsageEvent[]>([]);
   const [counts, setCounts] = useState<ErrorCounts | null>(null);
 
+  const [feedback, setFeedback] = useState<FeedbackRowWithImage[]>([]);
+  const [feedbackSummary, setFeedbackSummary] = useState<FeedbackSummary | null>(null);
+
   const [settings, setSettings] = useState<AdminSettings | null>(null);
   const [audit, setAudit] = useState<AuditEntry[]>([]);
 
@@ -153,6 +157,14 @@ export function Dashboard() {
     }
   }, []);
 
+  const loadFeedback = useCallback(async () => {
+    const { ok, data } = await api("/api/admin/feedback?limit=200");
+    if (ok) {
+      setFeedback(data.feedback || []);
+      setFeedbackSummary(data.summary || null);
+    }
+  }, []);
+
   const loadSettings = useCallback(async () => {
     const { ok, data } = await api("/api/admin/settings");
     if (ok) {
@@ -182,9 +194,10 @@ export function Dashboard() {
 
   useEffect(() => {
     if (tab === "errors") loadEvents();
+    if (tab === "feedback") loadFeedback();
     if (tab === "settings") loadSettings();
     if (tab === "setup") loadSetup();
-  }, [tab, loadEvents, loadSettings, loadSetup]);
+  }, [tab, loadEvents, loadFeedback, loadSettings, loadSetup]);
 
   // Load settings once on mount so the header provider badge is always accurate.
   useEffect(() => {
@@ -240,7 +253,7 @@ export function Dashboard() {
 
       {/* tabs */}
       <div className="mt-6 flex gap-1 border-b border-white/10">
-        {(["keys", "analytics", "errors", "settings", "setup"] as Tab[]).map((t) => (
+        {(["keys", "analytics", "errors", "feedback", "settings", "setup"] as Tab[]).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
@@ -257,6 +270,9 @@ export function Dashboard() {
         {tab === "keys" && <KeysTab keys={keys} now={now} onChanged={loadKeys} />}
         {tab === "analytics" && <AnalyticsTab keys={keys} stats={stats} />}
         {tab === "errors" && <ErrorsTab events={events} counts={counts} now={now} />}
+        {tab === "feedback" && (
+          <FeedbackTab rows={feedback} summary={feedbackSummary} now={now} onRefresh={loadFeedback} />
+        )}
         {tab === "settings" && (
           <SettingsTab settings={settings} audit={audit} now={now} onSaved={loadSettings} />
         )}
@@ -745,6 +761,185 @@ function ErrorsTab({ events, counts, now }: { events: UsageEvent[]; counts: Erro
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Feedback tab
+// ---------------------------------------------------------------------------
+
+function Stars({ value }: { value: number }) {
+  return (
+    <span className="text-sm tabular-nums" title={`${value} of 5`}>
+      <span className="text-amber-300">{"★".repeat(value)}</span>
+      <span className="text-white/15">{"★".repeat(5 - value)}</span>
+    </span>
+  );
+}
+
+function FeedbackTab({
+  rows,
+  summary,
+  now,
+  onRefresh,
+}: {
+  rows: FeedbackRowWithImage[];
+  summary: FeedbackSummary | null;
+  now: number;
+  onRefresh: () => void;
+}) {
+  const [filter, setFilter] = useState<"all" | "rating" | "error">("all");
+  const shown = filter === "all" ? rows : rows.filter((row) => row.kind === filter);
+  const worst = summary
+    ? Object.entries(summary.distribution)
+        .filter(([star]) => Number(star) <= 2)
+        .reduce((sum, [, count]) => sum + count, 0)
+    : 0;
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        <Chip
+          label="Average rating"
+          value={summary?.averageRating != null ? summary.averageRating.toFixed(2) : "—"}
+          tone={
+            summary?.averageRating == null ? "muted"
+            : summary.averageRating >= 4 ? "good"
+            : summary.averageRating >= 3 ? "warn"
+            : "bad"
+          }
+        />
+        <Chip label="Ratings" value={summary?.ratings ?? 0} />
+        <Chip label="1–2 star" value={worst} tone={worst > 0 ? "warn" : "muted"} />
+        <Chip
+          label="Errors recorded"
+          value={summary?.errors ?? 0}
+          tone={(summary?.errors ?? 0) > 0 ? "bad" : "good"}
+        />
+      </div>
+
+      {summary && summary.ratings > 0 && (
+        <div className="rounded-xl border border-white/10 p-4">
+          <div className="mb-2 text-xs uppercase tracking-wider text-white/40">Distribution</div>
+          <div className="space-y-1.5">
+            {[5, 4, 3, 2, 1].map((star) => {
+              const count = summary.distribution[star] ?? 0;
+              const pct = Math.round((count / summary.ratings) * 100);
+              return (
+                <div key={star} className="flex items-center gap-3 text-xs">
+                  <span className="w-10 text-white/50">{star}★</span>
+                  <div className="h-2 flex-1 overflow-hidden rounded-full bg-white/5">
+                    <div className="h-full rounded-full bg-amber-300/70" style={{ width: `${pct}%` }} />
+                  </div>
+                  <span className="w-16 text-right tabular-nums text-white/40">
+                    {count} · {pct}%
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex gap-1">
+          {(["all", "rating", "error"] as const).map((option) => (
+            <button
+              key={option}
+              onClick={() => setFilter(option)}
+              className={`rounded-lg border px-3 py-1.5 text-xs capitalize transition-colors ${
+                filter === option
+                  ? "border-white/40 bg-white/10 text-white"
+                  : "border-white/10 text-white/40 hover:text-white/70"
+              }`}
+            >
+              {option === "rating" ? "ratings" : option === "error" ? "errors" : "all"}
+            </button>
+          ))}
+        </div>
+        <div className="flex gap-2">
+          <button
+            onClick={onRefresh}
+            className="rounded-lg border border-white/10 px-3 py-1.5 text-xs text-white/60 hover:bg-white/5"
+          >
+            ↻ Refresh
+          </button>
+          <a
+            href="/api/admin/feedback/export"
+            className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-xs text-emerald-300 hover:bg-emerald-500/20"
+          >
+            ↓ Export to Excel (CSV)
+          </a>
+        </div>
+      </div>
+
+      <div className="overflow-hidden rounded-xl border border-white/10">
+        {shown.length === 0 ? (
+          <div className="px-4 py-8 text-center text-sm text-white/40">
+            No feedback yet. Ratings appear here as soon as designers submit them.
+          </div>
+        ) : (
+          <div className="max-h-[640px] divide-y divide-white/5 overflow-y-auto">
+            {shown.map((row) => (
+              <div key={row.id} className="flex items-start gap-3 px-4 py-3">
+                {row.imageUrl ? (
+                  <a href={row.imageUrl} target="_blank" rel="noreferrer" className="shrink-0">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={row.imageUrl}
+                      alt=""
+                      className="h-20 w-16 rounded-lg border border-white/10 object-cover hover:border-white/30"
+                    />
+                  </a>
+                ) : (
+                  <div className="flex h-20 w-16 shrink-0 items-center justify-center rounded-lg border border-white/5 text-[10px] text-white/20">
+                    {row.kind === "error" ? "error" : "no image"}
+                  </div>
+                )}
+
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    {row.kind === "rating" && row.rating ? (
+                      <Stars value={row.rating} />
+                    ) : (
+                      <span className="rounded bg-red-500/15 px-1.5 py-0.5 text-[10px] text-red-300">
+                        {row.error_stage ? `error · ${row.error_stage}` : "error"}
+                      </span>
+                    )}
+                    <span className="rounded bg-white/5 px-1.5 py-0.5 text-[10px] text-white/45">
+                      {row.source}
+                      {row.mode ? ` · ${row.mode}` : ""}
+                    </span>
+                    <span className="text-[11px] text-white/30">{relTime(row.created_at, now)}</span>
+                  </div>
+
+                  {row.comment && (
+                    <p className="mt-1.5 whitespace-pre-wrap text-sm text-white/80">{row.comment}</p>
+                  )}
+                  {row.error_message && (
+                    <p className="mt-1.5 break-words text-sm text-red-200/80">{row.error_message}</p>
+                  )}
+
+                  {(row.topic || row.headline || row.prompt_model || row.image_width) && (
+                    <div className="mt-1.5 truncate text-[11px] text-white/35">
+                      {row.headline || row.topic || ""}
+                      {row.prompt_model ? ` · ${row.prompt_model}` : ""}
+                      {row.image_width && row.image_height
+                        ? ` · ${row.image_width}×${row.image_height}`
+                        : ""}
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <p className="text-[11px] text-white/25">
+        Image links are signed for one hour — hit Refresh if a thumbnail stops loading.
+      </p>
     </div>
   );
 }

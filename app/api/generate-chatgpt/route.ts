@@ -1,6 +1,6 @@
 import { createOpenAIOAuth } from "@openai-oauth/ai-sdk";
 import { openaiCredentials } from "@openai-oauth/react/server";
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import {
   describePromptModelFailure,
   isAuthenticationError,
@@ -10,6 +10,7 @@ import {
   OPENAI_PROMPT_MODEL,
   OPENAI_PROMPT_MODEL_LABEL,
 } from "@/lib/openai-prompt";
+import { incrementDailyPromptCount } from "@/lib/prompt-count-server";
 import { streamingResponse } from "@/lib/stream-protocol";
 import { isImageMode, type GeneratePayload, type GenerationMode } from "@/lib/shared-types";
 
@@ -18,7 +19,8 @@ import { isImageMode, type GeneratePayload, type GenerationMode } from "@/lib/sh
 export const maxDuration = 120;
 
 // This route spends the caller's own ChatGPT quota, not the server's key pool, so
-// it is deliberately not behind the maintenance switch or the daily prompt counter.
+// it is deliberately not behind the maintenance switch. Successful generations are
+// still counted, since the Today figure is a usage report, not a limit.
 
 // Only still-image modes can target GPT Image 2, so only they offer this engine.
 // Mirrors the per-mode required fields enforced by /api/generate.
@@ -82,6 +84,8 @@ export async function POST(request: NextRequest) {
         onStatus: writer.status,
         onReasoning: writer.reasoning,
       });
+      // Same daily counter as the Gemini engine, so Today reflects all engines.
+      after(() => incrementDailyPromptCount());
       writer.result({ json: result });
     } catch (error) {
       console.error(

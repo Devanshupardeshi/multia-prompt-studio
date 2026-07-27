@@ -272,3 +272,166 @@
     color: #d4d4d4;
   }
 }
+
+/* Feedback popup — asked once after a render lands, always dismissible. */
+.feedback-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  background: rgba(0, 0, 0, 0.62);
+  backdrop-filter: blur(6px);
+  animation: feedback-fade 180ms ease-out;
+}
+
+@keyframes feedback-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.feedback-dialog {
+  width: 100%;
+  max-width: 520px;
+  border: 1px solid #262626;
+  border-radius: 14px;
+  background: #121212;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
+  animation: feedback-rise 200ms ease-out;
+}
+
+@keyframes feedback-rise {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.feedback-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.25rem 1.35rem 0;
+}
+
+.feedback-head span {
+  color: rgba(255, 255, 255, 0.32);
+  font-size: 0.68rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.feedback-head h2 {
+  margin: 0.25rem 0 0;
+  color: #ffffff;
+  font-size: 1.05rem;
+  font-weight: 500;
+}
+
+.feedback-head button {
+  color: rgba(255, 255, 255, 0.35);
+  font-size: 0.9rem;
+  line-height: 1;
+  transition: color 160ms ease-out;
+}
+
+.feedback-head button:hover { color: #ffffff; }
+
+.feedback-body {
+  display: flex;
+  gap: 1.1rem;
+  padding: 1.1rem 1.35rem 1.35rem;
+}
+
+.feedback-thumb {
+  width: 84px;
+  flex: 0 0 auto;
+  border: 1px solid #262626;
+  border-radius: 8px;
+  object-fit: cover;
+  aspect-ratio: 4 / 5;
+}
+
+.feedback-controls {
+  display: grid;
+  gap: 0.85rem;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.feedback-stars {
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+}
+
+.feedback-stars button {
+  padding: 0 0.1rem;
+  color: #333333;
+  font-size: 1.6rem;
+  line-height: 1;
+  transition: color 120ms ease-out, transform 120ms ease-out;
+}
+
+.feedback-stars button:hover { transform: scale(1.12); }
+.feedback-stars button.is-on { color: #e2a93b; }
+
+.feedback-stars-label {
+  margin-left: 0.6rem;
+  color: rgba(255, 255, 255, 0.3);
+  font-size: 0.72rem;
+}
+
+.feedback-comment {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.feedback-comment > span {
+  color: rgba(255, 255, 255, 0.35);
+  font-size: 0.68rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.feedback-comment textarea {
+  width: 100%;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid #2e2e2e;
+  border-radius: 8px;
+  background: #0d0d0d;
+  color: #ffffff;
+  font-family: inherit;
+  font-size: 0.85rem;
+  line-height: 1.55;
+  resize: vertical;
+}
+
+.feedback-comment textarea:focus-visible { border-color: #6b6b6b; outline: none; }
+
+.feedback-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.feedback-skip {
+  color: rgba(255, 255, 255, 0.35);
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  transition: color 160ms ease-out;
+}
+
+.feedback-skip:hover { color: #ffffff; }
+
+@media (max-width: 520px) {
+  .feedback-body { flex-direction: column; }
+  .feedback-thumb { width: 100%; aspect-ratio: 16 / 9; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .feedback-scrim, .feedback-dialog { animation: none; }
+  .feedback-stars button:hover { transform: none; }
+}

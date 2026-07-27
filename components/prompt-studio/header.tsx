@@ -3,15 +3,17 @@
 import { SignInWithChatGPT } from "@openai-oauth/react";
 import Link from "next/link";
 import { useState, useEffect } from "react";
+import { useDailyPromptCount } from "@/lib/use-daily-prompt-count";
 
 interface HeaderProps {
-  // Optional: the Poster Studio has no prompt counter of its own.
-  dailyPromptCount?: number | null;
   activeStudio?: "prompt" | "poster";
 }
 
-export function Header({ dailyPromptCount = null, activeStudio = "prompt" }: HeaderProps) {
+export function Header({ activeStudio = "prompt" }: HeaderProps) {
   const [scrolled, setScrolled] = useState(false);
+  // Read straight from the shared counter so every studio shows one combined
+  // total — poster concepts, GPT-5.6 Sol prompts and Gemini prompts alike.
+  const { count: dailyPromptCount } = useDailyPromptCount();
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 20);
@@ -88,7 +90,7 @@ export function Header({ dailyPromptCount = null, activeStudio = "prompt" }: Hea
           </Link>
           <div
             className="flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-2.5 sm:px-3 py-1.5"
-            title="Successful prompts generated today"
+            title="Prompts generated today across the Prompt Studio and Poster Studio"
           >
             <span className="text-[10px] text-white/35 font-body uppercase tracking-[0.18em]">
               Today

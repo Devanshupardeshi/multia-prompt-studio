@@ -5,13 +5,14 @@ import { chatGptAuthHeaders, isMissingChatGptSession } from "@/lib/chatgpt-sessi
 import { readPngResponse } from "@/lib/png-response";
 import { readEventStream } from "@/lib/stream-protocol";
 import { useChatGptModels } from "@/lib/use-chatgpt-models";
+import { useFeedback } from "@/lib/use-feedback";
+import { FeedbackPrompt } from "@/components/prompt-studio/feedback-prompt";
 import { Header } from "@/components/prompt-studio/header";
 import { ReasoningTrace } from "@/components/prompt-studio/reasoning-trace";
 import { Hero } from "@/components/prompt-studio/hero";
 import { InputForm } from "@/components/prompt-studio/input-form";
 import { OutputDisplay } from "@/components/prompt-studio/output-display";
 import { Footer } from "@/components/prompt-studio/footer";
-import { useDailyPromptCount } from "@/lib/use-daily-prompt-count";
 
 import {
   GeneratePayload,
@@ -47,8 +48,8 @@ export default function Home() {
   const [currentMode, setCurrentMode] = useState<GenerationMode>("standard");
   const [byMode, setByMode] = useState<Record<string, ModeResult>>({});
   const [loadingMode, setLoadingMode] = useState<string | null>(null);
-  const { count: dailyPromptCount } = useDailyPromptCount();
   const { models, promptModel, setPromptModel } = useChatGptModels();
+  const feedback = useFeedback("prompt-studio");
 
   const retryTimer = useRef<number | null>(null);
   const runRef = useRef<(payload: GeneratePayload, engine: PromptEngine) => void>(() => {});
@@ -146,16 +147,20 @@ export default function Home() {
               quality: decoded.quality,
             },
           });
+          feedback.askForRating(decoded.image, {
+            artwork: decoded.image,
+            width: decoded.width,
+            height: decoded.height,
+            mode,
+            promptJson: prompt,
+          });
           return;
         }
 
         const result = await response.json().catch(() => ({}));
-        patchMode(mode, {
-          image: {
-            status: "error",
-            error: result.error || `Image generation failed (HTTP ${response.status}).`,
-          },
-        });
+        const message = result.error || `Image generation failed (HTTP ${response.status}).`;
+        feedback.reportError("artwork", message, { mode });
+        patchMode(mode, { image: { status: "error", error: message } });
       } catch (err) {
         if (isStale()) return;
         patchMode(mode, {
@@ -166,7 +171,7 @@ export default function Home() {
         });
       }
     },
-    [patchMode, replaceImageUrl]
+    [feedback, patchMode, replaceImageUrl]
   );
 
   const runGenerate = useCallback(
@@ -375,7 +380,7 @@ export default function Home() {
 
   return (
     <main className="relative min-h-screen noise-overlay">
-      <Header dailyPromptCount={dailyPromptCount} />
+      <Header />
 
       <Hero />
 
@@ -430,6 +435,14 @@ export default function Home() {
         }
         image={cur?.image ?? { status: "idle" }}
         onRetryImage={handleRetryImage}
+      />
+
+      <FeedbackPrompt
+        open={feedback.isOpen}
+        artwork={feedback.artwork}
+        isFailure={feedback.isFailure}
+        onDismiss={feedback.dismiss}
+        onSubmit={feedback.submitRating}
       />
 
       <Footer />

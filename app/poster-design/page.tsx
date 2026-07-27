@@ -5,6 +5,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { readPngResponse } from "@/lib/png-response";
 import { readEventStream } from "@/lib/stream-protocol";
 import { useChatGptModels } from "@/lib/use-chatgpt-models";
+import { useFeedback } from "@/lib/use-feedback";
+import { FeedbackPrompt } from "@/components/prompt-studio/feedback-prompt";
 import { prepareRefineImage } from "@/lib/poster-refine-client";
 import type { RefineRegion } from "@/components/prompt-studio/poster-refine-panel";
 import { Header } from "@/components/prompt-studio/header";
@@ -66,6 +68,7 @@ export default function PosterDesignPage() {
   const [reasoning, setReasoning] = useState("");
   const [progress, setProgress] = useState<{ message: string } | null>(null);
   const { models, promptModel, setPromptModel } = useChatGptModels();
+  const feedback = useFeedback("poster");
   const conceptRequestId = useRef(0);
   const imageRequestId = useRef(0);
 
@@ -150,14 +153,30 @@ export default function PosterDesignPage() {
           };
           setRenders((current) => [...current, rendered].slice(-MAX_RENDERS));
           setImageState(rendered);
+          feedback.askForRating(decoded.image, {
+            artwork: decoded.image,
+            width: decoded.width,
+            height: decoded.height,
+            mode: payload.modelCategory,
+            topic: payload.topic,
+            headline: payload.headline,
+            promptModel: payload.promptModel,
+            promptJson: nextPromptJson,
+          });
           return;
         }
 
         const result = (await response.json().catch(() => ({}))) as { error?: unknown };
-        setImageState({
-          status: "error",
-          error: errorMessage(result.error, `Artwork generation failed (HTTP ${response.status}).`),
+        const message = errorMessage(
+          result.error,
+          `Artwork generation failed (HTTP ${response.status}).`,
+        );
+        feedback.reportError("artwork", message, {
+          mode: payload.modelCategory,
+          topic: payload.topic,
+          promptModel: payload.promptModel,
         });
+        setImageState({ status: "error", error: message });
       } catch (requestError) {
         if (imageRequestId.current !== requestId) return;
         setImageState({
@@ -166,7 +185,7 @@ export default function PosterDesignPage() {
         });
       }
     },
-    [trackArtworkUrl],
+    [feedback, trackArtworkUrl],
   );
 
   const runConcept = useCallback(
@@ -242,6 +261,11 @@ export default function PosterDesignPage() {
         setProgress(null);
 
         if (streamError) {
+          feedback.reportError("concept", streamError, {
+            mode: payload.modelCategory,
+            topic: payload.topic,
+            promptModel: payload.promptModel,
+          });
           setError(streamError);
           setIsLoading(false);
           return;
@@ -307,7 +331,7 @@ export default function PosterDesignPage() {
         if (conceptRequestId.current === requestId) setIsLoading(false);
       }
     },
-    [clearArtworkUrls, promptModel, runImage],
+    [clearArtworkUrls, feedback, promptModel, runImage],
   );
 
   const regenerate = useCallback(() => {
@@ -511,6 +535,14 @@ export default function PosterDesignPage() {
           refineError={refineError}
         />
       </div>
+
+      <FeedbackPrompt
+        open={feedback.isOpen}
+        artwork={feedback.artwork}
+        isFailure={feedback.isFailure}
+        onDismiss={feedback.dismiss}
+        onSubmit={feedback.submitRating}
+      />
 
       <footer className="py-12 px-6 border-t border-white/5">
         <div className="max-w-[1200px] mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
