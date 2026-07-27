@@ -790,7 +790,25 @@ function FeedbackTab({
   onRefresh: () => void;
 }) {
   const [filter, setFilter] = useState<"all" | "rating" | "error">("all");
+  const [deleting, setDeleting] = useState<string | null>(null);
   const shown = filter === "all" ? rows : rows.filter((row) => row.kind === filter);
+
+  const remove = async (row: FeedbackRowWithImage) => {
+    const what = row.kind === "rating" ? `this ${row.rating}★ rating` : "this error record";
+    if (!confirm(`Delete ${what}? The stored image goes with it and this cannot be undone.`)) return;
+
+    setDeleting(row.id);
+    const { ok, data } = await api(`/api/admin/feedback?id=${encodeURIComponent(row.id)}`, {
+      method: "DELETE",
+    });
+    setDeleting(null);
+    if (ok) {
+      toast.success("Feedback deleted");
+      onRefresh();
+    } else {
+      toast.error(data.error || "Delete failed");
+    }
+  };
   const worst = summary
     ? Object.entries(summary.distribution)
         .filter(([star]) => Number(star) <= 2)
@@ -866,10 +884,22 @@ function FeedbackTab({
             ↻ Refresh
           </button>
           <a
-            href="/api/admin/feedback/export"
+            href="/api/admin/feedback/export?kind=rating"
             className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-xs text-emerald-300 hover:bg-emerald-500/20"
           >
-            ↓ Export to Excel (CSV)
+            ↓ Ratings (CSV)
+          </a>
+          <a
+            href="/api/admin/feedback/export?kind=error"
+            className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-1.5 text-xs text-red-300 hover:bg-red-500/20"
+          >
+            ↓ Errors (CSV)
+          </a>
+          <a
+            href="/api/admin/feedback/export"
+            className="rounded-lg border border-white/10 px-3 py-1.5 text-xs text-white/50 hover:bg-white/5"
+          >
+            ↓ Everything
           </a>
         </div>
       </div>
@@ -912,6 +942,14 @@ function FeedbackTab({
                       {row.mode ? ` · ${row.mode}` : ""}
                     </span>
                     <span className="text-[11px] text-white/30">{relTime(row.created_at, now)}</span>
+                    <button
+                      onClick={() => remove(row)}
+                      disabled={deleting === row.id}
+                      title="Delete this feedback"
+                      className="ml-auto rounded border border-white/10 px-1.5 py-0.5 text-[10px] text-white/35 transition-colors hover:border-red-500/40 hover:bg-red-500/10 hover:text-red-300 disabled:opacity-40"
+                    >
+                      {deleting === row.id ? "…" : "Delete"}
+                    </button>
                   </div>
 
                   {row.comment && (

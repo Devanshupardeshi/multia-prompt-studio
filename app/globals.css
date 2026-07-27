@@ -345,12 +345,15 @@
 }
 
 .feedback-thumb {
-  width: 84px;
+  /* contain, not cover: the whole poster has to be visible to be rated. */
+  width: 96px;
+  max-height: 190px;
   flex: 0 0 auto;
+  align-self: flex-start;
   border: 1px solid #262626;
   border-radius: 8px;
-  object-fit: cover;
-  aspect-ratio: 4 / 5;
+  background: #0a0a0a;
+  object-fit: contain;
 }
 
 .feedback-controls {
@@ -426,12 +429,43 @@
 
 .feedback-skip:hover { color: #ffffff; }
 
+/* Reopen pill — the way back after "Not now". Sits out of the way, bottom-right. */
+.feedback-reopen {
+  position: fixed;
+  right: 1.25rem;
+  bottom: 1.25rem;
+  z-index: 90;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 1rem;
+  border: 1px solid #2e2e2e;
+  border-radius: 999px;
+  background: #161616;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 0.76rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  transition: color 160ms ease-out, border-color 160ms ease-out, transform 160ms ease-out;
+  animation: feedback-rise 220ms ease-out;
+}
+
+.feedback-reopen:hover {
+  border-color: #4d4d4d;
+  color: #ffffff;
+  transform: translateY(-1px);
+}
+
+.feedback-reopen span { color: #e2a93b; font-size: 0.95rem; line-height: 1; }
+
 @media (max-width: 520px) {
   .feedback-body { flex-direction: column; }
-  .feedback-thumb { width: 100%; aspect-ratio: 16 / 9; }
+  .feedback-thumb { width: 100%; max-height: 220px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .feedback-scrim, .feedback-dialog { animation: none; }
+  .feedback-scrim, .feedback-dialog, .feedback-reopen { animation: none; }
   .feedback-stars button:hover { transform: none; }
+  .feedback-reopen:hover { transform: none; }
 }

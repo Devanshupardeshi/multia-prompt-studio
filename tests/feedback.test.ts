@@ -76,6 +76,30 @@ describe("toFeedbackCsv", () => {
     const csv = toFeedbackCsv([row({ comment: "=HYPERLINK(\"http://evil\")" })]);
     assert.ok(csv.includes("\"'=HYPERLINK(\"\"http://evil\"\")\""));
   });
+
+  it("exports ratings and errors separately, each with only its own columns", () => {
+    const rows = [
+      row({ id: "a", rating: 5, comment: "sharp" }),
+      row({ id: "b", kind: "error", rating: null, error_stage: "concept", error_message: "HTTP 504" }),
+    ];
+
+    const ratings = toFeedbackCsv(rows, "rating");
+    assert.ok(ratings.includes("sharp"));
+    assert.ok(!ratings.includes("HTTP 504"));
+    assert.ok(ratings.includes('"Rating"'));
+    assert.ok(!ratings.includes('"Error"'));
+    assert.ok(!ratings.includes('"Kind"'));
+
+    const errors = toFeedbackCsv(rows, "error");
+    assert.ok(errors.includes("HTTP 504"));
+    assert.ok(!errors.includes("sharp"));
+    assert.ok(errors.includes('"Error stage"'));
+    assert.ok(!errors.includes('"Rating"'));
+
+    // One data row each, plus a header line.
+    assert.equal(ratings.trimEnd().split("\r\n").length, 2);
+    assert.equal(errors.trimEnd().split("\r\n").length, 2);
+  });
 });
 
 describe("summariseFeedback", () => {

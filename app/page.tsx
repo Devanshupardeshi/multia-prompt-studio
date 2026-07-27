@@ -439,9 +439,11 @@ export default function Home() {
 
       <FeedbackPrompt
         open={feedback.isOpen}
+        canReopen={feedback.canReopen}
         artwork={feedback.artwork}
         isFailure={feedback.isFailure}
         onDismiss={feedback.dismiss}
+        onReopen={feedback.reopen}
         onSubmit={feedback.submitRating}
       />
 

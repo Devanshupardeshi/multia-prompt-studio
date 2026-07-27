@@ -4,10 +4,13 @@ import { useEffect, useRef, useState } from "react";
 
 interface FeedbackPromptProps {
   open: boolean;
+  /** After "Not now": render the reopen pill instead of the dialog. */
+  canReopen?: boolean;
   /** Thumbnail of what is being rated, if there is one. */
   artwork?: string | null;
   isFailure?: boolean;
   onDismiss: () => void;
+  onReopen?: () => void;
   onSubmit: (rating: number, comment: string) => Promise<void> | void;
 }
 
@@ -23,9 +26,11 @@ const STARS = [1, 2, 3, 4, 5];
  */
 export function FeedbackPrompt({
   open,
+  canReopen,
   artwork,
   isFailure,
   onDismiss,
+  onReopen,
   onSubmit,
 }: FeedbackPromptProps) {
   const [rating, setRating] = useState(0);
@@ -54,16 +59,22 @@ export function FeedbackPrompt({
     return () => window.removeEventListener("keydown", onKey);
   }, [open, onDismiss]);
 
-  if (!open) return null;
+  if (!open) {
+    if (!canReopen || !onReopen) return null;
+    return (
+      <button type="button" className="feedback-reopen" onClick={onReopen}>
+        <span aria-hidden="true">★</span>
+        {isFailure ? "Report what went wrong" : "Rate this poster"}
+      </button>
+    );
+  }
 
-  const send = async () => {
+  // Fire and forget: onSubmit closes the dialog itself, so the designer is never
+  // left staring at a spinner while the image uploads.
+  const send = () => {
     if (rating < 1 || isSending) return;
     setIsSending(true);
-    try {
-      await onSubmit(rating, comment.trim());
-    } finally {
-      onDismiss();
-    }
+    void onSubmit(rating, comment.trim());
   };
 
   const shown = hovered || rating;

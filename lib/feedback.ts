@@ -23,8 +23,9 @@ export interface FeedbackInput {
   topic?: string | null;
   headline?: string | null;
   promptModel?: string | null;
-  /** Data URL of the rated artwork. Uploaded to storage, never stored inline. */
+  /** Data URL of a downscaled thumbnail. Uploaded to storage, never stored inline. */
   image?: string | null;
+  /** Dimensions of the ORIGINAL render, not of the stored thumbnail. */
   imageWidth?: number | null;
   imageHeight?: number | null;
   promptJson?: unknown;
@@ -117,52 +118,62 @@ export async function recordFeedback(input: FeedbackInput): Promise<boolean> {
     return false;
   }
 
-  let imagePath: string | null = null;
+  // The row goes in FIRST, before the image. The upload is the slow, failure-prone
+  // step — an oversized body, a storage error or a function timeout during it used
+  // to take the rating down with it, which is exactly backwards: the stars and the
+  // comment are the valuable part and the picture is a nice-to-have.
+  const { data, error } = await supabase
+    .from("studio_feedback")
+    .insert({
+      kind: input.kind,
+      source: input.source,
+      mode: input.mode,
+      rating: input.rating,
+      comment: input.comment,
+      error_message: input.errorMessage,
+      error_stage: input.errorStage,
+      topic: input.topic,
+      headline: input.headline,
+      prompt_model: input.promptModel,
+      image_width: input.imageWidth,
+      image_height: input.imageHeight,
+      prompt_json: input.promptJson ?? null,
+      metadata: input.metadata,
+    })
+    .select("id")
+    .single();
 
-  if (input.image) {
-    const match = input.image.match(DATA_IMAGE);
-    if (match) {
-      const bytes = Buffer.from(match[2], "base64");
-      if (bytes.byteLength <= MAX_IMAGE_BYTES) {
-        const extension = match[1] === "jpeg" ? "jpg" : match[1];
-        const path = `${input.source}/${new Date().toISOString().slice(0, 10)}/${crypto.randomUUID()}.${extension}`;
-        const { error } = await supabase.storage
-          .from(FEEDBACK_BUCKET)
-          .upload(path, bytes, { contentType: `image/${match[1]}`, upsert: false });
-
-        if (error) {
-          // Losing the screenshot is worth far less than losing the rating text.
-          console.error("Feedback image upload failed; storing the rating without it:", error);
-        } else {
-          imagePath = path;
-        }
-      }
-    }
-  }
-
-  const { error } = await supabase.from("studio_feedback").insert({
-    kind: input.kind,
-    source: input.source,
-    mode: input.mode,
-    rating: input.rating,
-    comment: input.comment,
-    error_message: input.errorMessage,
-    error_stage: input.errorStage,
-    topic: input.topic,
-    headline: input.headline,
-    prompt_model: input.promptModel,
-    image_path: imagePath,
-    image_width: input.imageWidth,
-    image_height: input.imageHeight,
-    prompt_json: input.promptJson ?? null,
-    metadata: input.metadata,
-  });
-
-  if (error) {
+  if (error || !data) {
     console.error("Failed to record studio feedback:", error);
     return false;
   }
 
+  const match = input.image?.match(DATA_IMAGE);
+  if (!match) return true;
+
+  const bytes = Buffer.from(match[2], "base64");
+  if (bytes.byteLength > MAX_IMAGE_BYTES) {
+    console.warn(`Feedback image is ${bytes.byteLength} bytes; keeping the rating without it.`);
+    return true;
+  }
+
+  const extension = match[1] === "jpeg" ? "jpg" : match[1];
+  const path = `${input.source}/${new Date().toISOString().slice(0, 10)}/${(data as { id: string }).id}.${extension}`;
+  const { error: uploadError } = await supabase.storage
+    .from(FEEDBACK_BUCKET)
+    .upload(path, bytes, { contentType: `image/${match[1]}`, upsert: true });
+
+  if (uploadError) {
+    console.error("Feedback image upload failed; the rating is still recorded:", uploadError);
+    return true;
+  }
+
+  const { error: linkError } = await supabase
+    .from("studio_feedback")
+    .update({ image_path: path })
+    .eq("id", (data as { id: string }).id);
+
+  if (linkError) console.error("Failed to link the feedback image:", linkError);
   return true;
 }
 
@@ -229,23 +240,63 @@ export async function listFeedback(limit = 200): Promise<FeedbackRowWithImage[]>
   }));
 }
 
-const CSV_COLUMNS: Array<{ header: string; value: (row: FeedbackRow) => string }> = [
+/**
+ * `only` marks a column that belongs to one kind of row. A ratings-only export
+ * should not carry two permanently empty error columns, and vice versa.
+ */
+/**
+ * Deletes one piece of feedback and its stored image. The row goes first: an
+ * orphaned storage object is invisible clutter, but a row pointing at a deleted
+ * image would render a permanently broken thumbnail in the admin view.
+ */
+export async function deleteFeedback(id: string): Promise<boolean> {
+  const supabase = getSupabaseAdminClient();
+  if (!supabase) return false;
+
+  const { data, error } = await supabase
+    .from("studio_feedback")
+    .delete()
+    .eq("id", id)
+    .select("image_path")
+    .maybeSingle();
+
+  if (error) {
+    console.error("Failed to delete studio feedback:", error);
+    return false;
+  }
+  if (!data) return false;
+
+  const imagePath = (data as { image_path: string | null }).image_path;
+  if (imagePath) {
+    const { error: storageError } = await supabase.storage.from(FEEDBACK_BUCKET).remove([imagePath]);
+    if (storageError) console.error("Feedback image delete failed:", storageError);
+  }
+
+  return true;
+}
+
+const CSV_COLUMNS: Array<{
+  header: string;
+  value: (row: FeedbackRow) => string;
+  only?: FeedbackKind;
+}> = [
   { header: "Date", value: (row) => new Date(row.created_at).toISOString() },
   { header: "Kind", value: (row) => row.kind },
   { header: "Studio", value: (row) => row.source },
   { header: "Mode", value: (row) => row.mode ?? "" },
-  { header: "Rating", value: (row) => (row.rating === null ? "" : String(row.rating)) },
+  { header: "Rating", value: (row) => (row.rating === null ? "" : String(row.rating)), only: "rating" },
   { header: "Comment", value: (row) => row.comment ?? "" },
   { header: "Topic", value: (row) => row.topic ?? "" },
   { header: "Headline", value: (row) => row.headline ?? "" },
   { header: "Model", value: (row) => row.prompt_model ?? "" },
-  { header: "Error stage", value: (row) => row.error_stage ?? "" },
-  { header: "Error", value: (row) => row.error_message ?? "" },
+  { header: "Error stage", value: (row) => row.error_stage ?? "", only: "error" },
+  { header: "Error", value: (row) => row.error_message ?? "", only: "error" },
   {
     header: "Image size",
     value: (row) => (row.image_width && row.image_height ? `${row.image_width}x${row.image_height}` : ""),
+    only: "rating",
   },
-  { header: "Image path", value: (row) => row.image_path ?? "" },
+  { header: "Image path", value: (row) => row.image_path ?? "", only: "rating" },
 ];
 
 function csvCell(value: string): string {
@@ -258,11 +309,22 @@ function csvCell(value: string): string {
  * Excel-ready CSV. A UTF-8 BOM is essential here: without it Excel reads the file
  * as the local codepage and mangles ₹ and Devanagari, which this campaign's
  * comments and topics are full of.
+ *
+ * Pass `kind` to export one kind on its own — ratings and errors are read for
+ * different reasons, so they get their own sheets with only their own columns.
  */
-export function toFeedbackCsv(rows: FeedbackRow[]): string {
+export function toFeedbackCsv(rows: FeedbackRow[], kind?: FeedbackKind): string {
+  const columns = kind
+    ? CSV_COLUMNS.filter(
+        // "Kind" is dropped too: in a split export every row has the same one.
+        (column) => column.header !== "Kind" && (column.only === undefined || column.only === kind),
+      )
+    : CSV_COLUMNS;
+  const selected = kind ? rows.filter((row) => row.kind === kind) : rows;
+
   const lines = [
-    CSV_COLUMNS.map((column) => csvCell(column.header)).join(","),
-    ...rows.map((row) => CSV_COLUMNS.map((column) => csvCell(column.value(row))).join(",")),
+    columns.map((column) => csvCell(column.header)).join(","),
+    ...selected.map((row) => columns.map((column) => csvCell(column.value(row))).join(",")),
   ];
   return `﻿${lines.join("\r\n")}\r\n`;
 }

@@ -153,7 +153,9 @@ export default function PosterDesignPage() {
           };
           setRenders((current) => [...current, rendered].slice(-MAX_RENDERS));
           setImageState(rendered);
-          feedback.askForRating(decoded.image, {
+          // Keyed on the brief, not the render, so refining a poster does not
+          // ask again — one rating per poster.
+          feedback.askForRating(`${payload.topic}|${payload.headline}`, {
             artwork: decoded.image,
             width: decoded.width,
             height: decoded.height,
@@ -538,9 +540,11 @@ export default function PosterDesignPage() {
 
       <FeedbackPrompt
         open={feedback.isOpen}
+        canReopen={feedback.canReopen}
         artwork={feedback.artwork}
         isFailure={feedback.isFailure}
         onDismiss={feedback.dismiss}
+        onReopen={feedback.reopen}
         onSubmit={feedback.submitRating}
       />
 
