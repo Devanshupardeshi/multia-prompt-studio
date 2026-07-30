@@ -79,14 +79,14 @@ describe("style categories carry no subject vocabulary", () => {
 
 describe("topic drives the subject, with Indian props", () => {
   const REAL_TOPICS: Array<{ topic: string; expect: RegExp }> = [
-    { topic: "understanding nifty banknifty and sensex", expect: /tokri|basket|sheaf|taraju/i },
-    { topic: "understanding small cap and midcap mutual funds", expect: /paili|seer|tiffin|gullak/i },
-    { topic: "how SIP works for first time investors", expect: /gullak|panchang|matka/i },
-    { topic: "why diversification matters", expect: /thali|katori|masala dabba|compartment/i },
-    { topic: "the power of compounding over 20 years", expect: /banyan|peepal|sapling|grain/i },
-    { topic: "handling market volatility and corrections", expect: /lattu|taraju|monsoon/i },
-    { topic: "gold ETF vs physical gold", expect: /bangle|jeweller|gold coin/i },
-    { topic: "what is inflation doing to your savings", expect: /paili|tokri|grain|note/i },
+    { topic: "understanding nifty banknifty and sensex", expect: /coin jar|bundle of notes|bar graph/i },
+    { topic: "understanding small cap and midcap mutual funds", expect: /coin jars|coin stacks|bar graph/i },
+    { topic: "how SIP works for first time investors", expect: /coin jar|steps|hourglass/i },
+    { topic: "why diversification matters", expect: /coin jar|fan of notes|bar graph/i },
+    { topic: "the power of compounding over 20 years", expect: /hourglass|steps|line graph/i },
+    { topic: "handling market volatility and corrections", expect: /line graph|coin jar|hourglass/i },
+    { topic: "gold ETF vs physical gold", expect: /bank vault|coin jar|locker/i },
+    { topic: "what is inflation doing to your savings", expect: /note|coin jars|steps/i },
   ];
 
   for (const { topic, expect } of REAL_TOPICS) {
@@ -102,7 +102,7 @@ describe("topic drives the subject, with Indian props", () => {
     const guidance = getTopicFigureGuidance(brief("a topic nothing will match xyzzy"));
     assert.equal(guidance.matchedId, null);
     assert.doesNotMatch(guidance.figures.join(" "), APPARATUS_WORDS);
-    assert.match(guidance.figures.join(" "), /gullak|taraju|thali|paili|passbook|bahi-khata/i);
+    assert.match(guidance.figures.join(" "), /coin jar|coins|notes|graph|steps|hourglass|bank vault/i);
     assert.match(
       guidance.avoid.join(" "),
       /mechanism|apparatus|machine/i,
@@ -191,17 +191,17 @@ describe("narrative seeds name objects rather than invented mechanisms", () => {
     });
   }
 
-  test("the large/mid-cap lock is a taraju, not a lab instrument", () => {
+  test("the large/mid-cap seed uses approved objects, not a lab instrument", () => {
     const seed = getFinancialNarrativeSeed(brief("large cap and mid cap funds"));
-    assert.match(seed.heroMetaphor, /taraju/i);
-    assert.match(seed.heroMetaphor, /coin/i, "both loads must be recognisable money material");
+    assert.match(seed.heroMetaphor, /coin stack/i);
+    assert.doesNotMatch(seed.heroMetaphor, /balance|pan|pivot|beam/i);
   });
 });
 
 describe("'show me different options' excludes what was already shown", () => {
   const REJECTED = [
-    "Cane tokri holding many unequal coin-discs as one size-weighted index",
-    "Bound sheaf of currency slips representing companies measured as one index",
+    "A coin jar holding many unequal coins as one size-weighted index",
+    "A bundle of notes under one band, representing companies measured as one index",
   ];
 
   test("rejected options are listed back to the model with a do-not-repeat rule", () => {
@@ -224,7 +224,7 @@ describe("'show me different options' excludes what was already shown", () => {
     const prompt = buildPosterSystemPrompt(
       brief("understanding nifty banknifty and sensex", {
         rejectedFigures: REJECTED,
-        clarificationAnswers: { "Which figure should represent this topic?": "A steel gullak" },
+        clarificationAnswers: { "Which figure should represent this topic?": "A steel clay coin bank" },
       }),
     );
     // Answered briefs take the "produce the concept now" path, never the ask path.
@@ -278,7 +278,7 @@ describe("art direction refines without overriding the style", () => {
   test("a mood choice only shifts temperature and contrast", () => {
     const direction = formatArtDirection("auto", "warm-festive") ?? "";
     assert.match(direction, /LIGHTING MOOD/);
-    assert.match(direction, /diyas/i);
+    assert.match(direction, /oil lamps/i);
     assert.match(direction, /colour-temperature and contrast shift only/i);
   });
 
@@ -321,14 +321,40 @@ describe("every style category survives the whole contract chain", () => {
 
 describe("the vocabulary grounds without dictating one fixed prop", () => {
   // The first version handed the model three fixed options and said "choose ONE",
-  // so every diversification poster became a steel thali. These lock in the fix.
+  // so every diversification poster became a steel round steel dinner plate. These lock in the fix.
   test("the full prop vocabulary reaches the model, not just the topic examples", () => {
     const rendered = formatTopicFigureGuidance(
       getTopicFigureGuidance(brief("why diversification matters")),
     );
-    // All ten prop groups, not only the three worked examples.
-    for (const prop of ["gullak", "taraju", "bahi-khata", "passbook", "bangles", "banyan", "UPI"]) {
-      assert.ok(rendered.includes(prop), `prop vocabulary is missing "${prop}"`);
+    // Every approved group reaches the model, not only the worked examples.
+    for (const prop of ["Coins", "Notes", "Coin jar", "3D graph", "Steps", "Hourglass", "Bank vault", "background only"]) {
+      assert.ok(rendered.toLowerCase().includes(prop.toLowerCase()), `list is missing "${prop}"`);
+    }
+  });
+
+  test("the object list is closed — nothing outside it may be the hero", () => {
+    const rendered = formatTopicFigureGuidance(
+      getTopicFigureGuidance(brief("why diversification matters")),
+    );
+    assert.match(rendered, /The list is closed/);
+    assert.match(rendered, /Nothing outside it may be the hero/i);
+
+    // Props removed on purpose must not reappear anywhere in the brief.
+    for (const gone of [
+      "clay coin bank",
+      "shopkeeper's balance",
+      "round steel dinner plate",
+      "brass grain measure",
+      "cloth-bound ledger",
+      "banyan",
+      "bangles",
+      "UPI",
+      "tiffin",
+    ]) {
+      assert.ok(
+        !rendered.toLowerCase().includes(gone.toLowerCase()),
+        `removed prop "${gone}" is still being sent to the model`,
+      );
     }
   });
 
@@ -336,9 +362,11 @@ describe("the vocabulary grounds without dictating one fixed prop", () => {
     const rendered = formatTopicFigureGuidance(
       getTopicFigureGuidance(brief("why diversification matters")),
     );
-    assert.match(rendered, /INVENT THE SUBJECT FOR THIS SPECIFIC BRIEF/);
-    assert.match(rendered, /not because it appears in a list/i);
+    assert.match(rendered, /BUILD THE SUBJECT FOR THIS SPECIFIC BRIEF/);
+    // Variety now has to come from staging, since the object list is fixed.
+    assert.match(rendered, /scale, quantity, state, arrangement, fill level/);
     assert.doesNotMatch(rendered, /choose ONE and commit/i);
+    assert.doesNotMatch(rendered, /reach past the examples/i);
     assert.match(rendered, /WORKED EXAMPLES/);
   });
 
@@ -393,11 +421,11 @@ describe("the assembled subject brief is usable", () => {
       getTopicFigureGuidance(brief("why diversification matters")),
     );
     assert.match(rendered, /FINANCIAL IDEA TO MAKE VISIBLE/);
-    assert.match(rendered, /INDIAN MONEY VOCABULARY/);
+    assert.match(rendered, /APPROVED OBJECT LIST/);
     assert.match(rendered, /WORKED EXAMPLES/);
     assert.match(rendered, /WRONG FOR THIS TOPIC/);
     assert.match(rendered, /ALSO WRONG FOR THIS AUDIENCE/);
-    assert.match(rendered, /thali/i);
+    assert.match(rendered, /coin jar/i);
   });
 
   test("Western defaults are ruled out for this audience", () => {
@@ -412,20 +440,20 @@ describe("the assembled subject brief is usable", () => {
 
 // The designer's own visual direction used to travel only in the brief body, where it
 // lost every argument against a numbered worked example — so every poster came back
-// with the same taraju and steel-thali-with-katoris heroes regardless of what was
+// with the same two-pan shopkeeper's balance and steel-round steel dinner plate-with-small steel bowls heroes regardless of what was
 // typed into the field.
 describe("the designer's visual direction outranks the examples", () => {
   test("it appears in the subject brief, marked binding, above the examples", () => {
     const rendered = formatTopicFigureGuidance(
       getTopicFigureGuidance(
         brief("why diversification matters", {
-          visualDirection: "No thali, no katoris. Use a bank passbook.",
+          visualDirection: "No round steel dinner plate, no small steel bowls. Use a bank passbook.",
         }),
       ),
     );
 
     assert.match(rendered, /DESIGNER'S VISUAL DIRECTION — BINDING/);
-    assert.match(rendered, /No thali, no katoris\. Use a bank passbook\./);
+    assert.match(rendered, /No round steel dinner plate, no small steel bowls\. Use a bank passbook\./);
     assert.ok(
       rendered.indexOf("DESIGNER'S VISUAL DIRECTION") < rendered.indexOf("WORKED EXAMPLES"),
       "the binding direction must be stated before the examples it overrides",
@@ -477,7 +505,7 @@ describe("no topic gets a hard-locked subject", () => {
 describe("the unmatched-topic fallback does not always name the same props", () => {
   test("the leading prop varies across briefs", () => {
     // Rotation is a hash, so any single pair may collide; what matters is that the
-    // fallback is not the one fixed list that made gullak/taraju/thali the house style.
+    // fallback is not the one fixed list that made clay coin bank/two-pan shopkeeper's balance/round steel dinner plate the house style.
     const leads = new Set(
       [
         "understanding expense ratio",

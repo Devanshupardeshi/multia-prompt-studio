@@ -169,7 +169,7 @@ export const POSTER_CATEGORIES: Record<
     summary:
       "Tactile editorial collage combining photographic objects, paper texture and a single financial metaphor.",
     promptDirective:
-      "Execute Mixed Media Realism only: construct one oversized lower-centre hero from a real photographed object, hand or currency element with visible cut or torn edges, authentic grayscale/halftone surface detail, tactile paper or newsprint joins, and a soft grounded contact shadow. Reserve approved colour for small paper tabs, thin background geometry or labels outside the hero; never colourise the hero or full canvas. Use a straight-on or slight three-quarter product angle, coherent single-source studio light, simple flat or restrained-gradient background, and generous negative space. Every component must implement a named financial mapping and make credible physical contact. Forbid glossy CGI, plastic hands, chrome coins, cartoon cash icons, miniature architecture, cities, skylines, bridges, columns, infrastructure, unsupported pieces and copied reference wording or composition.\n\nCAMERA: straight-on or 10–15° three-quarter product angle, 50–85mm equivalent, f/8–f/11 deep focus so every torn edge and paper fibre stays sharp — never a shallow-DOF blur.\nLIGHTING: one soft studio key at 30–45° with gentle fill; no harsh specular hotspots, no coloured gels, no dramatic rim light.\nMATERIAL: real paper grain, visibly torn or cut edges with fibre texture, halftone/newsprint dot pattern at low opacity on any secondary element, one soft grounded contact shadow — never a hard drop shadow or a floating cutout.\nDEPTH: shallow layered-collage depth from 2–3 offset planes at most; this is a flat-lay/collage construction, not a deep 3D scene.\nFINISH: print-editorial magazine quality — restrained grain, matte paper sheen, never glossy CGI or plastic render finish.\nSTYLE ONLY: this category decides HOW the subject is rendered, never WHAT the subject is. The subject comes from the topic brief. Render whichever object that brief specifies as a tactile editorial collage — real photographed money material with torn/cut paper edges, halftone joins and a grounded contact shadow. Indian props render especially well here: currency notes with visible fibre, a bahi-khata's cloth binding, a jute sack's weave, a passbook's printed grain.",
+      "Execute Mixed Media Realism only: construct one oversized lower-centre hero from a real photographed object, hand or currency element with visible cut or torn edges, authentic grayscale/halftone surface detail, tactile paper or newsprint joins, and a soft grounded contact shadow. Reserve approved colour for small paper tabs, thin background geometry or labels outside the hero; never colourise the hero or full canvas. Use a straight-on or slight three-quarter product angle, coherent single-source studio light, simple flat or restrained-gradient background, and generous negative space. Every component must implement a named financial mapping and make credible physical contact. Forbid glossy CGI, plastic hands, chrome coins, cartoon cash icons, miniature architecture, cities, skylines, bridges, columns, infrastructure, unsupported pieces and copied reference wording or composition.\n\nCAMERA: straight-on or 10–15° three-quarter product angle, 50–85mm equivalent, f/8–f/11 deep focus so every torn edge and paper fibre stays sharp — never a shallow-DOF blur.\nLIGHTING: one soft studio key at 30–45° with gentle fill; no harsh specular hotspots, no coloured gels, no dramatic rim light.\nMATERIAL: real paper grain, visibly torn or cut edges with fibre texture, halftone/newsprint dot pattern at low opacity on any secondary element, one soft grounded contact shadow — never a hard drop shadow or a floating cutout.\nDEPTH: shallow layered-collage depth from 2–3 offset planes at most; this is a flat-lay/collage construction, not a deep 3D scene.\nFINISH: print-editorial magazine quality — restrained grain, matte paper sheen, never glossy CGI or plastic render finish.\nSTYLE ONLY: this category decides HOW the subject is rendered, never WHAT the subject is. The subject comes from the topic brief. Render whichever object that brief specifies as a tactile editorial collage — real photographed money material with torn/cut paper edges, halftone joins and a grounded contact shadow. Indian props render especially well here: printed banknote paper with visible fibre, struck metal relief, clear glass with real reflections and refraction, worn brushed steel.",
     boardFile: "mixed-media.jpg",
     referenceCrops: [
       {
@@ -221,7 +221,7 @@ export const POSTER_CATEGORIES: Record<
     summary:
       "Bold simplified silhouettes and editorial symbolism translated into a refined dimensional finish.",
     promptDirective:
-      "Execute Dimensional Editorial Illustration only: use one lower-third hero cluster with four to six total rounded geometric shapes, bold silhouettes, smooth continuous contours, flat authored colour blocks in the subject's own real colours and only one or two adjacent tonal facets for shallow depth. Keep the full canvas a single uninterrupted approved flat colour and preserve a separate zero-overlap headline zone. The canvas and type stay on the Bandhan palette; the figure keeps the real colours of what it depicts. Use economical financial symbolism that a financial editor can explain component by component. Forbid photoreal lighting, cast shadows, glass transparency or blur, full CGI, thick cartoon outlines, starburst call-outs, numbered badges, stock-icon dashboards, clutter, pure typography compositions and copied reference subjects.\n\nCAMERA: flat front-on orthographic view only, and never isometric (isometric belongs to the diorama style) — never a photographic camera angle or one-point/two-point perspective.\nLIGHTING: flat cel-style shading, exactly one shallow highlight facet plus one shadow facet per shape for dimension — never photoreal light falloff, gradients across a whole shape, or a cast shadow onto the background.\nMATERIAL: flat matte authored colour blocks built from geometric primitives only (circles, rounded rectangles, capsules, triangles), combined into 4–6 total shapes.\nDEPTH: from overlap and layering plus the one or two tonal facets, never from blur, atmospheric perspective or a drop shadow.\nFINISH: contemporary editorial spot-illustration quality — the standard of a Bloomberg Businessweek or Economist finance illustration, not a children's-book or corporate-clipart style.\nSTYLE ONLY: this category decides HOW the subject is rendered, never WHAT the subject is. The subject comes from the topic brief. Reduce whichever object that brief specifies to bold simplified geometry — but keep it identifiable: every primitive needs at least one concrete cue that names the real object (a coin's milled rim, a note's folded corner, a gullak's slot, a katori's curve, a passbook's binding). A plain circle or capsule with no such cue reads as generic UI iconography, not finance.",
+      "Execute Dimensional Editorial Illustration only: use one lower-third hero cluster with four to six total rounded geometric shapes, bold silhouettes, smooth continuous contours, flat authored colour blocks in the subject's own real colours and only one or two adjacent tonal facets for shallow depth. Keep the full canvas a single uninterrupted approved flat colour and preserve a separate zero-overlap headline zone. The canvas and type stay on the Bandhan palette; the figure keeps the real colours of what it depicts. Use economical financial symbolism that a financial editor can explain component by component. Forbid photoreal lighting, cast shadows, glass transparency or blur, full CGI, thick cartoon outlines, starburst call-outs, numbered badges, stock-icon dashboards, clutter, pure typography compositions and copied reference subjects.\n\nCAMERA: flat front-on orthographic view only, and never isometric (isometric belongs to the diorama style) — never a photographic camera angle or one-point/two-point perspective.\nLIGHTING: flat cel-style shading, exactly one shallow highlight facet plus one shadow facet per shape for dimension — never photoreal light falloff, gradients across a whole shape, or a cast shadow onto the background.\nMATERIAL: flat matte authored colour blocks built from geometric primitives only (circles, rounded rectangles, capsules, triangles), combined into 4–6 total shapes.\nDEPTH: from overlap and layering plus the one or two tonal facets, never from blur, atmospheric perspective or a drop shadow.\nFINISH: contemporary editorial spot-illustration quality — the standard of a Bloomberg Businessweek or Economist finance illustration, not a children's-book or corporate-clipart style.\nSTYLE ONLY: this category decides HOW the subject is rendered, never WHAT the subject is. The subject comes from the topic brief. Reduce whichever object that brief specifies to bold simplified geometry — but keep it identifiable: every primitive needs at least one concrete cue that names the real object (a milled rim, a folded paper corner, a slotted lid, a worn tread edge, a waisted glass neck, a spoked steel wheel). A plain circle or capsule with no such cue reads as generic UI iconography, not finance.",
     boardFile: "style-3-illustrative.jpg",
     referenceCrops: [
       {
@@ -395,37 +395,37 @@ export function getFinancialNarrativeSeed(
       investorQuestion:
         "How can an allocation combine the relative stability associated with established large-cap businesses and the growth potential of mid-cap businesses without implying guaranteed outcomes?",
       heroMetaphor:
-        "One taraju — the two-pan balance from any Indian kirana shop — with a broad heavy coin stack seated on one pan and a group of three to five smaller coin stacks on the other, on one beam over one seated pivot and one grounded base.",
+        "One broad, low, heavy coin stack standing beside a group of three to five taller, slimmer coin stacks, all seated on one shared base.",
       visualMappings: [
         {
           element:
-            "One broad, heavy stack of large coins resting fully on the first brass pan",
+            "One broad, low stack of large coins with its full weight on the shared base",
           financialMeaning:
             "Large-cap exposure: established scale and relative portfolio stability.",
         },
         {
           element:
-            "Three to five smaller coin stacks grouped on the second brass pan",
+            "Three to five smaller, taller coin stacks grouped beside it",
           financialMeaning:
             "Mid-cap exposure: a wider set of developing businesses and growth potential.",
         },
         {
           element:
-            "One continuous brass beam carrying both pans",
+            "The single continuous base both groups stand on",
           financialMeaning:
-            "Portfolio allocation holding both market-cap segments in a deliberate, complementary mix.",
+            "One portfolio holding both market-cap segments in a deliberate, complementary mix.",
         },
         {
-          element: "One visible seated pivot at the centre of the beam",
-          financialMeaning: "The fund manager's allocation judgement.",
+          element: "The clear, deliberate gap between the two groups",
+          financialMeaning: "The allocation decision separating the two segments.",
         },
         {
-          element: "One grounded wooden or brass base with a visible contact shadow",
+          element: "The grounded base with a visible contact shadow",
           financialMeaning: "The fund's overall structural stability.",
         },
       ],
       relationship:
-        "The beam sits visibly on its pivot; both pans hang from that same beam; every coin stack makes full contact with its pan; the base is grounded. The balance makes the mix visible without implying equal allocation or a guaranteed outcome.",
+        "Every coin stack rests fully on the shared base with a real contact shadow; the broad stack and the taller group read as one arrangement, not two scenes. The composition makes the mix visible without implying equal allocation or a guaranteed outcome.",
       guardrail:
         "Do not show guaranteed growth, exact allocation, performance numbers, risk-free large caps or inevitably growing mid caps. Forbid cities, buildings, bridges, architecture, independent columns, separate platforms, staircases, bar charts, floating blocks and unrelated sculptures.",
     };
@@ -436,18 +436,18 @@ export function getFinancialNarrativeSeed(
       investorQuestion:
         "How can an investor stay oriented while market conditions and phases change?",
       heroMetaphor:
-        "One lattu — the wooden spinning top every Indian child knows — standing upright and steady on its tip while its painted bands blur with motion around it.",
+        "One coin jar standing perfectly still and level in the foreground while a stock-market graph rises and falls as a low-opacity field behind it.",
       visualMappings: [
         {
-          element: "The lattu's steady vertical axis and its single point of contact with the ground",
+          element: "The jar standing level and fully grounded, entirely in focus",
           financialMeaning: "Disciplined investment orientation held through changing conditions.",
         },
         {
-          element: "The painted bands around its body, blurred by rotation",
+          element: "The rising and falling market graph behind it, soft and out of focus",
           financialMeaning: "Market phases and volatility moving around the investor.",
         },
         {
-          element: "The top staying upright rather than tilting toward any direction",
+          element: "The jar not leaning toward either the rises or the falls",
           financialMeaning: "Staying invested and rebalancing rather than predicting the market.",
         },
       ],
@@ -463,24 +463,24 @@ export function getFinancialNarrativeSeed(
       investorQuestion:
         "How do distinct exposures work together inside one considered portfolio?",
       heroMetaphor:
-        "One steel thali with fitted katoris, each katori holding a visibly different money material — coins, grain, a small gold piece, a folded note — all carried on the same single plate.",
+        "One clear coin jar holding a visible mix of different denominations — cool steel, warm brass and two-tone coins, grain, a small gold piece, a folded note — all carried on the same single plate.",
       visualMappings: [
         {
           element:
-            "Three to five fitted katoris, each holding a clearly different material and fill level",
+            "Three to five clearly different coin denominations, distinguishable by metal, size and colour",
           financialMeaning: "Different portfolio exposures or allocation roles.",
         },
         {
-          element: "The one steel thali that seats every katori in its own recess",
+          element: "The one jar that holds every denomination together",
           financialMeaning: "Their combined role within one portfolio.",
         },
         {
-          element: "The visibly unequal fill levels between katoris",
+          element: "The visibly unequal quantity of each denomination in the mix",
           financialMeaning: "The deliberate allocation decision between exposures.",
         },
       ],
       relationship:
-        "Every katori sits in its own recess on the same plate and touches it; the differences between their contents and fill levels carry the meaning, not their arrangement in space.",
+        "Every coin sits inside the same jar and is in contact with the others; the differences between the denominations and their quantities carry the meaning, not their arrangement in space.",
       guardrail:
         "No invented allocation percentages, guaranteed diversification benefit or unsupported product claim.",
     };
@@ -491,7 +491,7 @@ export function getFinancialNarrativeSeed(
       investorQuestion:
         "How can regular, time-based investing build participation without promising a result?",
       heroMetaphor:
-        "One gullak with a queue of identical coins entering its slot at perfectly even spacing, the coins already inside visible through the opening.",
+        "One coin jar with a queue of identical coins entering its slot at perfectly even spacing, the coins already inside visible through the opening.",
       visualMappings: [
         {
           element: "Identical coins queued at visibly regular, equal spacing",
@@ -502,7 +502,7 @@ export function getFinancialNarrativeSeed(
           financialMeaning: "Consistency and continuity of the SIP process.",
         },
         {
-          element: "The gullak's grounded body filling steadily, without overflowing",
+          element: "The jar's grounded body filling steadily, without overflowing",
           financialMeaning: "Participation building across a longer horizon.",
         },
       ],
@@ -518,7 +518,7 @@ export function getFinancialNarrativeSeed(
       investorQuestion:
         "How can eligible investment losses be used against realised gains without implying that every loss creates a tax benefit?",
       heroMetaphor:
-        "One bahi-khata ledger open flat with two facing pages, a small stack of coins set on each page and a single brass paperweight holding the book open at the join between them.",
+        "Two coin stacks of clearly different height standing side by side on one shared base, a single coin lifted clear between them, held at the join between them.",
       visualMappings: [
         {
           element: "A first grounded tray holding selected below-cost tax lots",
@@ -549,7 +549,7 @@ export function getFinancialNarrativeSeed(
       investorQuestion:
         "Why can longer-duration fixed-income holdings react more strongly to an interest-rate change than shorter-duration holdings?",
       heroMetaphor:
-        "One taraju whose two coin stacks hang at visibly different distances from the central pivot, the far stack swinging through a wider arc than the near one for the same small movement.",
+        "One flight of steps with a coin stack on a low near tread and another on a far high tread, the far stack sitting through a wider arc than the near one for the same small movement.",
       visualMappings: [
         {
           element: "A shorter-duration load positioned close to the central rate pivot",
@@ -580,7 +580,7 @@ export function getFinancialNarrativeSeed(
       investorQuestion:
         "How can a portfolio be brought back toward its intended risk mix after market movement changes the weights?",
       heroMetaphor:
-        "One taraju mid-adjustment, its two coin stacks currently uneven, with a hand moving a single coin from the heavier pan to the lighter one to bring the beam back toward level.",
+        "Two coin jars at visibly uneven fill levels, with a single coin being moved from the fuller jar to the lighter one to bring the beam back toward level.",
       visualMappings: [
         {
           element: "Two connected compartments whose current sizes sit away from the centre marker",
@@ -612,10 +612,10 @@ export function getFinancialNarrativeSeed(
   return {
     investorQuestion: `What decision about ${topic} should an investor understand before acting?`,
     heroMetaphor:
-      `One everyday Indian money object chosen because its real structure explains ${topic} — for example a gullak, a taraju, a steel thali with katoris, graduated brass paili measures, a bank passbook, a bahi-khata ledger or a bound sheaf of currency notes — shown as a single grounded hero, not an invented mechanism.`,
+      `One object from the approved list, chosen because its real structure explains ${topic} — coins, notes, a coin jar, a 3D graph built as a real object, a flight of steps, an hourglass or a bank vault — shown as a single grounded hero, not an invented mechanism.`,
     visualMappings: [
       {
-        element: `The main body of one recognisable Indian money object, chosen to carry ${topic}`,
+        element: `The main body of one approved object, chosen to carry ${topic}`,
         financialMeaning: `The investment subject being explained: ${topic}.`,
       },
       {
@@ -885,16 +885,16 @@ REFERENCE INTELLIGENCE — extracted from all supplied folders:
 
 7. SUBJECT VERSUS STYLE — THE MOST IMPORTANT SEPARATION IN THIS BRIEF
 - Two independent decisions. The TOPIC decides WHAT the hero is. The selected category decides only HOW that object is rendered — its material, camera, lighting, construction and finish. These must never be confused.
-- The same topic must produce the SAME object across all three categories, rendered three different ways. A SIP poster is a gullak whether it is shot as tactile paper collage, as a physically based product render, or as flat dimensional illustration. If switching the category would change WHAT the object is, the subject was chosen wrongly.
+- The same topic must produce the SAME object across all three categories, rendered three different ways. A SIP poster is a coin jar whether it is shot as tactile paper collage, as a physically based product render, or as flat dimensional illustration. If switching the category would change WHAT the object is, the subject was chosen wrongly.
 - Never let the category suggest the subject. The category section below contains no subject vocabulary on purpose.
 
 8. INDIAN MARKET AND INDIAN AUDIENCE
-- This is CNBC-TV18 and Bandhan Mutual Fund, speaking to Indian retail investors. Their mental model of money is built from household and shop objects they handle every day — a gullak, a taraju, a steel thali, a bank passbook, gold bangles, brass measures, an earthen matka, a bahi-khata — not from Western finance abstractions.
-- Prefer the Indian object over the international equivalent every time: a gullak, never a cartoon piggy bank; a taraju (kirana two-pan balance), never a laboratory scale; a bahi-khata, never a leather Western ledger; Indian banknotes and Ashoka-Lion-Capital coins with the ₹ symbol, never dollars or generic gold discs.
+- This is CNBC-TV18 and Bandhan Mutual Fund, speaking to Indian retail investors. The hero always comes from one closed, approved list: coins, notes, a coin jar, a 3D graph built as a real object, a flight of steps, an hourglass, or a bank vault. A stock-market graph may appear only as a low-opacity background layer. Nothing outside that list may be the hero, however well it would suit the topic — the list is what makes the run read as one campaign.
+- Within the approved list, always take the Indian form over the international one: a real coin jar, never a cartoon piggy bank; Indian banknotes and Ashoka-Lion-Capital coins with the ₹ symbol, never dollars or generic gold discs; an Indian bank vault or locker, never a Fort-Knox bullion strongroom.
 - Forbidden as culturally wrong or non-compliant here: dollar or euro symbols, the Wall Street charging bull, Western glass-tower skylines, men in Western suits shaking hands, religious deities or devotional iconography, and anything resembling Aadhaar, PAN or personal KYC data.
 - Design for a phone screen in daylight: high contrast, bold silhouette, one clear subject. The poster is seen at social-media thumbnail size before anyone opens it full-screen, so the hero must be identifiable at that size.
 - The one-second test, applied before you commit to any subject: could an Indian viewer scrolling past name this object and sense that it is about money, before reading a single word? If the object needs the headline to make sense, or would look equally at home advertising a car, a lab instrument or a fitness app, it is the wrong subject no matter how clever the underlying metaphor is.
-- Never invent a mechanism, apparatus, instrument or machine to stand in for a financial idea. Do not describe parts by function — no cradles, gates, trays, modules, accumulators, levers, dividers or frames. Name real objects and their real parts (a pan, a beam, a slot, a lid, a katori, a page, a rim).
+- Never invent a mechanism, apparatus, instrument or machine to stand in for a financial idea. Do not describe parts by function — no cradles, gates, trays, modules, accumulators, levers, dividers or frames. Name real objects and their real parts (a slot, a lid, a tread, a rim, a glass bulb, a spoked wheel, a milled edge).
 - No reference photographs are attached to this request. The written specs below are complete and authoritative on their own — do not ask for or assume a reference image; render entirely from the text plus the approved colour and layout data above.
 
 SUBJECT BRIEF — derived from the topic. This decides WHAT the hero is.

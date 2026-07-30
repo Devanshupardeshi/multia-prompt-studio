@@ -14,8 +14,9 @@ import type { PosterStudioPayload } from "./poster-types";
  * It renders as lab equipment, reads as nothing financial at thumbnail size, and is
  * culturally placeless. The audience here is Indian retail investors watching
  * CNBC-TV18, whose mental model of money is built from household and shop objects
- * they touch every day — a gullak, a taraju, a thali, a passbook, gold bangles —
- * not from Western abstractions or invented mechanisms.
+ * they touch every day — coins, notes, a coin jar, steps, an hourglass, a bank
+ * vault — not from Western abstractions or invented mechanisms. The approved list
+ * is deliberately short so the campaign reads as one body of work.
  */
 
 /**
@@ -48,9 +49,9 @@ export const INDIAN_CURRENCY_SPEC = [
   "- ₹5: nickel-brass, distinctly WARM golden-brass — noticeably yellower than the ₹1 and ₹2, ~23 mm, thicker in the hand.",
   "- ₹10: bimetallic — a warm nickel-brass centre disc set inside a cool silver stainless-steel outer ring, ~27 mm. The two-tone ring is its signature.",
   "- ₹20: bimetallic and twelve-sided (dodecagonal), warm centre in a pale outer ring, ~27 mm.",
-  "Every coin's obverse shows the Lion Capital of Ashoka above the Devanagari legend 'सत्यमेव जयते'. Every reverse shows the ₹ symbol beside the value in numerals. Struck relief, milled or plain edges, and real circulated wear — softened high points, faint scratches, warmer tarnish in the recesses — never a mirror-polished blank disc.",
+  "Every coin's obverse shows the Lion Capital of Ashoka above the national motto in Devanagari script. Every reverse shows the ₹ symbol beside the value in numerals. Struck relief, milled or plain edges, and real circulated wear — softened high points, faint scratches, warmer tarnish in the recesses — never a mirror-polished blank disc.",
   "",
-  "THE RUPEE SYMBOL ₹: the Devanagari letter 'र' with two horizontal strokes across its top. When it appears as a dimensional object it is die-struck, embossed, cast or cut — with real thickness, bevelled edges and its own contact shadow — never a flat pasted glyph.",
+  "THE RUPEE SYMBOL ₹: an R-like letterform with two horizontal strokes across its top. When it appears as a dimensional object it is die-struck, embossed, cast or cut — with real thickness, bevelled edges and its own contact shadow — never a flat pasted glyph.",
   "",
   "PHYSICAL FIDELITY — the money must be the real object, not a symbol of money. Reproduce the actual engraved figures and the actual surface, at a level of detail where a viewer who handles this currency daily recognises the specific denomination without being told:",
   "- Notes: the engraved right-facing Mahatma Gandhi portrait built from real intaglio line-work, the correct reverse monument rendered as recognisable architecture rather than a vague shape, the raised ink you can feel across the portrait and the denomination block, cotton-rag paper with visible fibre and a faint mottled grain, the embedded colour-shifting security thread, the Gandhi watermark in the clear window, the see-through register mark, the guilloche rosettes and fine engine-turned line patterns across the field, and honest use: soft central fold, slightly furred edges, a rounded or bent corner, minor surface grime in the creases. Ink sits matte and slightly absorbed into the paper — never glossy, never printed on card, never crisp like freshly cut plastic.",
@@ -96,7 +97,7 @@ export const HERO_COLOUR_FREEDOM = [
   "",
   "BRAND-LOCKED, no exceptions: the dominant background field and its gradient or vignette, the editable text colours, and everything inside the logo and copy-safe zones. These come from the approved palette only, and the background is always one of the rich primary hue families — never white, pale or a light neutral.",
   "",
-  "THE HERO FIGURE IS FREE. The subject uses whatever colours its material and the selected style genuinely call for, whether or not those colours are in the brand palette. Real brass is warm yellow; real terracotta is orange-brown; real clay is putty or earth; real card stock is whatever the paper is; a ₹100 note is lavender and a ₹500 is stone grey; skin is a real Indian skin tone; a banyan's leaves are green. Render the true colour of the thing. A hero repainted into a brand hue reads as a plastic prop and defeats the realism this campaign depends on.",
+  "THE HERO FIGURE IS FREE. The subject uses whatever colours its material and the selected style genuinely call for, whether or not those colours are in the brand palette. Real brass is warm yellow; real terracotta is orange-brown; real clay is putty or earth; real card stock is whatever the paper is; a ₹100 note is lavender and a ₹500 is stone grey; skin is a real Indian skin tone; the sand in an hourglass is pale, not brand-tinted. Render the true colour of the thing. A hero repainted into a brand hue reads as a plastic prop and defeats the realism this campaign depends on.",
   "",
   "WHAT STILL DISCIPLINES THE FIGURE — coherence, not the palette:",
   "- It must sit believably in the approved background: shared light direction and colour temperature, the background's hue reflected softly in shadows and on facing surfaces, and enough tonal separation from the field that the silhouette reads at thumbnail size.",
@@ -131,7 +132,7 @@ export const HUMAN_ELEMENT_SPEC = [
   "THE PERSON IS INDIAN, and specifically so rather than generically 'ethnic':",
   "- The genuine range of Indian skin tones, from fair wheatish through to deep brown, with warm undertones and natural variation across the face — not one flattened mid-brown.",
   "- Black or very dark brown hair with real Indian hair texture — straight, wavy or coiled, with weight and individual strands at the hairline, not a moulded helmet.",
-  "- Clothing appropriate to the person and the setting: a cotton or silk saree with real pleat structure, a salwar kameez with dupatta, a kurta, a formal shirt with a soft collar, a dhoti — chosen for who this person is, not a Western business suit by default.",
+  "- Clothing appropriate to the person and the setting: a long draped cotton or silk wrap-over garment with real pleat structure, a long tunic over loose trousers with a long scarf, a long collarless tunic shirt, a formal shirt with a soft collar, a wrapped lower garment — chosen for who this person is, not a Western business suit by default.",
   "- Real, specific age: a shopkeeper's weathered hands read completely differently from a first-time investor's, and that difference should be visible and deliberate.",
   "",
   "STYLE GOVERNS THE MATERIAL, NEVER THE ANATOMY. In clay, paper, illustration or diorama the person is built from that material — but the hand still has five correctly jointed fingers, the face still has correct feature placement, the body still obeys gravity, and the person is still visibly Indian. Simplify the surface, never the structure. A clay figure with a malformed hand is still a malformed hand.",
@@ -166,28 +167,31 @@ export function getCategoryHumanExecution(category: string): string {
   return CATEGORY_HUMAN_EXECUTION[category] ?? "";
 }
 
-/** Culturally-legible Indian money props, grouped by where they come from in daily life. */
+/**
+ * The complete approved prop list. Nothing outside it may appear as the hero.
+ *
+ * Deliberately short. A wide vocabulary produced a different object every week and
+ * no recognisable campaign look; six hero objects plus a background treatment give
+ * the run a consistent visual language, and each one is versatile enough to carry
+ * several financial ideas depending on how it is staged and what it holds.
+ */
 export const INDIAN_FINANCIAL_PROPS = {
-  currency:
-    "Indian banknotes in their real denomination colours (₹500 stone grey, ₹200 saffron yellow, ₹100 lavender, ₹50 cyan-blue, ₹20 greenish yellow, ₹10 chocolate brown), Indian coins in their real metals (cool steel ₹1 and ₹2, warm brass ₹5, two-tone bimetallic ₹10 and twelve-sided ₹20) bearing the Ashoka Lion Capital and Devanagari numerals, the ₹ rupee symbol as a die-struck or embossed form — see the CURRENCY SPECIFICATION for exact detail",
-  householdSavings:
-    "a gullak (clay or steel coin bank, the first savings vessel in most Indian homes), an earthen matka, a steel tijori or almirah safe, a locked steel cash box",
-  shopAndMeasure:
-    "a taraju (the two-pan shopkeeper balance found in every kirana store), graduated brass paili and seer grain measures in exact stepped sizes, a bahi-khata (red cloth-bound traditional ledger), a jute bora sack, a spike-file of bills",
-  kitchenAndServing:
-    "a steel thali with fitted katoris (separate compartments on one plate), stacked steel tiffin tiers of graduated diameter, brass and copper vessels",
-  documents:
-    "a bank passbook, a chequebook, a folio or account statement, a SIP mandate form, a fixed-deposit receipt, a physical share certificate, a rubber stamp and ink pad",
-  gold:
-    "gold bangles, a gold chain, gold coins in a small pouch, a jeweller's velvet tray and loupe",
-  growth:
-    "a banyan or peepal tree with visible aerial roots, a sapling in an earthen pot, sprouting grain, a monsoon-to-harvest seasonal cycle",
-  digital:
-    "a UPI QR code plate, a smartphone showing a payment confirmation, a debit card, a passbook-printing counter",
-  market:
-    "the BSE Phiroze Jeejeebhoy Towers silhouette, a trading-floor ticker board, a bell",
-  festive:
-    "a diya, a rangoli pattern, Dhanteras and Akshaya Tritiya gold-buying imagery",
+  coins:
+    "Indian coins in their real metals (cool steel ₹1 and ₹2, warm brass ₹5, two-tone bimetallic ₹10, twelve-sided ₹20) bearing the Ashoka Lion Capital and the ₹ numeral — used singly, in stacks, in rows, in dense crowds, falling, or set into another object. See the CURRENCY SPECIFICATION for exact detail.",
+  notes:
+    "Indian banknotes in their real denomination colours (₹500 stone grey, ₹200 saffron yellow, ₹100 lavender, ₹50 cyan-blue, ₹20 greenish yellow, ₹10 chocolate brown) — single, fanned, folded, rolled, banded into a bundle, or stacked. See the CURRENCY SPECIFICATION for exact detail.",
+  coinJar:
+    "a coin jar: a clear glass or ceramic jar with the fill level visible through the wall, a slotted lid, and real coins inside. Its fill level, its scale, and whether it is filling or full carry the meaning.",
+  dimensionalGraph:
+    "a 3D graph built as a REAL OBJECT rather than a drawing — extruded bar columns with genuine depth, weight and contact shadows, a ribbon-like line graph with actual thickness standing on a base, or a candlestick series as physical stepped blocks. It is a sculpted object sitting in the scene, never a flat chart pasted onto it.",
+  steps:
+    "a flight of real stone, wood or metal steps — each tread a stage, with genuine thickness, edge wear and shadow between treads. A physical staircase, never a bar chart drawn to look like one.",
+  hourglass:
+    "an hourglass with a wooden or brass frame and glass bulbs, sand or coins falling through the neck, the two chambers showing elapsed against remaining time. Also a plain wall clock where the idea is a moment rather than a duration.",
+  bankVault:
+    "a bank vault door with its spoked wheel, deep bolt work and thick steel edge, or a bank locker drawer — real, worn, used bank hardware. Open, ajar or closed, and that state is part of the meaning.",
+  marketGraphBackground:
+    "BACKGROUND ONLY — a stock-market line, candlestick or grid field rendered flat and low-opacity behind the hero, confined to the hero's field and faded out under copy and logo zones. Never the hero, never in focus, never carrying the concept on its own.",
 } as const;
 
 /**
@@ -199,7 +203,7 @@ export const AVOID_GLOBALLY = [
   // clip-art. Naming it explicitly matters: it is the single most likely thing the
   // model will reach for when asked for an "Indian mutual fund poster".
   "the generic Indian mutual-fund template look — flat vector clip-art, smiling cartoon families or businessmen, tiny icon sets, a tablet or phone showing a rising chart, confetti and starbursts. This campaign is premium editorial work, not a PosterMyWall or stock-template layout",
-  "the Western cartoon piggy bank (use a gullak instead)",
+  "the Western cartoon piggy bank (use the approved coin jar instead)",
   "dollar signs, dollar bills, green banknotes, euro or pound symbols, or any non-Indian currency — see the CURRENCY SPECIFICATION, which is absolute",
   "blank unmarked gold or silver discs used as stand-in coins — an Indian coin is identifiable by its metal, its Ashoka lion capital and its ₹ numeral",
   "the Wall Street charging bull, Western skyscraper skylines or glass-tower financial districts",
@@ -232,14 +236,14 @@ export const TOPIC_FIGURE_PATTERNS: TopicFigurePattern[] = [
     concept:
       "An index is one basket that measures many companies together, weighted by size — not a single company and not a pie chart.",
     figures: [
-      "One tokri (cane basket) or bound bundle holding a visibly large, uniform set of coin-discs of clearly different diameters — reading as 'many, held together, unequal weights', never as a countable few",
-      "One fan or bound sheaf of identical currency slips clamped under a single band, the band being the index that holds them as one measure",
-      "One taraju whose single pan carries a dense uniform crowd of small coins, showing that the reading comes from the whole crowd rather than any one coin",
+      "One coin jar packed with a dense crowd of coins of clearly different denominations and diameters — reading as 'many, held together, unequal weights', never as a countable few",
+      "One bundle of notes clamped under a single band, the band being the index that holds many separate values as one reading",
+      "A 3D bar graph whose columns are stacks of real coins at visibly different heights, standing on one shared base so it reads as one measure rather than separate bars",
     ],
     avoid: [
       "three or four coins standing in a row — an index is a large weighted crowd, not a trio",
       "pie charts, pie slices or segmented discs (an index is a weighted basket, not a share-of-total breakdown)",
-      "candlestick charts, line graphs, arrows or any chart furniture standing in for the index",
+      "a flat drawn chart standing in for the index — if a graph is the hero it must be a real dimensional object",
     ],
   },
   {
@@ -248,14 +252,14 @@ export const TOPIC_FIGURE_PATTERNS: TopicFigurePattern[] = [
     concept:
       "Company-size tiers: the same kind of thing at clearly different scales, side by side, so the size difference itself is the message.",
     figures: [
-      "Graduated brass paili/seer grain measures in a stepped row — the Indian shopkeeper's exact-size set — each holding coins, the vessel size carrying the cap tier",
-      "Stacked steel tiffin tiers of visibly graduated diameter, the widest at the base, each tier holding coins",
-      "Three gullaks of clearly different size in one row, identical in form so only scale differs",
+      "Three coin jars of clearly different size in one row, identical in form so only scale differs, each filled to the same proportion",
+      "Three coin stacks of unmistakably different height and diameter on one shared base, the largest denomination in the tallest",
+      "A 3D bar graph of three extruded columns at clearly different heights, each capped with a real coin so the tiers stay financial rather than abstract",
     ],
     avoid: [
       "buildings, houses, city blocks, skylines, bridges, columns or any architecture standing in for company size",
       "tiers that look equal in size — the scale difference IS the subject and must be unmistakable at thumbnail size",
-      "bar charts or stepped graphs substituting for physical size",
+      "a flat drawn bar chart; if a graph carries this, it must be a real extruded object with depth and shadow",
     ],
   },
   {
@@ -264,9 +268,9 @@ export const TOPIC_FIGURE_PATTERNS: TopicFigurePattern[] = [
     concept:
       "A small, equal amount added at a regular interval — repetition over time, with no promise about the result.",
     figures: [
-      "One gullak with a queue of identical coins entering its slot at even spacing, the evenness carrying the discipline",
-      "A panchang or monthly calendar grid with one identical coin seated on a regular run of dates",
-      "A brass tap releasing evenly spaced coins into an earthen matka that is filling, not overflowing",
+      "One coin jar with a queue of identical coins entering its slot at even spacing, the evenness carrying the discipline",
+      "A flight of steps with one identical coin seated on each tread, the equal spacing reading as equal instalments",
+      "An hourglass whose falling grains are coins, the lower chamber holding a steadily growing pile rather than a sudden heap",
     ],
     avoid: [
       "a magical or exploding growth curve, or coins multiplying on their own",
@@ -278,15 +282,15 @@ export const TOPIC_FIGURE_PATTERNS: TopicFigurePattern[] = [
     id: "diversification",
     match: /\b(?:diversif|asset allocation|allocation|portfolio mix|asset mix|balanced fund|hybrid)\w*/i,
     concept:
-      "One portfolio holding several genuinely different things at once — separate compartments, one plate.",
+      "One portfolio holding several genuinely different things at once — visibly different contents, one container.",
     figures: [
-      "One steel thali with fitted katoris, each katori holding a visibly different asset — coins, grain, a small gold piece, a folded note — one plate carrying all of them",
-      "One wooden or brass compartment tray (like a jeweller's or spice box) with distinct fitted sections, each filled differently",
-      "One masala dabba with its separate wells, each well holding a different money material",
+      "One coin jar holding a visible mix of denominations — steel ₹1 and ₹2, brass ₹5, two-tone ₹10 — distinct from each other but held in one vessel",
+      "One fan of notes in several different denomination colours held under a single band, the colour differences carrying the mix",
+      "A 3D bar graph of several columns at different heights and materials standing on one shared base, each column topped by a different denomination",
     ],
     avoid: [
       "pie charts or percentage rings",
-      "identical compartments holding identical contents — the differences between holdings are the point",
+      "identical contents — the differences between holdings are the point, so the denominations must be visibly unlike each other",
       "abstract frames, dividers or 'allocation systems' with no everyday identity",
     ],
   },
@@ -294,15 +298,15 @@ export const TOPIC_FIGURE_PATTERNS: TopicFigurePattern[] = [
     id: "compounding-longterm",
     match: /\b(?:compound|long ?term|long horizon|wealth creation|power of time|stay invested)\w*/i,
     concept:
-      "Time doing the work: something small becoming substantial through growth, with visible roots rather than a promised number.",
+      "Time doing the work: something small becoming substantial, with the elapsed time visible rather than a promised number.",
     figures: [
-      "A banyan or peepal tree whose trunk rises out of a gullak or a single coin, aerial roots visible, scale showing years rather than a curve",
-      "A sapling in an earthen pot beside the mature tree it becomes, the same plant at two ages",
-      "Sprouting grain emerging from a coin bed, early shoots at clearly different stages",
+      "An hourglass beside a coin jar, the jar's fill level clearly further along than the sand that has run — time converted into holding",
+      "A flight of steps whose treads carry progressively taller coin stacks, the rise accelerating rather than staying even",
+      "A 3D line graph as a thick ribbon curving upward on a real base, coins seated along its path marking the years",
     ],
     avoid: [
-      "an exponential curve, hockey-stick graph or rising-arrow overlay",
-      "money trees with banknotes as leaves (cliché and implies guaranteed returns)",
+      "a flat drawn hockey-stick graph or a rising-arrow overlay — if the curve is the hero it must be a real dimensional object",
+      "notes or coins multiplying by themselves, which implies a guaranteed return",
       "any figure, percentage or timeline number",
     ],
   },
@@ -312,44 +316,44 @@ export const TOPIC_FIGURE_PATTERNS: TopicFigurePattern[] = [
     concept:
       "Movement around a steady centre — conditions change while the investor's position holds.",
     figures: [
-      "A lattu (wooden spinning top) upright and stable on its tip while its painted bands blur with motion",
-      "A taraju whose pans are still swinging while the central beam and pivot stay firmly seated",
-      "A monsoon-to-harvest seasonal ring where the field returns through the same phases without a straight upward path",
+      "A 3D line graph as a thick ribbon with real dips and rises, standing firmly on a solid base — the path moves, the base does not",
+      "A coin jar sitting perfectly still in the foreground while a market graph rises and falls as a low-opacity field behind it",
+      "An hourglass caught mid-turn, the sand shifted from one chamber to the other while the frame stays intact and upright",
     ],
     avoid: [
       "an uninterrupted rising line or any directional market prediction",
-      "storms, lightning, crashing waves or fear imagery",
-      "gyroscopes, stabilisers or engineered instruments with no household identity",
+      "storms, lightning, crashing waves, cracks or fear imagery",
+      "a broken, spilled or toppled object — the point is that the position holds",
     ],
   },
   {
     id: "risk-return",
     match: /\b(?:risk|volatility profile|risk profile|risk appetite|rebalanc|trade.?off)\w*/i,
     concept:
-      "A visible trade-off being weighed — two real things on two real pans, unequal on purpose.",
+      "A visible trade-off: more of one thing means less of another, and the difference is shown physically rather than labelled.",
     figures: [
-      "A taraju (two-pan kirana balance) with a coin stack on one pan and a gold piece on the other, clearly unequal, the beam and pivot honestly loaded",
-      "A taraju mid-adjustment, a hand moving one coin between pans to bring the beam back toward level",
-      "Graduated brass weights beside a loaded pan, the weight sizes carrying the comparison",
+      "Two coin stacks of clearly different height on one base, the taller one visibly narrower and less settled than the short broad one",
+      "A 3D bar graph of exactly two columns — one short and wide, one tall and slender — so the trade-off reads instantly at thumbnail size",
+      "A flight of steps of deliberately uneven rise, the higher treads visibly steeper than the lower ones",
     ],
     avoid: [
-      "a perfectly level balance when the topic is about difference or trade-off",
+      "two things that look equal when the topic is about difference or trade-off",
       "dials, meters, gauges or risk-o-meter graphics",
-      "anonymous slabs or blocks on the pans — both loads must be recognisable money material",
+      "anonymous slabs or blocks — every element must be recognisable money material or a real dimensional graph",
     ],
   },
   {
     id: "gold",
     match: /\b(?:gold|silver|precious metal|sovereign gold|gold etf|dhanteras|akshaya)\w*/i,
     concept:
-      "Gold as an investment held two ways — the physical form Indian households know, and its paper or digital equivalent.",
+      "Precious metal as a held investment — stored, secured and accumulated rather than displayed as treasure.",
     figures: [
-      "Gold bangles and coins on a jeweller's velvet tray beside a folio statement representing the same holding on paper",
-      "A small gold coin pouch beside a demat or fund statement, the two forms of the same asset in one frame",
-      "Gold coins arranged on a weighing pan with graduated brass weights alongside",
+      "A bank vault door ajar with warm brass-toned coin stacks visible inside, the vault carrying the idea of a stored, secured holding",
+      "A coin jar filled entirely with warm brass ₹5 coins so the mass reads as one metal, beside a single note for scale",
+      "A bank locker drawer pulled part way open, coin stacks seated inside in neat rows",
     ],
     avoid: [
-      "gold bullion vaults, Fort-Knox bars or Western bank-vault imagery",
+      "bullion bars, Fort-Knox imagery or a Western strongroom",
       "overflowing treasure piles implying easy wealth",
       "any price, purity figure or return claim",
     ],
@@ -360,9 +364,9 @@ export const TOPIC_FIGURE_PATTERNS: TopicFigurePattern[] = [
     concept:
       "Two different kinds of holding placed side by side — one steady and predictable, one growth-oriented and more variable.",
     figures: [
-      "A sturdy steel vessel beside an earthen pot holding a sapling — the steel reading as predictable, the sprouting pot as growth with variability",
-      "A fixed-deposit receipt and a passbook laid beside a young plant in soil, paper certainty next to living growth",
-      "A closed steel tijori beside an open basket of mixed coins",
+      "A closed bank vault beside an open coin jar — the vault reading as steady and predictable, the open jar as active and variable",
+      "A 3D bar graph of two columns side by side: one perfectly even and flat-topped, one stepped and uneven",
+      "A coin jar sitting at a fixed, marked fill line beside one still being filled",
     ],
     avoid: [
       "a see-saw, lever or fulcrum diagram of the two",
@@ -376,9 +380,9 @@ export const TOPIC_FIGURE_PATTERNS: TopicFigurePattern[] = [
     concept:
       "A tax-linked investment with a real holding condition — the benefit and the lock-in shown together.",
     figures: [
-      "A gullak with a visible brass lock and a small stamped seal, the lock reading as the holding period",
-      "A stamped form and ink pad beside a coin stack, the stamp carrying the official benefit",
-      "A sealed cloth money bag with a wax seal and a rubber-stamped receipt",
+      "A closed bank vault with an hourglass standing in front of it, the vault holding the investment and the hourglass carrying the lock-in period",
+      "A coin jar with a sealed, clamped lid and an hourglass beside it part way through its run",
+      "A flight of steps with a wide landing part way up, an hourglass seated on the landing as the waiting period before the climb continues",
     ],
     avoid: [
       "invented tax figures, slab numbers or savings amounts",
@@ -392,12 +396,13 @@ export const TOPIC_FIGURE_PATTERNS: TopicFigurePattern[] = [
     concept:
       "A beginning — something newly opened, blank, or being started for the first time.",
     figures: [
-      "A fresh bank passbook opened to its blank first page with a single coin resting on it",
-      "A sealed lifafa (envelope) being opened, a folded note just visible at the mouth",
-      "An empty gullak with the very first coin poised at its slot",
+      "An empty coin jar with the very first coin poised at its slot, the emptiness below being the point",
+      "The bottom tread of a flight of steps with a single coin on it, the remaining treads rising away empty",
+      "A bank vault door swinging open on an interior that is clean and ready rather than full",
     ],
     avoid: [
       "ribbon-cutting, fireworks, launch rockets or countdown imagery",
+      "a full jar or a loaded vault — the subject is the start, not the result",
       "implying a new fund is a better or timelier opportunity",
     ],
   },
@@ -407,13 +412,13 @@ export const TOPIC_FIGURE_PATTERNS: TopicFigurePattern[] = [
     concept:
       "The same money buying visibly less than it used to — the comparison is the whole idea.",
     figures: [
-      "The same ₹ note beside two grain heaps or vegetable tokris of clearly different volume, the smaller one being today",
-      "A brass paili filled to two visibly different levels for the same note laid alongside",
-      "A coin beside a shrinking stack of everyday goods, the shortfall visible as empty space",
+      "The same denomination note shown twice at clearly different physical sizes, the smaller one being today — same note, less of it",
+      "Two identical coin jars filled to visibly different levels, an hourglass between them marking the time that passed",
+      "A flight of steps descending rather than rising, each lower tread holding fewer coins than the one above",
     ],
     avoid: [
       "melting, burning or dissolving money (alarmist and unclear)",
-      "downward arrows or declining charts",
+      "a rising graph — inflation erodes, so an upward line reads as the opposite",
       "specific inflation percentages",
     ],
   },
@@ -423,12 +428,12 @@ export const TOPIC_FIGURE_PATTERNS: TopicFigurePattern[] = [
     concept:
       "Money deliberately kept reachable — access is the feature being shown.",
     figures: [
-      "An earthen matka with a small brass tap at its base, coins visible inside, the tap reading as easy access",
-      "A gullak with an easy-lift lid set beside a sealed one, the openable vessel in front",
-      "An open steel cash box with coins within immediate reach of a hand",
+      "A bank vault door standing wide open with coin stacks in easy reach just inside, the openness being the whole point",
+      "A coin jar with its lid lifted clear and set beside it, coins visible and reachable at the mouth",
+      "A bank locker drawer pulled fully out, notes and coins immediately to hand",
     ],
     avoid: [
-      "bank-vault doors, combination locks or heavy security imagery (that is the opposite idea)",
+      "a closed or locked vault, combination dials or heavy security imagery — that is the opposite idea",
       "disaster, flood or crisis scenes",
     ],
   },
@@ -438,9 +443,9 @@ export const TOPIC_FIGURE_PATTERNS: TopicFigurePattern[] = [
     concept:
       "A small deduction taken from a larger amount — the proportion must look small but real.",
     figures: [
-      "A coin stack with one visibly thin coin set aside from it, the small separated slice reading as the cost",
-      "A brass measure filled with grain, a single small scoop lifted clear of the top",
-      "A bahi-khata page with a coin stack beside it and one coin held apart",
+      "A coin stack with one thin coin set apart from it, the small separated slice reading as the cost against the whole",
+      "A coin jar being filled while two or three coins rest on the surface outside it, clearly the smaller share",
+      "A 3D bar graph whose columns each carry a thin band of a different material at the top, that band being the deduction",
     ],
     avoid: [
       "invented percentage figures or fee numbers",
@@ -518,18 +523,15 @@ function rotate<T>(items: T[], offset: number): T[] {
  * mechanism, so an unmatched topic degrades to "pick a real object" instead of
  * "invent an apparatus".
  */
-/** Named objects offered when no topic pattern matches. Rotated per brief. */
+/** The approved objects, offered when no topic pattern matches. Rotated per brief. */
 const FALLBACK_PROP_EXAMPLES = [
-  "a gullak",
-  "a bank passbook",
-  "graduated brass paili measures",
-  "an earthen matka",
-  "a bound sheaf of currency notes",
-  "gold bangles",
-  "a bahi-khata ledger",
-  "a steel tiffin stack",
-  "a jute bora sack",
-  "a spike-file of bills",
+  "a coin jar",
+  "a stack or crowd of coins",
+  "a fan or bundle of notes",
+  "a 3D graph built as a real object",
+  "a flight of steps",
+  "an hourglass",
+  "a bank vault door",
 ];
 
 export function getTopicFigureGuidance(payload: PosterStudioPayload): TopicFigureGuidance {
@@ -571,12 +573,12 @@ export function getTopicFigureGuidance(payload: PosterStudioPayload): TopicFigur
   const topic = payload.topic.trim() || payload.headline.trim() || "this topic";
   return {
     matchedId: null,
-    concept: `Make the specific financial idea in "${topic}" visible through ONE everyday Indian money object, chosen because its real physical structure explains that idea.`,
+    concept: `Make the specific financial idea in "${topic}" visible using ONE object from the approved list, chosen because its real physical structure explains that idea.`,
     figures: [
-      // Rotated too: an unmatched topic used to always open with "a gullak, a taraju,
-      // a steel thali with katoris", which is exactly how those three became the
-      // house style for every brief that fell through to this fallback.
-      `A single recognisable Indian money object whose natural structure carries the idea in "${topic}" — for example ${rotate(FALLBACK_PROP_EXAMPLES, rotation).join(", ")}`,
+      // Rotated so an unmatched topic does not always open with the same object,
+      // which is how a handful of props became the house style for every brief
+      // that fell through to this fallback.
+      `One object from the approved list whose natural structure carries the idea in "${topic}" — ${rotate(FALLBACK_PROP_EXAMPLES, rotation).join(", ")}`,
       "Where the idea is a comparison, show the same kind of object at two clearly different scales or two clearly different fill levels rather than two unrelated objects",
       "Where the idea is repetition over time, show one vessel plus an evenly spaced run of identical coins or notes",
     ],
@@ -609,7 +611,7 @@ const LIGHTING_MOODS: Record<string, string> = {
   "studio-neutral":
     "neutral studio light — balanced white key, gentle fill, no colour cast; the reference default",
   "warm-festive":
-    "warm festive light with a low golden key and a soft amber bounce, as if lit by diyas just off-frame; celebratory without turning orange",
+    "warm festive light with a low golden key and a soft amber bounce, as if lit by oil lamps just off-frame; celebratory without turning orange",
   "cool-editorial":
     "cool editorial light — slightly blue-neutral key, crisper falloff and deeper shadow, serious and news-like",
 };
@@ -637,16 +639,14 @@ export function formatArtDirection(
 }
 
 const PROP_GROUP_LABELS: Record<keyof typeof INDIAN_FINANCIAL_PROPS, string> = {
-  currency: "Currency and coins",
-  householdSavings: "Household savings vessels",
-  shopAndMeasure: "Shop, ledger and measure",
-  kitchenAndServing: "Kitchen and serving",
-  documents: "Bank and fund paperwork",
-  gold: "Gold and jewellery",
-  growth: "Growing and seasonal",
-  digital: "Everyday digital money",
-  market: "Market landmarks",
-  festive: "Festive and seasonal",
+  coins: "Coins",
+  notes: "Notes",
+  coinJar: "Coin jar",
+  dimensionalGraph: "3D graph",
+  steps: "Steps",
+  hourglass: "Hourglass / time",
+  bankVault: "Bank vault",
+  marketGraphBackground: "Stock-market graph (background only)",
 };
 
 /**
@@ -654,7 +654,7 @@ const PROP_GROUP_LABELS: Record<keyof typeof INDIAN_FINANCIAL_PROPS, string> = {
  *
  * Deliberately NOT a menu. An earlier version handed the model three fixed options
  * per topic and told it to "choose ONE", which made every poster on a topic reach
- * for the same prop — every diversification brief became a steel thali. The list
+ * for the same prop — every diversification brief became a steel round steel dinner plate. The list
  * below is now framed as worked examples showing the required level of
  * concreteness, sitting under the full prop vocabulary, with an explicit
  * instruction to invent something specific to this brief. The examples also rotate
@@ -678,9 +678,9 @@ export function formatTopicFigureGuidance(guidance: TopicFigureGuidance): string
         ]
       : []),
     "",
-    "INVENT THE SUBJECT FOR THIS SPECIFIC BRIEF. Choose the object because its real physical structure explains THIS headline — not because it appears in a list. Two posters on the same topic should not use the same object. If an example below already fits perfectly, use it; otherwise reach past the examples into the wider vocabulary, or combine two props into one credible object.",
+    "BUILD THE SUBJECT FOR THIS SPECIFIC BRIEF FROM THE APPROVED LIST BELOW. The list is closed — no object outside it may appear as the hero, however well it would suit the topic. Within it you have real freedom: choose the object whose physical structure explains THIS headline, then decide its scale, quantity, state, arrangement, fill level, whether it is open or closed, full or filling, and what it holds. Two posters on the same topic should not look the same, and the way to achieve that is staging, not a different object. Combining two approved objects into one credible scene is allowed and often the strongest answer.",
     "",
-    "INDIAN MONEY VOCABULARY — the range available to you, not a checklist:",
+    "APPROVED OBJECT LIST — this is the complete set. Nothing outside it may be the hero:",
     ...vocabulary,
     "",
     // Always sent, not gated on the topic: notes and coins turn up as a secondary

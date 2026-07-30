@@ -33,3 +33,9 @@ graphify-out/
 # standalone test harness for the poster/ChatGPT features — kept on disk as a
 # reference, never built or deployed (also excluded in tsconfig.json)
 /Promptstudio test/
+
+# saas
+/saas/
+
+# design reference cache
+.design-reference/

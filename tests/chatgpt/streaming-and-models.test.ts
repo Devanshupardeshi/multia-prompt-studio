@@ -134,7 +134,7 @@ describe("the streaming protocol survives a round trip", () => {
     const response = streamingResponse(async (writer) => {
       writer.status("Thinking");
       writer.reasoning("considering ");
-      writer.reasoning("a gullak");
+      writer.reasoning("a clay coin bank");
       writer.result({ json: "{}" });
     });
 
@@ -143,7 +143,7 @@ describe("the streaming protocol survives a round trip", () => {
     assert.equal(events[0].type, "status");
     assert.deepEqual(
       events.filter((event) => event.type === "reasoning").map((e) => (e as { text: string }).text),
-      ["considering ", "a gullak"],
+      ["considering ", "a clay coin bank"],
     );
     const result = events.at(-1);
     assert.equal(result?.type, "result");

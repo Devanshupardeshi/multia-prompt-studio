@@ -785,7 +785,7 @@ describe("the render prompt fits the provider budget in every style", () => {
 // cannot use — that budget belongs to the financial mappings and layout bounds.
 describe("the heavy specs are attached only when the poster involves them", () => {
   test("money is detected from the contract text", () => {
-    for (const text of ["a stack of coins", "one ₹500 note", "cash in a gullak", "the DENOMINATION block"]) {
+    for (const text of ["a stack of coins", "one ₹500 note", "cash in a clay coin bank", "the DENOMINATION block"]) {
       assert.equal(detectElements(text).money, true, text);
     }
     assert.equal(detectElements("a banyan sapling in an earthen pot").money, false);
@@ -795,7 +795,9 @@ describe("the heavy specs are attached only when the poster involves them", () =
     for (const text of ["a shopkeeper's hand", "one investor holding it", "a woman's palm", "her fingers"]) {
       assert.equal(detectElements(text).human, true, text);
     }
-    assert.equal(detectElements("a taraju on a wooden base").human, false);
+    // A prop named after a person must not count as one, or every poster using
+    // the balance pays 4KB of human spec it cannot use.
+    assert.equal(detectElements("a two-pan shopkeeper's balance on a wooden base").human, false);
   });
 
 });

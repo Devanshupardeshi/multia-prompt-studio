@@ -33,7 +33,7 @@ export interface PosterSize {
 export type PosterBackgroundChoice = "auto" | "prussian-blue" | "maroon-navy";
 
 // Hero material is a SUBJECT property (what the object is made of), not a style
-// property — a brass taraju and a steel taraju are the same object in the same
+// property — a brass two-pan shopkeeper's balance and a steel two-pan shopkeeper's balance are the same object in the same
 // style. "auto" lets the style category decide, which is what clay and papercraft
 // require since their material is the style.
 export type PosterHeroMaterial =

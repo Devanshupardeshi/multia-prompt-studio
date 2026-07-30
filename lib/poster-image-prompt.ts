@@ -384,11 +384,14 @@ function getCategorySpecificNegatives(category: PosterModelCategory) {
  * carries both, so the model knows the rules when it writes the concept.
  */
 const MONEY_WORDS =
-  /\b(coins?|notes?|banknotes?|currency|rupees?|cash|money|monetary|denominations?|paisa|tender|gullak)\b/;
+  /\b(coins?|notes?|banknotes?|currency|rupees?|cash|money|monetary|denominations?|paisa|tender|coin jar)\b/;
 // "man" and "arm" are deliberately absent: once case is folded they match inside
 // "many" and "armature", and a false positive here costs 4KB of contract detail.
+// "shopkeeper" is absent for the same reason — a prop is named after one ("a
+// two-pan shopkeeper's balance"), so it would flag every poster using that object.
+// A real person still matches on "hand", "face" or "person" in the same sentence.
 const HUMAN_WORDS =
-  /\b(hands?|fingers?|thumb|palm|wrist|forearm|persons?|people|faces?|investors?|shopkeepers?|family|families|woman|women|child|children|human|portrait of)\b/;
+  /\b(hands?|fingers?|thumb|palm|wrist|forearm|persons?|people|faces?|investors?|family|families|woman|women|child|children|human|portrait of)\b/;
 
 export function detectElements(rawContract: string) {
   const text = rawContract.toLowerCase();
@@ -456,7 +459,7 @@ NON-NEGOTIABLE COMPOSITION RULES:
 - If the concept uses a balance, both loads must rest on real trays connected through one credible beam and fulcrum.
 - Preserve every enabled copy-safe area, especially the body-copy information panel. Never enlarge the hero into it.
 - The background established above is mandatory and non-negotiable. Re-check before finishing that the canvas is filled with the approved deep field and is not white, pale or empty.
-- Keep the hero simple and immediately recognisable — one clear object built from a small number of parts (a gullak with coins at its slot, a taraju holding two coin stacks, a steel thali with filled katoris), not an elaborate multi-object scene. If a viewer cannot identify the hero object and its financial meaning within one second at thumbnail size, it is too complicated.
+- Keep the hero simple and immediately recognisable — one clear object built from a small number of parts (a coin jar with coins at its slot, two coin stacks of different height, an hourglass, a vault door), not an elaborate multi-object scene. If a viewer cannot identify the hero object and its financial meaning within one second at thumbnail size, it is too complicated.
 - Generate no text, letters, words, numerals, pseudo-text, dial labels, scale markings, logos, brand marks, watermarks, signatures or interface elements.
 
 ${elements.money ? MONEY_BLOCK : MONEY_BRIEF}
