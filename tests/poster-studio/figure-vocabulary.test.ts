@@ -552,12 +552,12 @@ describe("all currency is Indian, specified exactly", () => {
     assert.match(INDIAN_CURRENCY_SPEC, /Lion Capital of Ashoka/);
   });
 
-  test("real texture and engraved figures are demanded, not just colour", () => {
-    assert.match(INDIAN_CURRENCY_SPEC, /PHYSICAL FIDELITY/);
-    assert.match(INDIAN_CURRENCY_SPEC, /intaglio/i);
+  test("real texture is demanded, within what the policy filter allows", () => {
+    // Paper behaviour and coin relief are the parts that survive: they make the
+    // money look real without describing a reproducible document.
     assert.match(INDIAN_CURRENCY_SPEC, /cotton-rag/i);
-    assert.match(INDIAN_CURRENCY_SPEC, /security thread/i);
-    assert.match(INDIAN_CURRENCY_SPEC, /guilloche/i);
+    assert.match(INDIAN_CURRENCY_SPEC, /fibre grain/i);
+    assert.match(INDIAN_CURRENCY_SPEC, /soft central fold/i);
     assert.match(INDIAN_CURRENCY_SPEC, /struck relief/i);
     assert.match(INDIAN_CURRENCY_SPEC, /tarnish/i);
   });
@@ -573,12 +573,12 @@ describe("all currency is Indian, specified exactly", () => {
     }
   });
 
-  test("the typography carve-out keeps the no-generated-text rule intact", () => {
-    // Without this the spec and the poster's no-text rule contradict each other,
-    // and the model resolves the conflict by inventing garbled numerals.
-    assert.match(INDIAN_CURRENCY_SPEC, /do not attempt legible denomination numerals/i);
+  test("no text is attempted on the money at all", () => {
+    // Printed wording was the other half of the counterfeiting risk, and it is also
+    // what the model garbles. Both problems are solved by not attempting it.
+    assert.match(INDIAN_CURRENCY_SPEC, /NO TEXT ON THE MONEY/);
+    assert.match(INDIAN_CURRENCY_SPEC, /no serial/i);
     assert.match(INDIAN_CURRENCY_SPEC, /never invent garbled pseudo-numerals/i);
-    assert.match(INDIAN_CURRENCY_SPEC, /Everything pictorial .* is required in full detail/);
   });
 
   test("the concept brief carries the condensed rules, not the full 11KB of spec", () => {
@@ -602,5 +602,50 @@ describe("all currency is Indian, specified exactly", () => {
       CONCEPT_SPEC_BRIEFS.length < INDIAN_CURRENCY_SPEC.length,
       "the condensed form must actually be shorter",
     );
+  });
+});
+
+// The image model returns a bare 403 "Forbidden" when a prompt asks for money
+// rendered as a faithful reproduction — security features in particular read as
+// counterfeiting. The spec must describe money well enough to look Indian without
+// ever asking for a facsimile.
+describe("the currency spec cannot read as a counterfeiting request", () => {
+  test("no security feature is ever requested", () => {
+    for (const feature of [
+      "security thread",
+      "see-through register",
+      "microprint",
+      "serial number",
+      "guilloche",
+      "intaglio",
+    ]) {
+      const asked = INDIAN_CURRENCY_SPEC.split("\n").some(
+        (line) =>
+          line.toLowerCase().includes(feature) &&
+          !/no |never|without/i.test(line.slice(0, line.toLowerCase().indexOf(feature))),
+      );
+      assert.ok(!asked, `the spec asks for "${feature}", which reads as counterfeiting`);
+    }
+  });
+
+  test("it states plainly that this is stylised artwork, not a reproduction", () => {
+    assert.match(INDIAN_CURRENCY_SPEC, /STYLISED, NEVER A FACSIMILE/);
+    assert.match(INDIAN_CURRENCY_SPEC, /never as a faithful, flat-on, full-face copy/);
+    assert.match(INDIAN_CURRENCY_SPEC, /obviously unusable as anything else/);
+    assert.match(INDIAN_CURRENCY_SPEC, /No security features of any kind/);
+  });
+
+  test("a note stays identifiable without any of that", () => {
+    // Colour, size and motif are what make it read as Indian; none of them are
+    // security features, so all of them survive.
+    assert.match(INDIAN_CURRENCY_SPEC, /identified by its COLOUR, its SIZE and its reverse MOTIF/);
+    assert.match(INDIAN_CURRENCY_SPEC, /stone grey/);
+    assert.match(INDIAN_CURRENCY_SPEC, /Red Fort/);
+  });
+
+  test("coins keep their full physical detail, which is not a policy concern", () => {
+    assert.match(INDIAN_CURRENCY_SPEC, /struck relief/i);
+    assert.match(INDIAN_CURRENCY_SPEC, /Lion Capital of Ashoka/);
+    assert.match(INDIAN_CURRENCY_SPEC, /tarnish/i);
   });
 });

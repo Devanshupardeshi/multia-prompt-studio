@@ -169,6 +169,39 @@ function isAuthenticationError(error: unknown): boolean {
   return false;
 }
 
+/**
+ * A content-policy refusal, as opposed to a broken request or an expired session.
+ *
+ * The provider returns a bare 403 whose message is just "Forbidden", which is
+ * indistinguishable from a transport problem unless the status is checked. Walks
+ * the cause chain the same way the auth check does, since the AI SDK wraps the
+ * original response error several layers deep.
+ */
+function isPolicyRefusal(error: unknown): boolean {
+  let current: unknown = error;
+  for (let depth = 0; current && depth < 5; depth += 1) {
+    if (typeof current === "string") {
+      return /\bforbidden\b|\b403\b|content policy|safety system|moderation/i.test(current);
+    }
+    if (typeof current !== "object") return false;
+    const candidate = current as {
+      cause?: unknown;
+      message?: unknown;
+      status?: unknown;
+      statusCode?: unknown;
+    };
+    if (candidate.status === 403 || candidate.statusCode === 403) return true;
+    if (
+      typeof candidate.message === "string" &&
+      /\bforbidden\b|\b403\b|content policy|safety system|moderation/i.test(candidate.message)
+    ) {
+      return true;
+    }
+    current = candidate.cause;
+  }
+  return false;
+}
+
 export async function POST(request: Request) {
   let value: unknown;
   try {
@@ -257,6 +290,19 @@ export async function POST(request: Request) {
       return NextResponse.json(
         { error: "Sign in with ChatGPT to generate the poster artwork." },
         { status: 401 },
+      );
+    }
+    // A bare "Forbidden" is the provider's HTTP status text and tells the designer
+    // nothing. A 403 here is a content-policy refusal, not a broken request — and
+    // the usual trigger is the currency: asking for an accurate banknote reads as
+    // counterfeiting. Say that, since the fix is to restage rather than retry.
+    if (isPolicyRefusal(error)) {
+      return NextResponse.json(
+        {
+          error:
+            "The image model refused this prompt on content policy. The usual cause is money rendered too literally — a flat, front-on, complete banknote reads as a reproduction. Regenerate, or steer the concept toward coins, a folded or angled note, or a different approved object.",
+        },
+        { status: 422 },
       );
     }
     return NextResponse.json(
